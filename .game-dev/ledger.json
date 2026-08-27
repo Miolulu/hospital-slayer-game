@@ -2,8 +2,8 @@
   "document": {
     "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
     "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
-    "revision": 1899,
-    "lastCheckedAt": "2026-08-27T17:49:10+08:00"
+    "revision": 1902,
+    "lastCheckedAt": "2026-08-27T17:53:18+08:00"
   },
   "completedItems": [
     {
@@ -170,8 +170,8 @@
     }
   ],
   "verification": {
-    "tests": "28 passed (17:49)",
-    "build": "passed (17:49)",
+    "tests": "28 passed (17:53)",
+    "build": "passed (17:53)",
     "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
     "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
