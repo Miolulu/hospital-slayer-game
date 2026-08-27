@@ -9,6 +9,8 @@ npm.cmd install
 npm.cmd run dev
 ```
 
+或者直接运行根目录的 `start.cmd`。
+
 构建与测试：
 
 ```powershell
