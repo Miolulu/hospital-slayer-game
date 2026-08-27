@@ -186,8 +186,10 @@
     }
   ],
   "verification": {
-    "tests": "28 passed (17:53)",
-    "build": "passed (17:53)",
+    "tests": "28 passed (18:31)",
+    "build": "passed (18:20)",
+    "buildaBundleCheck": "passed (18:20): build/builda-web.zip, h5, 42637313 bytes",
+    "buildaMobileBrowserCheck": "passed (18:27): Builda dev shell safe-area preview plus 844x390 landscape flow home -> mainline -> weapon -> dialogue -> battle; evidence/builda-shell-mobile-2026-08-27.png and builda-mobile-*.png",
     "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
     "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
