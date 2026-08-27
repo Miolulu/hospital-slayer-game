@@ -460,6 +460,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
     this.load.image('patient-boy', '/assets/art/patient-boy.png');
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
+    PLAYER_SKIN_ART_IMAGES.forEach(({ key, path }) => {
+      this.load.image(key, path);
+    });
+    PLAYER_SKIN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => {
+      this.load.spritesheet(key, path, { frameWidth, frameHeight });
+    });
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
@@ -692,6 +698,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
         definitions.push({ key: this.skinWalkAnimationKey(skin, direction), end: 3, frameRate: 9, repeat: -1 });
       });
+    });
+    PLAYER_SKIN_ART_SHEETS.forEach(({ key }) => {
+      definitions.push({ key, end: 3, frameRate: 9, repeat: -1 });
     });
     definitions.forEach(({ key, end, frameRate, repeat }) => {
       if (!this.anims.exists(key) && this.textures.exists(key)) {
@@ -1197,6 +1206,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       const raw = window.localStorage.getItem('hospital-godslayer-progress');
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<ProgressSave>;
+      const defaultSkinIds = ['patient-default', 'investigator-normal'];
       const defaultWeaponSkins = ['sword-default', 'gun-default', 'whip-default', 'cannon-default'];
       const equippedWeaponSkinIds = parsed.equippedWeaponSkinIds && typeof parsed.equippedWeaponSkinIds === 'object'
         ? parsed.equippedWeaponSkinIds
@@ -1207,7 +1217,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
-        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string') : ['patient-default', 'investigator-normal'],
+        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string') : defaultSkinIds,
         equippedSkinId: typeof parsed.equippedSkinId === 'string' ? parsed.equippedSkinId : 'patient-default',
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
         dailyCompletedDate: typeof parsed.dailyCompletedDate === 'string' ? parsed.dailyCompletedDate : undefined,
@@ -2448,8 +2458,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private profileSkinCategoryFor(skin: SkinDef): ProfileSkinCategory {
-    if (skin.id === 'patient-default') return 'basic';
-    if (skin.id === 'investigator-normal') return 'basic';
+    if (skin.id === 'patient-default' || skin.id === 'investigator-normal') return 'basic';
     if (skin.id === 'scarlet-night') return 'boss';
     return 'store';
   }
