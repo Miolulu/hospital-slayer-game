@@ -1,0 +1,85 @@
+:root {
+  color-scheme: dark;
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  background: #0b1117;
+  font-synthesis: none;
+  --ink: #05090f;
+  --panel: #111d27;
+  --line: #6bd3c1;
+  --cream: #f4e8c9;
+  --muted: #92aaa9;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app, #game-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  background: #0b1117;
+}
+
+#app {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+#game-shell {
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+}
+
+#orientation-guard {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  place-items: center;
+  padding: 24px;
+  background: #0b1117;
+  color: var(--cream);
+  text-align: center;
+}
+
+.orientation-card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(360px, calc(100vw - 48px));
+  padding: 28px 24px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+.orientation-card strong {
+  font: 700 20px "Microsoft YaHei", sans-serif;
+}
+
+.orientation-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.orientation-glyph {
+  color: var(--amber);
+  font: 700 42px/1 "Courier New", monospace;
+}
+
+@media (orientation: portrait) {
+  #orientation-guard { display: grid; }
+  #game-shell { visibility: hidden; }
+}

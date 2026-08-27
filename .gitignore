@@ -1,0 +1,25 @@
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+builda-web.zip
+
+# Superseded local prototype
+strange-hospital/
+
+# Local development evidence and caches
+.game-dev/evidence/
+.game-dev/handoffs/
+.game-dev/briefs/
+.game-dev/network-metrics/
+.game-dev/library-decisions/
+.vite/
+coverage/
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+Thumbs.db

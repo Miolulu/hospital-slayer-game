@@ -1,0 +1,27 @@
+{
+    "bundleEntry":  "index.html",
+    "tagline":  "操控小男孩在精神病院中旋转武器斩灭异变。",
+    "assetsManifestUrl":  "",
+    "assetsVersion":  "",
+    "bundleSize":  0,
+    "desc":  "横屏单人自动战斗 Roguelike 试玩。移动、吸收掉落、升级武器，在 30 层医院中面对逐渐失控的 SAN 值和 Boss；主线每层 20 波，每日挑战 50 波。",
+    "coverKind":  "palette",
+    "coverUrl":  "",
+    "buildSize":  0,
+    "assetsBaseUrl":  "",
+    "minChromeMajor":  80,
+    "bundleVersion":  "",
+    "title":  "我在精神病院斩神",
+    "orientation":  "landscape",
+    "bundleMd5":  "",
+    "tags":  [
+                 "h5"
+             ],
+    "category":  "survival",
+    "bundleUrl":  "",
+    "buildPrefix":  "",
+    "buildEntry":  "index.html",
+    "engine":  "h5",
+    "coverPalette":  "ember",
+    "minIOSMajor":  15
+}

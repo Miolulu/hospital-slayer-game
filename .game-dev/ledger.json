@@ -1,0 +1,117 @@
+{
+  "document": {
+    "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
+    "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
+    "revision": 1531,
+    "lastCheckedAt": "2026-08-27T17:08:00+08:00"
+  },
+  "completedItems": [
+    {
+      "summary": "基础病号服男孩 Q 版像素素材接入战斗与角色预览",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/patient-boy.png"
+    },
+    {
+      "summary": "武器选择界面展示武器皮肤",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "武器强化持续到当前楼层结束",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "波间通关提示与下一波倒计时调整为 1.8 秒",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "每波提高怪物强度和出怪速度，取消场上数量上限",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "波次收尾等待死亡渐隐和掉落物吸附结算",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "每日挑战调整为 50 波并加入联动升级卡牌",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "攻击特效改为可叠加的伤害、时长和传播成长线",
+      "status": "done",
+      "implementedIn": "src/main.ts, src/combatBalance.ts"
+    },
+    {
+      "summary": "每日挑战加入原创高辨识度联动卡和蓝色、紫色、金色品质",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "每日挑战 50 波按波次提升生命、伤害、出怪速度和出怪预算",
+      "status": "done",
+      "implementedIn": "src/main.ts, src/combatBalance.ts"
+    },
+    {
+      "summary": "战斗 HUD 固定在视口并避开摇杆，按钮触摸热区统一扩大",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "小男孩四方向真实步行帧接入战斗",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/animations/patient-walk-left.png, public/assets/art/animations/patient-walk-right.png, public/assets/art/animations/patient-walk-up.png, public/assets/art/animations/patient-walk-down.png"
+    },
+    {
+      "summary": "资料页、对白页和结算页的按钮热区分离，长状态文案支持换行",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "四种基础武器透明像素资源接入战斗环绕、武器选择卡片和 HUD",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/weapons/weapon-sword.png, public/assets/art/weapons/weapon-gun.png, public/assets/art/weapons/weapon-whip.png, public/assets/art/weapons/weapon-cannon.png"
+    },
+    {
+      "summary": "小男孩正面静止帧与左右交替腿步态接入",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/animations/patient-idle-front.png, public/assets/art/animations/patient-walk-left.png, public/assets/art/animations/patient-walk-right.png"
+    },
+    {
+      "summary": "修复左右行走帧黑块并重排交替腿步态",
+      "status": "done",
+      "implementedIn": "tmp/imagegen/make_patient_walk_revision.py, public/assets/art/animations/patient-walk-left.png, public/assets/art/animations/patient-walk-right.png, public/assets/art/animations/patient-walk-preview.gif"
+    },
+    {
+      "summary": "升级卡牌竖版美术、品质底图、类型图标和选中态接入",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/cards/upgrade-card-blue-v1.png, public/assets/art/cards/upgrade-card-purple-v1.png, public/assets/art/cards/upgrade-card-gold-v1.png, .game-dev/evidence/card-art-references/"
+    }
+  ],
+  "pendingItems": [
+    {
+      "summary": "免费刷新两次后，后续刷新调用平台支付接口",
+      "status": "blocked",
+      "implementedIn": "src/main.ts, src/combatBalance.ts",
+      "reason": "代码已调用 Builda.pay.showPayPanel 并处理取消、失败、重复订单；发布配置中的 payId 和价格未确认，当前也缺少 Builda App 真机验证。"
+    },
+    {
+      "summary": "后期重做大 Boss 攻击",
+      "status": "blocked",
+      "reason": "飞书意见明确安排在后期，尚未给出新的攻击方式、数值和验收标准。"
+    }
+  ],
+  "verification": {
+    "tests": "28 passed (17:08)",
+    "build": "passed (17:08)",
+    "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
+    "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
+    "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
+    "independentTestAgent": "passed: 26 tests, TypeScript check, build, asset copy",
+    "independentTouchTest": "blocked: no independent touch harness; static regression passed after UI fixes (evidence/final-static-retest-2026-08-27.md)"
+  }
+}
