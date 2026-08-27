@@ -613,6 +613,29 @@ export class HospitalBattleScene extends Phaser.Scene {
     return specs[weapon.weaponClass];
   }
 
+  private safeGameRect(padding = 0) {
+    const canvasRect = this.game?.canvas?.getBoundingClientRect();
+    const scaleX = canvasRect?.width ? W / canvasRect.width : 1;
+    const scaleY = canvasRect?.height ? H / canvasRect.height : 1;
+    const leftInset = Math.max(0, this.buildaSafeArea.left * scaleX);
+    const rightInset = Math.max(0, this.buildaSafeArea.right * scaleX);
+    const topInset = Math.max(0, this.buildaSafeArea.top * scaleY);
+    const bottomInset = Math.max(0, this.buildaSafeArea.bottom * scaleY);
+    const left = clamp(leftInset + padding, 0, W / 2 - 1);
+    const right = clamp(W - rightInset - padding, W / 2 + 1, W);
+    const top = clamp(topInset + padding, 0, H / 2 - 1);
+    const bottom = clamp(H - bottomInset - padding, H / 2 + 1, H);
+    return { left, right, top, bottom, width: right - left, height: bottom - top, centerX: (left + right) / 2, centerY: (top + bottom) / 2 };
+  }
+
+  private safeBackButtonX() {
+    return this.safeGameRect(16).left + 75;
+  }
+
+  private safeBackButtonY() {
+    return this.safeGameRect(16).top + 21;
+  }
+
   private refreshBuildaLayout() {
     const sdk = window.Builda;
     if (sdk?.runtime) {
@@ -625,12 +648,13 @@ export class HospitalBattleScene extends Phaser.Scene {
       }
     }
     const canvasRect = this.game?.canvas?.getBoundingClientRect();
-    const scale = canvasRect?.width ? W / canvasRect.width : 1;
-    const safeTop = Math.max(18, (this.buildaSafeArea.top + 8) * scale);
+    const scaleX = canvasRect?.width ? W / canvasRect.width : 1;
+    const scaleY = canvasRect?.height ? H / canvasRect.height : 1;
+    const safeTop = Math.max(18, (this.buildaSafeArea.top + 8) * scaleY);
     const capsuleRight = this.buildaCapsuleRect.width > 0
-      ? (this.buildaSafeArea.right + this.buildaCapsuleRect.right + this.buildaCapsuleRect.width + 12) * scale
-      : this.buildaSafeArea.right * scale + 20;
-    const safeBottom = this.buildaSafeArea.bottom * scale;
+      ? (this.buildaSafeArea.right + this.buildaCapsuleRect.right + this.buildaCapsuleRect.width + 12) * scaleX
+      : this.buildaSafeArea.right * scaleX + 20;
+    const safeBottom = this.buildaSafeArea.bottom * scaleY;
     this.hud.panel?.setPosition(174, H - 242 - safeBottom);
     this.hud.resourcePanel?.setPosition(W - 122 - Math.max(0, capsuleRight - 20), safeTop + 36);
   }
@@ -886,9 +910,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addMenuBackdrop(layer);
     // 病历档案入口对应玩家信息页，怪物图鉴暂时保留在内部供后续接入。
-    this.addMenuImageButton(layer, 640, 382, 330, 132, 'menu-button-archive-v1', '病历档案', () => this.showProfile());
-    this.addMenuImageButton(layer, 640, 516, 330, 132, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
-    this.addMenuImageButton(layer, 640, 650, 330, 132, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
+    const safe = this.safeGameRect(12);
+    const buttonHeight = 132;
+    const buttonGap = 2;
+    const lastButtonY = safe.bottom - buttonHeight / 2;
+    const firstButtonY = lastButtonY - (buttonHeight + buttonGap) * 2;
+    this.addMenuImageButton(layer, safe.centerX, firstButtonY, 330, buttonHeight, 'menu-button-archive-v1', '病历档案', () => this.showProfile());
+    this.addMenuImageButton(layer, safe.centerX, firstButtonY + buttonHeight + buttonGap, 330, buttonHeight, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
+    this.addMenuImageButton(layer, safe.centerX, lastButtonY, 330, buttonHeight, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
     this.overlay = layer;
   }
 
@@ -898,8 +927,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     background.setDisplaySize(background.width * backgroundScale, background.height * backgroundScale).setAlpha(0.98);
     layer.add(background);
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.14));
-    const title = this.add.image(W / 2, -8, 'menu-title-v2').setOrigin(0.5, 0);
-    const titleWidth = 1120;
+    const safe = this.safeGameRect(12);
+    const title = this.add.image(safe.centerX, safe.top - 8, 'menu-title-v2').setOrigin(0.5, 0);
+    const titleWidth = Math.min(1120, safe.width - 36);
     title.setDisplaySize(titleWidth, titleWidth * title.height / title.width);
     layer.add(title);
     layer.add(this.add.rectangle(W / 2, H - 18, W, 36, 0x02070b, 0.42));
@@ -3010,6 +3040,10 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private addButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, style: 'primary' | 'muted' | 'danger' = 'primary', hitPadding = 14) {
+    if (x === 88 && y === 38) {
+      x = this.safeBackButtonX();
+      y = this.safeBackButtonY();
+    }
     const colors = { primary: 0x2d6b69, muted: 0x26383f, danger: 0x8c3c4d };
     const lineColors = { primary: 0x7bd6c1, muted: 0x5b777c, danger: 0xed716e };
     // Keep the touch target larger than the visible button.
