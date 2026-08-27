@@ -3,7 +3,7 @@
     "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
     "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
     "revision": 2050,
-    "lastCheckedAt": "2026-08-27T19:17:48+08:00"
+    "lastCheckedAt": "2026-08-27T19:19:34+08:00"
   },
   "completedItems": [
     {
@@ -204,9 +204,9 @@
     }
   ],
   "verification": {
-    "tests": "28 passed (19:16)",
-    "build": "passed (19:16)",
-    "buildaBundleCheck": "passed (19:17): build/builda-web.zip and builda-web.zip, h5, 42640041 bytes",
+    "tests": "28 passed (19:18)",
+    "build": "passed (19:18)",
+    "buildaBundleCheck": "passed (19:19): build/builda-web.zip and builda-web.zip, h5, 42640140 bytes",
     "buildaMobileBrowserCheck": "passed (19:10): Builda dev shell 844x390 landscape safe-area preview; profile entry opened through touch PointerEvent; front patient portrait visible; evidence/builda-profile-front-landscape.png",
     "visualBrowserCheck": "passed: profile skin preview, mainline floor selection, daily Boss portrait and leaderboard, weapon-select flow (1280x720 landscape); no runtime errors",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",

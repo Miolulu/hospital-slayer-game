@@ -1317,10 +1317,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (id === 'scarlet-night') return;
     if (this.skinPaymentPending) return;
     this.skinPaymentPending = true;
-    const saleId = `skin_${id}`;
     try {
       const sdk = window.Builda;
       if (sdk?.pay?.showPayPanel) {
+        const saleId = this.configuredSkinSaleId(id);
+        if (!saleId) return;
         const result = await sdk.pay.showPayPanel(saleId, { timeoutMs: 15000 });
         if (!result.ok || !result.data.success) return;
       } else {
@@ -1336,6 +1337,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.profilePreviewSkinId = id;
     this.saveProgress();
     this.showProfile();
+  }
+
+  private configuredSkinSaleId(id: string) {
+    const config = (window as Window & { __BUILDA_SKIN_SALE_IDS__?: Record<string, unknown> }).__BUILDA_SKIN_SALE_IDS__;
+    const saleId = config?.[id];
+    return typeof saleId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(saleId) ? saleId : '';
   }
 
   private weaponAppearanceLabel(weapon: Weapon) {
