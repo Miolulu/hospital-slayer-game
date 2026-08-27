@@ -65,7 +65,14 @@ interface ProgressSave {
   equippedSkinId: string;
   archiveKinds: string[];
   dailyCompletedDate?: string;
+  dailyBestSeconds?: number;
   metaCoins: number;
+}
+
+interface DailyBoardEntry {
+  rank: number;
+  name: string;
+  score: number;
 }
 
 interface Enemy {
@@ -199,8 +206,21 @@ export class HospitalBattleScene extends Phaser.Scene {
     unlockedSkinIds: ['patient-default'],
     equippedSkinId: 'patient-default',
     archiveKinds: [],
+    dailyBestSeconds: undefined,
     metaCoins: 0,
   };
+  private playerNickname = '患者 0001';
+  private playerIdentityLoaded = false;
+  private profilePreviewSkinId = 'patient-default';
+  private skinPaymentPending = false;
+  private dailyBoard: DailyBoardEntry[] = [
+    { rank: 1, name: '夜班记录员', score: 9820 },
+    { rank: 2, name: '无窗病房', score: 9470 },
+    { rank: 3, name: '患者 0001', score: 0 },
+    { rank: 4, name: '回声样本', score: 9010 },
+    { rank: 5, name: '月影观察者', score: 8760 },
+  ];
+  private dailyBoardLoaded = false;
   private skins: SkinDef[] = [
     { id: 'patient-default', name: '初始病号服', color: 0xe7c28b },
     { id: 'scarlet-night', name: '猩红夜班', color: 0xed716e, setName: '猩红套装', setBuff: '伤害 +6' },
@@ -321,6 +341,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ward-day-v1', '/assets/art/ward-day-v1.png');
     this.load.image('ward-night-v1', '/assets/art/ward-night-v1.png');
     this.load.image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
+    this.load.image('boss-moon-wolf', '/assets/art/boss-moon-wolf.webp');
     this.load.image('upgrade-card-blue-v1', '/assets/art/cards/upgrade-card-blue-v1.png');
     this.load.image('upgrade-card-purple-v1', '/assets/art/cards/upgrade-card-purple-v1.png');
     this.load.image('upgrade-card-gold-v1', '/assets/art/cards/upgrade-card-gold-v1.png');
@@ -373,6 +394,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.game.canvas.addEventListener('lostpointercapture', this.canvasPointerCancelHandler);
     this.showStart();
     this.refreshBuildaLayout();
+    void this.ensurePlayerIdentity();
     void this.notifyBuildaReady();
     window.__GAME_TEST_API__ = {
       snapshot: () => ({
@@ -806,18 +828,70 @@ export class HospitalBattleScene extends Phaser.Scene {
         equippedSkinId: typeof parsed.equippedSkinId === 'string' ? parsed.equippedSkinId : 'patient-default',
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
         dailyCompletedDate: typeof parsed.dailyCompletedDate === 'string' ? parsed.dailyCompletedDate : undefined,
+        dailyBestSeconds: Number.isFinite(Number(parsed.dailyBestSeconds)) && Number(parsed.dailyBestSeconds) > 0 ? Number(parsed.dailyBestSeconds) : undefined,
         metaCoins: Math.max(0, Number(parsed.metaCoins) || 0),
       };
       if (!this.progress.unlockedWeaponIds.includes('knife')) this.progress.unlockedWeaponIds.unshift('knife');
       if (!this.progress.unlockedWeaponIds.includes('ward-lantern')) this.progress.unlockedWeaponIds.push('ward-lantern');
       if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
     } catch {
-      this.progress = { maxFloor: 1, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedSkinIds: ['patient-default'], equippedSkinId: 'patient-default', archiveKinds: [], metaCoins: 0 };
+      this.progress = { maxFloor: 1, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedSkinIds: ['patient-default'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, metaCoins: 0 };
     }
   }
 
   private saveProgress() {
     try { window.localStorage.setItem('hospital-godslayer-progress', JSON.stringify(this.progress)); } catch { /* local storage can be unavailable in an embedded preview */ }
+  }
+
+  private async ensurePlayerIdentity() {
+    if (this.playerIdentityLoaded) return this.playerNickname;
+    try {
+      const result = await window.Builda?.whoami?.({ timeoutMs: 1200 });
+      if (result?.ok && result.data.name.trim()) {
+        this.playerNickname = result.data.name.trim().slice(0, 14);
+      }
+    } catch {
+      // The standalone browser preview has no host identity; keep the local patient label.
+    }
+    this.playerIdentityLoaded = true;
+    this.dailyBoard = this.dailyBoard.map((entry) => entry.rank === 3 ? { ...entry, name: this.playerNickname } : entry);
+    return this.playerNickname;
+  }
+
+  private async loadDailyBoard() {
+    if (this.dailyBoardLoaded) return;
+    try {
+      const result = await window.Builda?.rank?.getRankList('daily_night', { limit: 5, timeoutMs: 1400 });
+      if (result?.ok && result.data.list.length > 0) {
+        this.dailyBoard = result.data.list.map((entry) => ({
+          rank: entry.rank,
+          name: entry.player.name.trim().slice(0, 14) || `患者 ${entry.rank}`,
+          score: Math.max(0, Math.round(entry.score)),
+        }));
+      }
+    } catch {
+      // The local board remains visible when a host rank board is unavailable.
+    }
+    this.dailyBoardLoaded = true;
+  }
+
+  private dailyScoreForTime(seconds: number) {
+    return Math.max(1, Math.round(100000 - Math.max(1, seconds) * 100));
+  }
+
+  private formatDailyTime(seconds?: number) {
+    if (!seconds || !Number.isFinite(seconds)) return '未通关';
+    const total = Math.max(0, Math.round(seconds));
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+
+  private async submitDailyScore(seconds: number) {
+    try {
+      await window.Builda?.rank?.submitScore('daily_night', this.dailyScoreForTime(seconds), { timeoutMs: 1400 });
+    } catch {
+      // Score submission is best effort; the local fastest record is still stored.
+    }
+    this.dailyBoardLoaded = false;
   }
 
   private todayKey() {
@@ -972,29 +1046,46 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.58);
     this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 430, 352, 600, 540, 0x111d27, 0x6bd3c1);
-    this.addPixelFrame(layer, 1035, 350, 280, 540, 0x101a22, 0x46636a);
+    this.addPixelFrame(layer, 640, 360, 1120, 620, 0x101b24, 0x6bd3c1);
     const selected = this.selectedStartFloor;
-    layer.add(this.add.text(180, 116, '主线通关 / MAINLINE', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '15px', color: palette.cyan }).setFontStyle('bold'));
-    layer.add(this.add.text(180, 152, '病区夜班记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '30px', color: palette.cream }).setFontStyle('bold').setFixedSize(500, 42));
-    layer.add(this.add.text(182, 194, '选择已开放楼层后进入武器准备', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
-    layer.add(this.add.rectangle(180, 226, 500, 1, 0x46636a, 0.8).setOrigin(0));
-    layer.add(this.add.text(430, 270, `第 ${selected} 层 · ${selected === 1 ? '旧住院部' : '封锁病区'}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '24px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(430, 312, `病历编号 ${String(selected).padStart(4, '0')} · 小男孩 · SAN 100`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.text(430, 352, `本层 ${this.wavesPerFloor()} 波 · 第 7 波小首领 · 通关后解锁下一层`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.amber, align: 'center', wordWrap: { width: 490 } }).setOrigin(0.5));
-    this.addButton(layer, 430, 458, 280, 56, `进入第 ${selected} 层`, () => this.showWeaponSelect('mainline', selected), 'primary', 10);
-    layer.add(this.add.text(1035, 112, '楼层选择', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '20px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(1035, 145, `已开放 ${String(this.progress.maxFloor).padStart(2, '0')} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.green }).setOrigin(0.5));
-    const previewStart = clamp(selected <= 6 ? 1 : selected - 2, 1, TOTAL_FLOORS - 5);
-    for (let offset = 0; offset < 6; offset += 1) {
+    layer.add(this.add.text(640, 92, '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(640, 126, 'MAINLINE / PATIENT ROUTE', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.rectangle(640, 153, 1000, 1, 0x46636a, 0.75));
+
+    const progressPanel = this.add.container(345, 365);
+    progressPanel.add(this.add.rectangle(0, 0, 500, 430, 0x0a141b, 0.96).setStrokeStyle(2, 0x6bd3c1, 0.88));
+    progressPanel.add(this.add.text(-220, -184, '通关记录', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cyan }).setFontStyle('bold'));
+    progressPanel.add(this.add.text(-220, -138, `第 ${this.progress.maxFloor} / ${TOTAL_FLOORS} 层`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '30px', color: palette.cream }).setFontStyle('bold'));
+    progressPanel.add(this.add.text(-220, -98, `已开放 ${this.progress.maxFloor} 层`, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.green }));
+    const progressBar = this.add.graphics();
+    progressBar.fillStyle(0x26383f, 1).fillRect(-220, -62, 440, 12);
+    progressBar.fillStyle(0x6bd3c1, 1).fillRect(-220, -62, 440 * clamp(this.progress.maxFloor / TOTAL_FLOORS, 0, 1), 12);
+    progressPanel.add(progressBar);
+    progressPanel.add(this.add.text(-220, -22, '当前入场', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }));
+    progressPanel.add(this.add.text(-220, 20, `第 ${selected} 层`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '32px', color: palette.amber }).setFontStyle('bold'));
+    progressPanel.add(this.add.text(-220, 64, `${selected === 1 ? '旧住院部' : '封锁病区'}  /  ${this.wavesPerFloor()} 波`, { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }));
+    progressPanel.add(this.add.text(-220, 96, `病历编号 ${String(selected).padStart(4, '0')}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
+    layer.add(progressPanel);
+    this.addButton(layer, 345, 565, 250, 48, `进入第 ${selected} 层`, () => this.showWeaponSelect('mainline', selected), 'primary', 10);
+
+    const floorPanel = this.add.container(890, 365);
+    floorPanel.add(this.add.rectangle(0, 0, 510, 430, 0x0a141b, 0.96).setStrokeStyle(2, 0x46636a, 0.9));
+    floorPanel.add(this.add.text(-230, -184, '选择楼层', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
+    floorPanel.add(this.add.text(230, -184, `${this.progress.maxFloor} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New', fontSize: '13px', color: palette.green }).setOrigin(1, 0));
+    layer.add(floorPanel);
+    const previewStart = clamp(selected <= 5 ? 1 : selected - 4, 1, Math.max(1, TOTAL_FLOORS - 9));
+    for (let offset = 0; offset < 10; offset += 1) {
       const floor = previewStart + offset;
-      const y = 218 + offset * 48;
+      const column = offset % 2;
+      const row = Math.floor(offset / 2);
+      const x = -125 + column * 250;
+      const y = -130 + row * 58;
       const unlocked = floor <= this.progress.maxFloor;
       if (unlocked) {
-        this.addButton(layer, 1035, y, 210, 36, `${String(floor).padStart(2, '0')}  ${floor === selected ? '已选择' : '已开放'}`, () => this.showMainline(floor), floor === selected ? 'primary' : 'muted', 4);
+        this.addButton(layer, 890 + x, 365 + y, 208, 40, `${String(floor).padStart(2, '0')}  ${floor === selected ? '当前' : '已开放'}`, () => this.showMainline(floor), floor === selected ? 'primary' : 'muted', 6);
       } else {
-        layer.add(this.add.rectangle(1035, y, 210, 36, 0x1b2930, 0.72).setStrokeStyle(1, 0x3b5158, 0.8));
-        layer.add(this.add.text(1035, y, `${String(floor).padStart(2, '0')}  封锁病区`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0.5));
+        floorPanel.add(this.add.rectangle(x, y, 208, 40, 0x1b2930, 0.72).setStrokeStyle(1, 0x3b5158, 0.8));
+        floorPanel.add(this.add.text(x, y, `${String(floor).padStart(2, '0')}  封锁`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0.5));
       }
     }
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
@@ -1099,7 +1190,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.updateHud();
   }
 
-  private showProfile() {
+  private showProfileLegacy() {
     this.phase = 'start';
     this.ui?.setVisible(false);
     this.clearOverlay();
@@ -1143,6 +1234,70 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.overlay = layer;
   }
 
+  private showProfile() {
+    this.phase = 'start';
+    this.ui?.setVisible(false);
+    this.clearOverlay();
+    const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
+    this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.56);
+    this.drawMenuMotif(layer);
+    this.addPixelFrame(layer, 640, 360, 1120, 620, 0x101b24, 0xf2bf62);
+    layer.add(this.add.text(640, 92, '病历档案', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(640, 126, 'PATIENT FILE / WARD 07', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.rectangle(640, 153, 1000, 1, 0x46636a, 0.75));
+
+    const previewSkin = this.skins.find((skin) => skin.id === this.profilePreviewSkinId) ?? this.skins[0];
+    const profile = this.add.container(300, 380);
+    profile.add(this.add.rectangle(0, 0, 350, 450, 0x0a141b, 0.98).setStrokeStyle(2, 0xf2bf62, 0.9));
+    profile.add(this.add.text(-145, -196, '患者本人', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.amber }).setFontStyle('bold'));
+    profile.add(this.add.text(145, -196, '预览', { fontFamily: 'Courier New', fontSize: '12px', color: palette.muted }).setOrigin(1, 0));
+    const portrait = this.addPatientSprite(profile, 0, -22, 255);
+    if (portrait && previewSkin.id !== 'patient-default') portrait.setTint(previewSkin.color);
+    profile.add(this.add.rectangle(0, 72, 92, 110, previewSkin.color, previewSkin.id === 'patient-default' ? 0.08 : 0.2).setStrokeStyle(1, previewSkin.color, 0.5));
+    profile.add(this.add.text(0, 158, this.playerNickname, { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    profile.add(this.add.text(0, 188, `患者编号 0001  /  ${previewSkin.name}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(profile);
+
+    layer.add(this.add.text(515, 184, '衣着记录', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
+    layer.add(this.add.text(1160, 184, `创游货币  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0));
+    layer.add(this.add.text(515, 210, '选择预览，解锁后即可装备', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }));
+    this.skins.forEach((skin, index) => {
+      const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
+      const column = index % 2;
+      const row = Math.floor(index / 2);
+      const x = 665 + column * 310;
+      const y = 315 + row * 205;
+      const card = this.add.container(x, y);
+      const selected = skin.id === this.profilePreviewSkinId;
+      card.add(this.add.rectangle(0, 0, 288, 176, 0x0a141b, 0.98).setStrokeStyle(selected ? 2 : 1, selected ? skin.color : 0x46636a, 0.95));
+      const mini = this.addPatientSprite(card, -92, -3, 100);
+      if (mini && skin.id !== 'patient-default') mini.setTint(skin.color);
+      card.add(this.add.rectangle(-92, 30, 48, 48, skin.color, 0.16).setStrokeStyle(1, skin.color, 0.7));
+      card.add(this.add.text(-20, -58, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0, 0.5).setFontStyle('bold'));
+      card.add(this.add.text(128, -58, unlocked ? (skin.id === this.progress.equippedSkinId ? '已装备' : '已解锁') : '已锁定', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: unlocked ? palette.green : palette.muted }).setOrigin(1, 0.5));
+      card.add(this.add.text(-20, -25, skin.setName ? `${skin.setName}  ${skin.setBuff}` : '基础病号服', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan, wordWrap: { width: 185 } }));
+      card.add(this.add.text(-20, 7, unlocked ? '可直接装备' : skin.id === 'scarlet-night' ? '每日挑战 Boss 掉落' : `创游货币 ${this.skinPurchaseCost(skin.id)}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: unlocked ? palette.muted : palette.amber, wordWrap: { width: 185 } }));
+      layer.add(card);
+      this.addButton(layer, x - 32, y + 61, 82, 28, '预览', () => this.previewSkin(skin.id), selected ? 'primary' : 'muted', 8);
+      if (unlocked) {
+        this.addButton(layer, x + 66, y + 61, 92, 28, skin.id === this.progress.equippedSkinId ? '已装备' : '装备', () => this.equipSkin(skin.id), skin.id === this.progress.equippedSkinId ? 'muted' : 'primary', 8);
+      } else if (skin.id !== 'scarlet-night') {
+        this.addButton(layer, x + 66, y + 61, 92, 28, `购买 ${this.skinPurchaseCost(skin.id)}`, () => this.buySkin(skin.id), 'primary', 8);
+      }
+    });
+    this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
+    this.overlay = layer;
+    if (!this.playerIdentityLoaded) {
+      void this.ensurePlayerIdentity().then(() => { if (this.overlay === layer && layer.active) this.showProfile(); });
+    }
+  }
+
+  private previewSkin(id: string) {
+    if (!this.skins.some((skin) => skin.id === id)) return;
+    this.profilePreviewSkinId = id;
+    this.showProfile();
+  }
+
   private equipSkin(id: string) {
     if (!this.progress.unlockedSkinIds.includes(id)) return;
     this.progress.equippedSkinId = id;
@@ -1154,17 +1309,31 @@ export class HospitalBattleScene extends Phaser.Scene {
     return id === 'cyan-ward' ? 20 : id === 'violet-dream' ? 15 : 999;
   }
 
-  private buySkin(id: string) {
+  private async buySkin(id: string) {
     if (this.progress.unlockedSkinIds.includes(id)) {
       this.equipSkin(id);
       return;
     }
     if (id === 'scarlet-night') return;
-    const cost = this.skinPurchaseCost(id);
-    if (this.progress.metaCoins < cost) return;
-    this.progress.metaCoins -= cost;
+    if (this.skinPaymentPending) return;
+    this.skinPaymentPending = true;
+    const saleId = `skin_${id}`;
+    try {
+      const sdk = window.Builda;
+      if (sdk?.pay?.showPayPanel) {
+        const result = await sdk.pay.showPayPanel(saleId, { timeoutMs: 15000 });
+        if (!result.ok || !result.data.success) return;
+      } else {
+        const cost = this.skinPurchaseCost(id);
+        if (this.progress.metaCoins < cost) return;
+        this.progress.metaCoins -= cost;
+      }
+    } finally {
+      this.skinPaymentPending = false;
+    }
     this.progress.unlockedSkinIds.push(id);
     this.progress.equippedSkinId = id;
+    this.profilePreviewSkinId = id;
     this.saveProgress();
     this.showProfile();
   }
@@ -1174,7 +1343,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     return labels[clamp(Math.floor(weapon.level) - 1, 0, labels.length - 1)];
   }
 
-  private showDailyChallenge(toast?: string) {
+  private showDailyChallengeLegacy(toast?: string) {
     this.phase = 'start';
     this.ui?.setVisible(false);
     this.clearOverlay();
@@ -1193,6 +1362,68 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (toast) layer.add(this.add.text(640, 448, toast, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
+  }
+
+  private showDailyChallenge(toast?: string) {
+    this.phase = 'start';
+    this.ui?.setVisible(false);
+    this.clearOverlay();
+    const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
+    this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.56);
+    this.drawMenuMotif(layer);
+    this.addPixelFrame(layer, 640, 360, 1120, 620, 0x101b24, 0xb798e2);
+    layer.add(this.add.text(640, 92, '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(640, 126, 'DAILY NIGHT / 50 WAVES', { fontFamily: 'Courier New', fontSize: '11px', color: palette.violet }).setOrigin(0.5));
+    layer.add(this.add.rectangle(640, 153, 1000, 1, 0x46636a, 0.75));
+
+    const completed = this.isDailyCompleted();
+    const bossPanel = this.add.container(315, 385);
+    bossPanel.add(this.add.rectangle(0, 0, 410, 450, 0x0a141b, 0.98).setStrokeStyle(2, 0xb798e2, 0.9));
+    bossPanel.add(this.add.text(-170, -198, '今日首领', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.violet }).setFontStyle('bold'));
+    bossPanel.add(this.add.text(170, -198, completed ? '已完成' : '待挑战', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: completed ? palette.green : palette.amber }).setOrigin(1, 0));
+    if (this.textures.exists('boss-moon-wolf')) {
+      bossPanel.add(this.add.image(0, -42, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(310, 210));
+    } else {
+      bossPanel.add(this.add.circle(0, -42, 74, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
+      bossPanel.add(this.add.text(0, -42, 'BOSS', { fontFamily: 'Courier New', fontSize: '24px', color: palette.violet }).setOrigin(0.5));
+    }
+    bossPanel.add(this.add.text(0, 92, '月蚀狼王', { fontFamily: 'Microsoft YaHei', fontSize: '22px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    bossPanel.add(this.add.text(0, 126, '范围攻击  /  追踪爆裂', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    bossPanel.add(this.add.text(0, 157, completed ? '首领外观已加入病历档案' : '击败后获得首领外观', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
+    layer.add(bossPanel);
+    if (!completed) this.addButton(layer, 315, 582, 220, 44, '选择武器', () => this.showWeaponSelect('daily', 1), 'primary', 10);
+    if (toast) layer.add(this.add.text(315, 622, toast, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.amber }).setOrigin(0.5));
+
+    const boardPanel = this.add.container(895, 385);
+    boardPanel.add(this.add.rectangle(0, 0, 540, 450, 0x0a141b, 0.98).setStrokeStyle(2, 0x46636a, 0.9));
+    boardPanel.add(this.add.text(-238, -198, '排行榜', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
+    boardPanel.add(this.add.text(238, -198, '今日战绩', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
+    boardPanel.add(this.add.rectangle(0, -163, 470, 1, 0x46636a, 0.75));
+    boardPanel.add(this.add.text(-220, -147, '名次', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }));
+    boardPanel.add(this.add.text(-155, -147, '患者', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }));
+    boardPanel.add(this.add.text(220, -147, '分数', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
+    const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && this.progress.dailyBestSeconds ? { ...entry, score: this.dailyScoreForTime(this.progress.dailyBestSeconds) } : entry);
+    board.slice(0, 5).forEach((entry, index) => {
+      const y = -105 + index * 48;
+      const own = entry.name === this.playerNickname;
+      boardPanel.add(this.add.rectangle(0, y + 14, 470, 38, own ? 0x18353b : 0x101b24, own ? 0.9 : 0.72).setStrokeStyle(1, own ? 0x6bd3c1 : 0x26383f, 0.9));
+      boardPanel.add(this.add.text(-220, y + 14, String(entry.rank).padStart(2, '0'), { fontFamily: 'Courier New', fontSize: '14px', color: entry.rank === 1 ? palette.amber : palette.cream }).setOrigin(0, 0.5));
+      boardPanel.add(this.add.text(-155, y + 14, entry.name, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: own ? palette.teal : palette.cream }).setOrigin(0, 0.5));
+      boardPanel.add(this.add.text(220, y + 14, entry.score > 0 ? `${entry.score}` : '未通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: entry.score > 0 ? palette.amber : palette.muted }).setOrigin(1, 0.5));
+    });
+    boardPanel.add(this.add.rectangle(0, 151, 470, 1, 0x46636a, 0.75));
+    boardPanel.add(this.add.text(-220, 174, '最快通关', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }));
+    boardPanel.add(this.add.text(220, 174, this.formatDailyTime(this.progress.dailyBestSeconds), { fontFamily: 'Courier New', fontSize: '22px', color: this.progress.dailyBestSeconds ? palette.green : palette.muted }).setOrigin(1, 0));
+    layer.add(boardPanel);
+    this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
+    this.overlay = layer;
+    const pendingIdentity = !this.playerIdentityLoaded;
+    const pendingBoard = !this.dailyBoardLoaded;
+    if (pendingIdentity || pendingBoard) {
+      void Promise.all([pendingIdentity ? this.ensurePlayerIdentity() : Promise.resolve(), pendingBoard ? this.loadDailyBoard() : Promise.resolve()]).then(() => {
+        if (this.overlay === layer && layer.active) this.showDailyChallenge(toast);
+      });
+    }
   }
 
   private archiveKindUnlocked(kind: EnemyKind) {
@@ -1433,7 +1664,8 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private addPatientSprite(parent: Phaser.GameObjects.Container, x: number, y: number, targetHeight: number) {
     if (!this.textures.exists('patient-boy')) return undefined;
-    const sprite = this.add.image(x, y, 'patient-boy').setOrigin(0.5);
+    const textureKey = this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy';
+    const sprite = this.add.image(x, y, textureKey).setOrigin(0.5);
     sprite.setDisplaySize(targetHeight * sprite.width / sprite.height, targetHeight);
     parent.add(sprite);
     return sprite;
@@ -3026,10 +3258,14 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (!this.dailyBossRewardGranted) {
         this.dailyBossRewardGranted = true;
         this.progress.dailyCompletedDate = this.todayKey();
+        this.progress.dailyBestSeconds = this.progress.dailyBestSeconds
+          ? Math.min(this.progress.dailyBestSeconds, this.elapsed)
+          : this.elapsed;
         if (!this.progress.unlockedSkinIds.includes('scarlet-night')) this.progress.unlockedSkinIds.push('scarlet-night');
         if (!this.progress.archiveKinds.includes('boss')) this.progress.archiveKinds.push('boss');
         this.progress.metaCoins += 30;
         this.saveProgress();
+        void this.submitDailyScore(this.elapsed);
       }
       return;
     }

@@ -2,8 +2,8 @@
   "document": {
     "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
     "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
-    "revision": 2040,
-    "lastCheckedAt": "2026-08-27T18:58:00+08:00"
+    "revision": 2050,
+    "lastCheckedAt": "2026-08-27T19:17:48+08:00"
   },
   "completedItems": [
     {
@@ -111,6 +111,18 @@
       "status": "done",
       "implementedIn": "src/main.ts",
       "evidence": ".game-dev/evidence/builda-safe-area-menu-2026-08-27.png, .game-dev/evidence/builda-safe-area-mainline-2026-08-27.png, .game-dev/evidence/builda-return-icon-2026-08-27.png"
+    },
+    {
+      "summary": "\u75c5\u4f8b\u6863\u6848\u4e0e\u5bf9\u767d\u9875\u4f7f\u7528\u7537\u5b69\u6b63\u9762\u75c5\u53f7\u670d\u7acb\u7ed8",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/animations/patient-idle-front.png",
+      "evidence": ".game-dev/evidence/builda-profile-front-landscape.png"
+    },
+    {
+      "summary": "重构病历档案、主线通关和每日挑战内页",
+      "status": "done",
+      "implementedIn": "src/main.ts",
+      "evidence": ".game-dev/evidence/builda-profile-front-landscape.png, .game-dev/evidence/final-static-retest-2026-08-27.md"
     }
   ],
   "pendingItems": [
@@ -192,11 +204,11 @@
     }
   ],
   "verification": {
-    "tests": "28 passed (18:55)",
-    "build": "passed (18:55)",
-    "buildaBundleCheck": "passed (18:56): build/builda-web.zip, h5, 42637600 bytes",
-    "buildaMobileBrowserCheck": "passed (18:58): Builda dev shell safe-area preview plus 844x390 landscape flow home -> mainline -> weapon -> dialogue -> battle; menu and mainline controls stay inside safe bounds; return icon visible and touch target preserved; evidence/builda-safe-area-menu-2026-08-27.png, evidence/builda-safe-area-mainline-2026-08-27.png and evidence/builda-return-icon-2026-08-27.png",
-    "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
+    "tests": "28 passed (19:16)",
+    "build": "passed (19:16)",
+    "buildaBundleCheck": "passed (19:17): build/builda-web.zip and builda-web.zip, h5, 42640041 bytes",
+    "buildaMobileBrowserCheck": "passed (19:10): Builda dev shell 844x390 landscape safe-area preview; profile entry opened through touch PointerEvent; front patient portrait visible; evidence/builda-profile-front-landscape.png",
+    "visualBrowserCheck": "passed: profile skin preview, mainline floor selection, daily Boss portrait and leaderboard, weapon-select flow (1280x720 landscape); no runtime errors",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
     "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
     "mainMenuAssetCheck": "passed: supplied background and title crop loaded; no-text button sheet split into three transparent PNGs, semantic asset paths fixed, and mapped to archive, mainline and daily challenge entries",
