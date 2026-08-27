@@ -2,10 +2,10 @@
     "document":  {
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
-                     "revision":  2407,
-                     "lastCheckedAt":  "2026-08-27T22:38:00+08:00",
+                     "revision":  2453,
+                     "lastCheckedAt":  "2026-08-27T23:37:00+08:00",
                      "completedCheckboxes":  38,
-                     "pendingCheckboxes":  4
+                     "pendingCheckboxes":  5
                  },
     "completedItems":  [
                            {
@@ -231,6 +231,12 @@
                                "status":  "done",
                                "implementedIn":  "src/main.ts",
                                "evidence":  ".game-dev/evidence/weapon-select-battle-sync-touch-1024x576-2026-08-27.png"
+                           },
+                           {
+                               "summary":  "每日挑战页按反馈重构首领、掉落、中央信息和排行榜布局",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/daily-layout-feedback-2026-08-27.png"
                            }
                        ],
     "pendingItems":  [
@@ -271,11 +277,11 @@
                          }
                      ],
     "verification":  {
-                          "tests":  "passed: 4 个测试文件，28 项全部通过（23:06）",
-                          "build":  "passed: tsc --noEmit 和 vite build（23:07）；保留既有 builda-sdk.js 缺少 type=module 提示",
+                          "tests":  "passed: 4 个测试文件，28 项全部通过（23:21）",
+                          "build":  "passed: tsc --noEmit 和 vite build（23:22）；保留既有 builda-sdk.js 缺少 type=module 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                           "documentFetch":  "passed: revision 2407；38 项已完成，4 项待处理",
+                         "documentFetch":  "passed: revision 2453；38 项已完成，5 项待处理",
                           "documentCheckboxUpdate":  "passed: 12 个已实现条目通过 block_replace 勾选，并逐次重新获取文档确认",
                          "buildaBundleCheck":  "passed: bundle-pack dist builda-web.zip；bundle-check ok，HTML5 网页包 48,739,056 bytes；未上传",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
@@ -286,10 +292,12 @@
                           "dailyChallengeLayout":  "passed: local 1280x720 preview uses the supplied background, three separate supplied panel frames for boss, drops and entry weapon, the supplied tall ranking frame on the right, and the supplied start button; the button opens daily weapon selection",
                           "weaponSelectLayout":  "passed: 1280x720 and 1024x576 landscape previews show the supplied weapon-select background, separate frame assets, four weapon categories and weapon-skin grid; locked skins remain previewable",
                           "weaponSkinBattleSync":  "passed: selected unlocked weapon skin is persisted per weapon class and used by the battle-held weapon plus HUD icon; purchase path is wired to metaCoins but not exercised because current balance is 0",
+                          "dailyChallengeFeedbackLayout":  "passed: local landscape preview shows an enlarged boss with labels outside the frame, three separate drop frames, no entry-weapon panel, centered Cthulhu-styled status text, top-three ranking highlights, and red 未通关 records; console warnings/errors absent",
                           "pixelFrameNeonEffectsRetest":  "passed: 通用像素边框和四类武器霓虹特效已接入并完成本地构建、测试和产物检查；详见 .game-dev/evidence/pixel-frame-neon-effects-retest-2026-08-27.md",
                           "artAssetIntegration":  "passed: 新增经验掉落物、SAN 暴走技能图标、小首领和楼层首领四张透明 PNG，已接入战斗掉落、固定 HUD 和首领渲染；缺图时保留几何兜底；详见 .game-dev/reports/art-asset-integration-2026-08-27.md",
+                          "uiAssetInventory":  "passed: 已盘点战斗状态组、触摸摇杆、状态标记、伤害数字、攻击预警、分隔线和缺失立绘；替换清单见 .game-dev/reports/ui-asset-inventory-2026-08-27.md",
                           "godotMigrationEvaluation":  "passed: 当前试玩版保留 Phaser 3 + TypeScript + Vite；Godot 4.7.1 作为后续玩法和 UI 冻结后的独立主工程候选，评估记录见 .game-dev/reports/godot-migration-evaluation-2026-08-27.md",
-                           "pendingAudit":  "revision 2407 后剩余 4 项：平台付费刷新、月度挑战线上支付与榜单闭环、首领攻击后期重做、Builda 外壳真机居中复测。",
+                          "pendingAudit":  "revision 2453 后剩余 5 项：平台付费刷新、月度挑战线上支付与榜单闭环、首领攻击后期重做、Builda 外壳真机居中复测、非图片 UI 资源替换。",
                           "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-27.md"
                      }
 }
