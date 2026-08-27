@@ -2031,6 +2031,161 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const completed = this.isDailyCompleted();
     const attempts = this.dailyAttemptsUsed();
+    const cthulhuText = (x: number, y: number, value: string, size: number, color = palette.cream) => this.add.text(x, y, value, {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: String(size) + 'px',
+      color,
+      stroke: '#050b10',
+      strokeThickness: Math.max(2, Math.round(size / 7)),
+    }).setOrigin(0.5).setFontStyle('bold');
+    const title = cthulhuText(640, 42, '每日挑战', 26);
+    const subtitle = this.add.text(640, 72, 'MONTHLY NIGHT / 50 WAVES', { fontFamily: 'Courier New', fontSize: '11px', color: palette.violet }).setOrigin(0.5);
+    layer.add([title, subtitle]);
+
+    const bossX = 205;
+    const bossPanel = this.addDailyPanelFrame(layer, bossX, 220, 330, 250);
+    layer.add(cthulhuText(bossX, 79, '本月首领', 15, palette.violet));
+    layer.add(this.add.text(bossX + 145, 79, completed ? '已完成' : '待挑战', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '11px',
+      color: completed ? palette.green : palette.amber,
+      stroke: '#050b10',
+      strokeThickness: 2,
+    }).setOrigin(1, 0.5));
+    if (this.textures.exists('boss-moon-wolf')) {
+      bossPanel.add(this.add.image(0, -2, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(250, 180));
+    } else {
+      bossPanel.add(this.add.circle(0, -2, 64, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
+      bossPanel.add(this.add.text(0, -2, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
+    }
+    layer.add(cthulhuText(bossX, 355, '月蚀狼王', 20));
+    layer.add(this.add.text(bossX, 379, '范围追击  ·  蓄力爆裂', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '11px',
+      color: palette.cyan,
+      stroke: '#050b10',
+      strokeThickness: 2,
+    }).setOrigin(0.5));
+
+    layer.add(cthulhuText(bossX, 407, 'BOSS 掉落', 14, palette.violet));
+    const dropItems = [
+      { texture: 'relic-crown', label: '月蚀王冠' },
+      { texture: 'relic-fang', label: '狼王牙' },
+      { texture: 'relic-hood', label: '夜巡兜帽' },
+    ];
+    dropItems.forEach((item, index) => {
+      const x = 95 + index * 110;
+      const panel = this.addDailyPanelFrame(layer, x, 500, 100, 150);
+      if (this.textures.exists(item.texture)) panel.add(this.add.image(0, -5, item.texture).setOrigin(0.5).setDisplaySize(58, 58));
+      layer.add(this.add.text(x, 590, item.label, {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '10px',
+        color: palette.cream,
+        stroke: '#050b10',
+        strokeThickness: 2,
+      }).setOrigin(0.5));
+    });
+    layer.add(this.add.text(bossX, 619, completed ? '已加入病历档案' : '通关后随机获得一件', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '10px',
+      color: completed ? palette.green : palette.muted,
+      stroke: '#050b10',
+      strokeThickness: 2,
+    }).setOrigin(0.5));
+
+    const infoX = 645;
+    layer.add(cthulhuText(infoX, 168, completed ? '本月挑战已完成' : '今晚的病区正在等待', 19, completed ? palette.green : palette.cream));
+    layer.add(this.add.text(infoX, 215, '首领技能  ·  范围追击 / 蓄力爆裂', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '12px',
+      color: palette.cyan,
+      stroke: '#050b10',
+      strokeThickness: 2,
+    }).setOrigin(0.5));
+    layer.add(this.add.text(infoX, 258, '通关最快记录', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '11px',
+      color: palette.muted,
+    }).setOrigin(0.5));
+    layer.add(cthulhuText(infoX, 288, this.formatDailyTime(this.progress.dailyBestSeconds), 24, this.progress.dailyBestSeconds ? palette.green : palette.danger));
+    if (!completed) this.addDailyImageButton(layer, 525, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    layer.add(this.add.text(525, 700, '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '11px',
+      color: attempts >= 3 ? palette.amber : palette.cyan,
+    }).setOrigin(0.5));
+    if (toast) layer.add(this.add.text(525, 611, toast, {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: '10px',
+      color: palette.amber,
+      wordWrap: { width: 300 },
+    }).setOrigin(0.5));
+
+    const rankingX = 1080;
+    const rankingY = 370;
+    const boardPanel = this.addDailyRankingFrame(layer, rankingX, rankingY, 360, 560);
+    layer.add(cthulhuText(rankingX, 79, '排行榜', 18));
+    layer.add(this.add.text(rankingX, 103, 'MONTHLY NIGHT  ·  TOP 20', {
+      fontFamily: 'Courier New',
+      fontSize: '10px',
+      color: palette.violet,
+      stroke: '#050b10',
+      strokeThickness: 2,
+    }).setOrigin(0.5));
+    boardPanel.add(this.add.text(-143, -248, '排名', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    boardPanel.add(this.add.text(-76, -248, '昵称', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    boardPanel.add(this.add.text(143, -248, '通关记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
+    boardPanel.add(this.add.rectangle(0, -230, 300, 1, 0x6bd3c1, 0.28));
+    const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && this.progress.dailyBestSeconds ? { ...entry, score: this.dailyScoreForTime(this.progress.dailyBestSeconds) } : entry);
+    board.slice(0, 20).forEach((entry) => {
+      const y = -211 + (entry.rank - 1) * 17;
+      const own = entry.name === this.playerNickname;
+      const topRank = entry.rank <= 3;
+      const rankColor = entry.rank === 1 ? palette.amber : entry.rank === 2 ? '#d6e7ea' : entry.rank === 3 ? '#d99263' : palette.cream;
+      if (topRank) boardPanel.add(this.add.rectangle(0, y + 7, 304, 18, entry.rank === 1 ? 0x8e6d32 : entry.rank === 2 ? 0x4e6972 : 0x754a35, 0.34));
+      else if (own) boardPanel.add(this.add.rectangle(0, y + 7, 304, 17, 0x18353b, 0.9));
+      if (topRank) {
+        boardPanel.add(this.add.circle(-133, y + 7, 8, entry.rank === 1 ? 0xf2bf62 : entry.rank === 2 ? 0xd6e7ea : 0xd99263, 0.85).setStrokeStyle(1, 0x050b10, 0.9));
+        boardPanel.add(this.add.text(-133, y + 7, String(entry.rank), { fontFamily: 'Courier New', fontSize: '9px', color: '#071117' }).setOrigin(0.5));
+      } else {
+        boardPanel.add(this.add.text(-143, y + 7, String(entry.rank).padStart(2, '0'), { fontFamily: 'Courier New', fontSize: '10px', color: rankColor }).setOrigin(0, 0.5));
+      }
+      boardPanel.add(this.add.text(-76, y + 7, entry.name, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: own ? palette.teal : rankColor }).setOrigin(0, 0.5));
+      const timeLabel = entry.score > 0 ? this.formatDailyTime(Math.max(1, Math.round((100000 - entry.score) / 100))) : '未通关';
+      boardPanel.add(this.add.text(143, y + 7, timeLabel, {
+        fontFamily: 'Courier New, Microsoft YaHei',
+        fontSize: '10px',
+        color: entry.score > 0 ? (topRank ? rankColor : palette.amber) : palette.danger,
+      }).setOrigin(1, 0.5));
+    });
+    boardPanel.add(this.add.rectangle(0, 145, 300, 1, 0x6bd3c1, 0.28));
+    boardPanel.add(this.add.text(-143, 159, '我的记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }));
+    boardPanel.add(this.add.text(143, 159, this.progress.dailyBestSeconds ? this.formatDailyTime(this.progress.dailyBestSeconds) : '未通关', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '19px',
+      color: this.progress.dailyBestSeconds ? palette.green : palette.danger,
+    }).setOrigin(1, 0));
+    layer.add(boardPanel);
+    this.addButton(layer, 76, 38, 100, 34, '返回', () => this.showStart(), 'muted', 8);
+    this.overlay = layer;
+    const pendingIdentity = !this.playerIdentityLoaded;
+    const pendingBoard = !this.dailyBoardLoaded;
+    if (pendingIdentity || pendingBoard) {
+      void Promise.all([pendingIdentity ? this.ensurePlayerIdentity() : Promise.resolve(), pendingBoard ? this.loadDailyBoard() : Promise.resolve()]).then(() => {
+        if (this.overlay === layer && layer.active) this.showDailyChallenge(toast);
+      });
+    }
+  }
+
+  private showDailyChallengeLegacyLayout(toast?: string) {
+    this.phase = 'start';
+    this.ui?.setVisible(false);
+    this.clearOverlay();
+    const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
+    this.addHospitalBackdrop(layer, 'daily-challenge-background-v2', 0.28);
+
+    const completed = this.isDailyCompleted();
+    const attempts = this.dailyAttemptsUsed();
     const title = this.add.text(640, 42, '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '26px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold');
     const subtitle = this.add.text(640, 72, 'MONTHLY NIGHT / 50 WAVES', { fontFamily: 'Courier New', fontSize: '11px', color: palette.violet }).setOrigin(0.5);
     layer.add([title, subtitle]);
