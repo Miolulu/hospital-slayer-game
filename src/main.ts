@@ -27,6 +27,13 @@ import {
   upgradeRefreshRequiresPayment,
   type CombatEnemyKind,
 } from './combatBalance';
+import {
+  SMALL_ENEMY_ART_FRAME_RATE,
+  SMALL_ENEMY_ART_SHEET_BY_KEY,
+  SMALL_ENEMY_ART_SHEETS,
+  SMALL_ENEMY_ART_VARIANTS,
+  type SmallEnemyKind,
+} from './patientEnemyArt';
 
 const W = 1280;
 const H = 720;
@@ -89,6 +96,7 @@ interface DailyBoardEntry {
 interface Enemy {
   kind: EnemyKind;
   node: Phaser.GameObjects.Container;
+  body?: Phaser.GameObjects.Container;
   baseHp: number;
   hpScale: number;
   hp: number;
@@ -106,6 +114,9 @@ interface Enemy {
   statusTimer: number;
   statusTick: number;
   statusMarker?: Phaser.GameObjects.Text;
+  visualWidth: number;
+  visualHeight: number;
+  facingRight?: boolean;
   dead?: boolean;
 }
 
@@ -204,8 +215,13 @@ export class HospitalBattleScene extends Phaser.Scene {
   private arenaBackground?: Phaser.GameObjects.Image;
   private arenaBackgroundTexture = '';
   private player!: Phaser.GameObjects.Container;
+  private playerBodyLayer?: Phaser.GameObjects.Container;
+  private playerWeaponLayer?: Phaser.GameObjects.Container;
   private playerSprite?: Phaser.GameObjects.Sprite;
   private playerSpriteTargetHeight = 82;
+  private playerSpriteScale = 2;
+  private readonly smallEnemyScale = 1.2;
+  private enemyVisualHeight = Math.round(164 * 1.2);
   private playerAnimation: PlayerAnimation = 'idle';
   private playerDirection: PlayerDirection = 'down';
   private playerHitTimer = 0;
@@ -309,6 +325,12 @@ export class HospitalBattleScene extends Phaser.Scene {
   private level = 1;
   private xpNeed = experienceRequiredForLevel(1);
   private kills = 0;
+  private mutationTimer = 0;
+  private sanLowActive = false;
+  private sanLowTimer = 0;
+  private frenzyAvailable = false;
+  private frenzyActive = false;
+  private frenzyTimer = 0;
   private sanPulse = 0;
   private mutated = false;
   private runSpeed = 190;
@@ -436,12 +458,16 @@ export class HospitalBattleScene extends Phaser.Scene {
         this.load.spritesheet(this.skinWalkTextureKey(skin, direction), `${root}/walk-${direction}.png`, { frameWidth: 192, frameHeight: 192 });
       });
     });
+    SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => {
+      this.load.spritesheet(key, path, { frameWidth, frameHeight });
+    });
   }
 
   create() {
     this.cameras.main.setBackgroundColor(palette.bg);
     this.loadProgress();
     this.createPlayerAnimations();
+    this.createEnemyAnimations();
     this.floor = clamp(this.progress.maxFloor, 1, TOTAL_FLOORS);
     this.weapons = this.createWeaponRoster();
     this.requestLandscapeLock();
@@ -582,6 +608,63 @@ export class HospitalBattleScene extends Phaser.Scene {
     return Boolean(skin.assetPrefix && this.textures.exists(this.skinFrontTextureKey(skin)));
   }
 
+  private createEnemyAnimations() {
+    SMALL_ENEMY_ART_SHEETS.forEach(({ key }) => {
+      if (!this.anims.exists(key) && this.textures.exists(key)) {
+        this.anims.create({
+          key,
+          frames: this.anims.generateFrameNumbers(key, { start: 0, end: 3 }),
+          frameRate: SMALL_ENEMY_ART_FRAME_RATE,
+          repeat: -1,
+        });
+      }
+    });
+  }
+
+  private pickSmallEnemyArt(kind: SmallEnemyKind) {
+    return Phaser.Utils.Array.GetRandom([...SMALL_ENEMY_ART_VARIANTS[kind]]);
+  }
+
+  private createSmallEnemyBody(kind: SmallEnemyKind, radius: number, color: number) {
+    const artKey = this.pickSmallEnemyArt(kind);
+    const sheet = SMALL_ENEMY_ART_SHEET_BY_KEY.get(artKey);
+    if (!sheet || !this.textures.exists(artKey) || !this.anims.exists(artKey)) {
+      const g = this.add.graphics();
+      g.fillStyle(0x000000, .25);
+      g.fillEllipse(0, radius * .75, radius * 2.5, radius * .48);
+      g.fillStyle(color, .96);
+      if (kind === 'chaser') g.fillRect(-radius, -radius, radius * 2, radius * 2);
+      else if (kind === 'shooter') g.fillCircle(0, 0, radius);
+      else if (kind === 'disruptor') g.fillTriangle(-radius, radius * .6, 0, -radius, radius, radius * .6);
+      else if (kind === 'tentacle') g.fillEllipse(0, 0, radius * 2.2, radius * 1.5);
+      else if (kind === 'bomber') { g.fillCircle(0, 0, radius * 1.05); g.fillCircle(-radius * .45, radius * .2, radius * .34); g.fillCircle(radius * .45, radius * .2, radius * .34); }
+      else g.fillEllipse(0, 0, radius * 1.8, radius * 1.8);
+      const visualHeight = this.enemyVisualHeight;
+      return { body: this.add.container(0, 0, [g]), visualWidth: Math.round(visualHeight * .78), visualHeight };
+    }
+
+    const visualHeight = this.enemyVisualHeight;
+    const visualWidth = Math.round(visualHeight * sheet.frameWidth / sheet.frameHeight);
+    const body = this.add.container(0, 0);
+    body.add(this.add.ellipse(0, visualHeight * .35, Math.max(24, visualWidth * .76), Math.max(10, visualHeight * .08), 0x000000, .28));
+    const sprite = this.add.sprite(0, 0, artKey).setOrigin(.5).setDisplaySize(visualWidth, visualHeight);
+    sprite.anims.play(artKey, true);
+    body.add(sprite);
+    return { body, visualWidth, visualHeight };
+  }
+
+  private playerLabelY(extra = 0) {
+    return this.player.y - this.playerVisualHeight() / 2 - extra;
+  }
+
+  private playerVisualHeight() {
+    return this.playerSpriteTargetHeight * this.playerSpriteScale;
+  }
+
+  private smallEnemyDistance(value: number) {
+    return Math.round(value * this.smallEnemyScale);
+  }
+
   update(_time: number, delta: number) {
     const dt = Math.min(delta / 1000, 0.05) * this.gameSpeed;
     if (this.phase === 'wave-break') {
@@ -693,10 +776,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     wavePanel.add(this.hud.wave);
     wavePanel.add(this.hud.timer);
     wavePanel.add(this.hud.waveCleared);
+    this.hud.hp = text(52, 18, '生命 100 / 100', 13, palette.cream).setFixedSize(228, 18);
     this.hud.xp = text(52, 84, `经验 0 / ${experienceRequiredForLevel(1)} · Lv.1`, 11, palette.muted).setFixedSize(225, 18);
     this.hud.san = text(52, 43, 'SAN 100 / 100', 13, palette.cyan).setFixedSize(228, 18).setWordWrapWidth(228);
     this.hud.weapon = text(96, 132, '病院刀 · 武器数 1', 11, palette.amber).setFixedSize(184, 18).setWordWrapWidth(184);
     this.hud.status = text(96, 162, '环绕攻击 · 自动吸附', 10, palette.muted).setFixedSize(184, 36).setWordWrapWidth(184);
+    panel.add(this.hud.hp);
     panel.add(this.hud.xp);
     panel.add(this.hud.san);
     panel.add(this.hud.weapon);
@@ -714,7 +799,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     panel.add(weaponIcon);
     this.hud.weaponIcon = this.add.image(56, 151, 'weapon-sword').setOrigin(0.5).setDisplaySize(46, 46);
     panel.add(this.hud.weaponIcon);
-    this.hud.skill = this.add.text(230, 180, '', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream }).setOrigin(0.5).setDepth(26).setVisible(false);
+    this.hud.skill = this.add.text(230, 180, '暴走', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream, backgroundColor: '#8c3c4d', padding: { left: 12, right: 12, top: 8, bottom: 8 } })
+      .setOrigin(0.5).setDepth(26).setVisible(false)
+      .setInteractive(new Phaser.Geom.Rectangle(-48, -25, 96, 50), Phaser.Geom.Rectangle.Contains);
+    this.hud.skill.on('pointerdown', (pointer: Phaser.Input.Pointer) => { pointer.event?.preventDefault?.(); this.triggerFrenzy(); });
+    panel.add(this.hud.skill);
     this.pinHudToViewport();
   }
 
@@ -722,8 +811,22 @@ export class HospitalBattleScene extends Phaser.Scene {
     return this.weapons.find((weapon) => weapon.owned);
   }
 
+  private weaponSkinsFor(weaponClass: WeaponClass) {
+    return this.weaponSkins.filter((skin) => skin.weaponClass === weaponClass);
+  }
+
+  private weaponSkinTextureKey(skin: WeaponSkinDef) {
+    return skin.textureKey && this.textures.exists(skin.textureKey) ? skin.textureKey : `weapon-${skin.weaponClass}`;
+  }
+
+  private equippedWeaponSkin(weaponClass: WeaponClass) {
+    const equippedId = this.progress.equippedWeaponSkinIds?.[weaponClass] ?? `${weaponClass}-default`;
+    return this.weaponSkins.find((skin) => skin.id === equippedId && skin.weaponClass === weaponClass)
+      ?? this.weaponSkins.find((skin) => skin.id === `${weaponClass}-default`)!;
+  }
+
   private weaponAssetKey(weapon?: Weapon) {
-    return `weapon-${weapon?.weaponClass ?? 'sword'}`;
+    return this.weaponSkinTextureKey(this.equippedWeaponSkin(weapon?.weaponClass ?? 'sword'));
   }
 
   private weaponVisualSpec(weapon: Weapon) {
@@ -816,9 +919,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     weapon.copies = copies;
     const spec = this.weaponVisualSpec(weapon);
     const assetKey = this.weaponAssetKey(weapon);
+    const weaponParent = this.playerWeaponLayer ?? this.player;
     while (this.heldWeapons.length < copies) {
       const held = this.add.image(0, 0, assetKey).setOrigin(spec.originX, spec.originY);
-      this.player.add(held);
+      weaponParent.add(held);
       this.heldWeapons.push(held);
     }
     while (this.heldWeapons.length > copies) {
@@ -828,6 +932,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.heldWeapons.forEach((held) => {
       held.setTexture(assetKey).setVisible(true).setOrigin(spec.originX, spec.originY).setDisplaySize(spec.width, spec.height);
     });
+    this.updatePlayerLayerOrder(weapon);
+  }
+
+  private updatePlayerLayerOrder(weapon = this.currentWeapon()) {
+    if (!this.player || !this.playerBodyLayer || !this.playerWeaponLayer) return;
+    const weaponBehind = weapon?.weaponClass === 'sword';
+    this.player.moveTo(weaponBehind ? this.playerWeaponLayer : this.playerBodyLayer, 0);
+    this.player.moveTo(weaponBehind ? this.playerBodyLayer : this.playerWeaponLayer, 1);
   }
 
   private updateWeaponOrbit(dt: number) {
@@ -864,18 +976,28 @@ export class HospitalBattleScene extends Phaser.Scene {
     const bossLabel = this.isMiniBossWave() ? ' · 小首领' : this.isFloorBossWave() ? ' · 月度首领' : '';
     this.hud.wave.setText(`第 ${this.wave} / ${this.wavesPerFloor()} 波${bossLabel}`);
     const seconds = Math.max(0, Math.ceil(this.waveLength - this.waveTimer));
+    this.hud.waveCleared?.setText(this.phase === 'wave-break' || this.waveClearedTimer > 0 ? this.waveClearedMessage : '');
+    const remaining = this.enemies.filter((enemy) => !enemy.dead).length;
     this.hud.timer?.setText(this.phase === 'battle'
-      ? seconds > 0 ? `倒计时 ${seconds} 秒` : '停止出怪，清理场内敌人'
+      ? seconds > 0 ? `倒计时 ${seconds} 秒 · 出怪 ${this.waveSpawned} / ${this.spawnBudgetForWave()}` : `停止出怪 · 场内敌人 ${remaining}`
       : this.phase === 'wave-cleanup'
-        ? '波末清理 · 自动吸收掉落'
+        ? `波末清理 · 敌人 ${this.enemies.length} · 掉落 ${this.drops.length}`
         : this.phase === 'wave-break'
           ? `下一波倒计时 ${Math.max(1, Math.ceil(this.waveBreakTimer))} 秒`
           : '下一波准备中');
-    this.hud.waveCleared?.setText(this.phase === 'wave-break' || this.waveClearedTimer > 0 ? this.waveClearedMessage : '');
+    this.hud.hp?.setText(`生命 ${Math.ceil(this.hp)} / ${this.maxHp}${this.maxShield > 0 ? ` · 护盾 ${Math.ceil(this.shield)}` : ''}`);
     this.hud.xp?.setText(`经验 ${Math.floor(this.xp)} / ${this.xpNeed} · Lv.${this.level}`);
     const sanLabel = this.mutated
-      ? `SAN ${Math.ceil(this.san)} / 100 · 异化`
-      : `SAN ${Math.ceil(this.san)} / 100`;
+      ? 'SAN 变异态 · 伤害↑ 防御↓'
+      : this.frenzyActive
+        ? `SAN 归零 · 暴走 ${this.frenzyTimer.toFixed(1)} 秒`
+        : this.sanLowActive
+          ? `SAN 归零 · 刷怪加速 ${this.sanLowTimer.toFixed(1)} 秒`
+          : this.mutationTimer > 0
+            ? `SAN 归零 · 变异倒计时 ${this.mutationTimer.toFixed(1)} 秒`
+            : this.san < 30
+              ? `SAN 偏低 · ${Math.ceil(this.san)} / 100`
+              : `SAN ${Math.ceil(this.san)} / 100`;
     this.hud.san?.setText(sanLabel);
     const weapon = this.currentWeapon();
     this.hud.weapon?.setText(weapon
@@ -886,17 +1008,30 @@ export class HospitalBattleScene extends Phaser.Scene {
       ? `${({ poison: '中毒', burn: '燃烧', weaken: '虚弱' } as Record<AttackStatus, string>)[this.activeAttackStatus]} Lv.${this.attackStatusLevel}`
       : '无攻击特效';
     const combatStatus = this.mutated
-      ? '异化：出怪↑ · 移速↑ · 伤害↑ · 防御↓'
-      : `武器环绕 · 自动拾取 · ${attackStatusLabel}`;
+      ? '变异：刷怪↑ · 移速↑ · 伤害↑ · 防御↓'
+      : this.frenzyActive
+        ? '暴走：伤害↑ · 护盾效果↓'
+        : this.mutationTimer > 0
+          ? `变异倒计时 ${this.mutationTimer.toFixed(1)} 秒 · 防御↓`
+          : this.sanLowActive
+            ? 'SAN 暴走：刷怪↑ · 伤害↑ · 防御↓'
+            : `武器环绕 · 自动拾取 · ${attackStatusLabel}`;
     this.hud.status?.setText(combatStatus);
+    this.hud.kills?.setText(`击破 ${this.kills}`);
+    this.hud.hp?.setColor(this.hp < 30 ? palette.danger : palette.cream);
     this.hud.san?.setColor(this.mutated || this.san < 30 ? palette.danger : palette.cyan);
-    const sanAlert = this.mutated || this.san < 30;
+    const sanAlert = this.sanLowActive || this.mutationTimer > 0 || this.mutated || this.frenzyActive;
     const pulse = 0.04 + (Math.sin(this.sanPulse * 8) + 1) * 0.025;
     this.hud.sanOverlay?.setAlpha(sanAlert ? pulse : this.san < 30 ? 0.025 : 0);
+    const skillVisible = this.phase === 'battle' && this.frenzyAvailable && !this.frenzyActive;
+    this.hud.skill?.setVisible(skillVisible).setAlpha(skillVisible ? 0.82 + (Math.sin(this.sanPulse * 8) + 1) * 0.09 : 0);
+    const hpRatio = clamp(this.hp / Math.max(1, this.maxHp), 0, 1);
     const xpRatio = clamp(this.xp / Math.max(1, this.xpNeed), 0, 1);
-    this.hud.bar?.clear().fillStyle(0x2a3b42, 1).fillRect(18, 42, 18, 132).fillStyle(this.mutated || this.san < 30 ? 0xed716e : 0x7ab9d0, 1).fillRect(18, 42 + 132 * (1 - clamp(this.san / 100, 0, 1)), 18, 132 * clamp(this.san / 100, 0, 1));
-    this.hud.xpBar?.clear().fillStyle(0x2a3b42, 1).fillRect(52, 110, 220, 7).fillStyle(0x557fc4, 1).fillRect(52, 110, 220 * xpRatio, 7);
-    this.hud.sanBar?.clear();
+    const healthBarHeight = 132;
+    const healthBarY = 42 + healthBarHeight * (1 - hpRatio);
+    this.hud.bar?.clear().fillStyle(0x2a3b42, 1).fillRect(18, 42, 18, healthBarHeight).fillStyle(this.hp < 30 ? 0xed716e : 0xd25563, 1).fillRect(18, healthBarY, 18, healthBarHeight * hpRatio);
+    this.hud.xpBar?.clear().fillStyle(0x2a3b42, 1).fillRect(52, 84, 220, 7).fillStyle(0x557fc4, 1).fillRect(52, 84, 220 * xpRatio, 7);
+    this.hud.sanBar?.clear().fillStyle(0x2a3b42, 1).fillRect(52, 110, 220, 7).fillStyle(this.mutated || this.frenzyActive ? 0xed716e : 0x7ab9d0, 1).fillRect(52, 110, 220 * clamp(this.san / 100, 0, 1), 7);
     this.updateHeldWeaponVisual();
   }
 
@@ -921,9 +1056,15 @@ export class HospitalBattleScene extends Phaser.Scene {
       const raw = window.localStorage.getItem('hospital-godslayer-progress');
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<ProgressSave>;
+      const defaultWeaponSkins = ['sword-default', 'gun-default', 'whip-default', 'cannon-default'];
+      const equippedWeaponSkinIds = parsed.equippedWeaponSkinIds && typeof parsed.equippedWeaponSkinIds === 'object'
+        ? parsed.equippedWeaponSkinIds
+        : { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' };
       this.progress = {
         maxFloor: clamp(Number(parsed.maxFloor) || 1, 1, TOTAL_FLOORS),
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
+        unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
+        equippedWeaponSkinIds,
         unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string') : ['patient-default'],
         equippedSkinId: typeof parsed.equippedSkinId === 'string' ? parsed.equippedSkinId : 'patient-default',
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
@@ -935,9 +1076,19 @@ export class HospitalBattleScene extends Phaser.Scene {
       };
       if (!this.progress.unlockedWeaponIds.includes('knife')) this.progress.unlockedWeaponIds.unshift('knife');
       if (!this.progress.unlockedWeaponIds.includes('ward-lantern')) this.progress.unlockedWeaponIds.push('ward-lantern');
+      defaultWeaponSkins.forEach((id) => {
+        if (!this.progress.unlockedWeaponSkinIds.includes(id)) this.progress.unlockedWeaponSkinIds.push(id);
+      });
+      (['sword', 'gun', 'whip', 'cannon'] as WeaponClass[]).forEach((weaponClass) => {
+        const defaultId = `${weaponClass}-default`;
+        const equipped = this.progress.equippedWeaponSkinIds[weaponClass];
+        if (!equipped || !this.weaponSkins.some((skin) => skin.id === equipped && skin.weaponClass === weaponClass)) {
+          this.progress.equippedWeaponSkinIds[weaponClass] = defaultId;
+        }
+      });
       if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
     } catch {
-      this.progress = { maxFloor: 1, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedSkinIds: ['patient-default'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
+      this.progress = { maxFloor: 1, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
     }
   }
 
@@ -965,7 +1116,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     try {
       const result = await window.Builda?.rank?.getRankList('daily_night', { limit: 20, timeoutMs: 1400 });
       if (result?.ok && result.data.list.length > 0) {
-        this.dailyBoard = result.data.list.map((entry) => ({
+        this.dailyBoard = result.data.list.map((entry: { rank: number; player: { name: string }; score: number }) => ({
           rank: entry.rank,
           name: entry.player.name.trim().slice(0, 14) || `患者 ${entry.rank}`,
           score: Math.max(0, Math.round(entry.score)),
@@ -1082,41 +1233,128 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui?.setVisible(false);
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
-    this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.5);
-    this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 640, 350, 960, 560, 0x101b24, mode === 'daily' ? 0xb798e2 : 0x6bd3c1);
-    layer.add(this.add.text(640, 92, mode === 'daily' ? '每日挑战 · 选择武器' : `第 ${this.selectedStartFloor} 层 · 入场武器`, { fontFamily: 'Microsoft YaHei', fontSize: '27px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 132, mode === 'daily' ? '选择后本次挑战不可更换，卡牌会改变攻击节奏与战斗特效' : '进入本层后不可更换，升级卡牌会在战斗中出现', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
+    const background = this.textures.exists('weapon-select-background-v1')
+      ? this.add.image(W / 2, H / 2, 'weapon-select-background-v1').setOrigin(0.5).setDisplaySize(W, H)
+      : this.add.image(W / 2, H / 2, 'menu-ward-night-v1').setOrigin(0.5).setDisplaySize(W, H);
+    layer.add(background.setAlpha(0.98));
+    layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.16));
+
     const baseWeapons = this.createWeaponRoster().slice(0, 4);
+    const categoryMeta: Record<WeaponClass, { label: string; icon: string }> = {
+      sword: { label: '近战', icon: 'weapon-category-melee' },
+      gun: { label: '远程', icon: 'weapon-category-ranged' },
+      whip: { label: '法术', icon: 'weapon-category-magic' },
+      cannon: { label: '重型', icon: 'weapon-category-heavy' },
+    };
+    const selectedWeapon = baseWeapons.find((weapon) => weapon.id === this.selectedWeaponId) ?? baseWeapons[0];
+    if (!selectedWeapon) return;
+    if (!this.weaponSelectPreviewSkinId || !this.weaponSkins.some((skin) => skin.id === this.weaponSelectPreviewSkinId && skin.weaponClass === selectedWeapon.weaponClass)) {
+      this.weaponSelectPreviewSkinId = this.equippedWeaponSkin(selectedWeapon.weaponClass).id;
+    }
+    const selectedSkin = this.weaponSkins.find((skin) => skin.id === this.weaponSelectPreviewSkinId) ?? this.equippedWeaponSkin(selectedWeapon.weaponClass);
+    const selectedSkinUnlocked = this.progress.unlockedWeaponSkinIds.includes(selectedSkin.id);
+    const equippedSkin = this.equippedWeaponSkin(selectedWeapon.weaponClass);
+    const accent = mode === 'daily' ? 0xb798e2 : 0x6bd3c1;
+
+    layer.add(this.add.text(640, 48, '武器库', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '29px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(640, 82, mode === 'daily' ? '每日挑战 · 选择入场武器' : `第 ${this.selectedStartFloor} 层 · 选择入场武器`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(1195, 53, `创游货币  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
+
     baseWeapons.forEach((weapon, index) => {
+      const meta = categoryMeta[weapon.weaponClass];
       const unlocked = this.isWeaponUnlocked(weapon.id) || (mode === 'mainline' && weapon.id === 'knife');
-      const x = 365 + (index % 2) * 275;
-      const y = 270 + Math.floor(index / 2) * 165;
+      const x = 112;
+      const y = 170 + index * 132;
       const color = unlocked ? weapon.color : 0x405158;
-      const card = this.add.container(x, y);
-      card.add(this.add.rectangle(0, 0, 230, 128, 0x132129, 1).setStrokeStyle(2, color, 0.9));
-      card.add(this.add.circle(-82, 0, 30, color, unlocked ? 0.25 : 0.08).setStrokeStyle(2, color, 1));
-      if (unlocked) {
-        card.add(this.add.image(-82, 0, this.weaponAssetKey(weapon)).setOrigin(0.5).setDisplaySize(50, 50));
-      } else {
-        card.add(this.add.text(-82, 0, '?', { fontFamily: 'Microsoft YaHei', fontSize: '24px', color: hex(color) }).setOrigin(0.5));
-      }
-      card.add(this.add.text(-38, -30, unlocked ? weapon.name : '未解锁武器', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0, 0.5));
-      card.add(this.add.text(-38, 2, unlocked ? `${weapon.weaponClass === 'sword' ? '剑' : weapon.weaponClass === 'whip' ? '鞭' : weapon.weaponClass === 'gun' ? '枪' : '炮'} · 伤害 ${weapon.damage} · ${weapon.type === 'melee' ? '近战' : '远程'}` : (weapon.id === 'thorn' ? '通关第 3 层解锁' : weapon.id === 'echo' ? '通关第 5 层解锁' : '主线推进后解锁'), { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: unlocked ? palette.muted : palette.muted, wordWrap: { width: 155 } }).setOrigin(0, 0.5));
-      card.add(this.add.text(-38, 28, unlocked ? `武器皮肤：${this.weaponAppearanceLabel(weapon)}` : '武器皮肤：解锁后查看', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: unlocked ? palette.amber : palette.muted, wordWrap: { width: 155 } }).setOrigin(0, 0.5));
-      layer.add(card);
-      if (unlocked && (mode !== 'daily' || this.isWeaponUnlocked(weapon.id))) {
-        this.addButton(layer, x + 60, y + 62, 112, 32, weapon.id === this.selectedWeaponId ? '当前选择' : '选择', () => {
+      const button = this.add.container(x, y);
+      const frame = this.add.image(0, 0, 'weapon-select-frame-category-v1').setOrigin(0.5).setDisplaySize(142, 116).setAlpha(unlocked ? 0.98 : 0.58);
+      button.add(frame);
+      if (this.textures.exists(meta.icon)) button.add(this.add.image(0, -11, meta.icon).setOrigin(0.5).setDisplaySize(58, 58).setAlpha(unlocked ? 0.98 : 0.45));
+      button.add(this.add.text(0, 39, meta.label, { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0.5).setFontStyle('bold'));
+      if (weapon.id === selectedWeapon.id) button.add(this.add.rectangle(0, 0, 126, 100, 0x6bd3c1, 0).setStrokeStyle(2, accent, 0.92));
+      layer.add(button);
+      this.uiActionRegions.push({
+        phase: this.phase,
+        x,
+        y,
+        width: 152,
+        height: 126,
+        callback: () => {
+          if (!unlocked || (mode === 'daily' && !this.isWeaponUnlocked(weapon.id))) return;
           this.selectedWeaponId = weapon.id;
-          if (mode === 'daily') void this.startDailyAttempt(weapon.id);
-          else this.startRun(this.selectedStartFloor, mode, weapon.id);
-        }, 'primary');
-      }
+          this.weaponSelectPreviewSkinId = this.equippedWeaponSkin(weapon.weaponClass).id;
+          this.showWeaponSelect(mode, this.selectedStartFloor);
+        },
+        setPressed: (pressed) => button.setScale(pressed ? 0.96 : 1),
+      });
     });
-    this.addButton(layer, 640, 590, 190, 40, mode === 'daily' ? '返回每日挑战' : '返回楼层选择', () => {
+
+    const main = this.add.container(500, 292);
+    main.add(this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5).setDisplaySize(520, 310).setAlpha(0.98));
+    const mainImage = this.add.image(0, -4, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(214, 214);
+    main.add(mainImage);
+    main.add(this.add.text(0, 119, selectedWeapon.name, { fontFamily: 'Microsoft YaHei', fontSize: '22px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    main.add(this.add.text(0, 146, `${categoryMeta[selectedWeapon.weaponClass].label} · ${selectedWeapon.type === 'melee' ? '环绕近战' : '远程投射'} · 伤害 ${selectedWeapon.damage}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(main);
+
+    const detail = this.add.container(500, 525);
+    detail.add(this.add.image(0, 0, 'weapon-select-frame-detail-v1').setOrigin(0.5).setDisplaySize(520, 150).setAlpha(0.98));
+    detail.add(this.add.text(-226, -44, selectedSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: selectedSkin.color ? hex(selectedSkin.color) : palette.cyan }).setFontStyle('bold'));
+    detail.add(this.add.text(-226, -12, selectedSkinUnlocked ? (selectedSkin.id === equippedSkin.id ? '当前装备 · 进入战斗后生效' : '已解锁 · 可装备') : `未解锁 · 需要 ${selectedSkin.cost} 创游货币`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: selectedSkinUnlocked ? palette.green : palette.amber }));
+    detail.add(this.add.text(-226, 16, `攻击方式：${selectedWeapon.effect === 'slash' ? '弧形斩击' : selectedWeapon.effect === 'spark' ? '灯火脉冲' : selectedWeapon.effect === 'tentacle' ? '触手延展' : '异化爆裂'}  ·  射程 ${selectedWeapon.range}`, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    detail.add(this.add.text(-226, 39, '皮肤只改变武器外观，伤害和成长仍由武器本体决定。', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    layer.add(detail);
+
+    layer.add(this.add.text(1004, 139, '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(1004, 162, `${this.weaponSkinsFor(selectedWeapon.weaponClass).length} 款 · 可预览未解锁`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
+    this.addPixelFrame(layer, 1004, 390, 444, 486, 0x071117, accent);
+    this.weaponSkinsFor(selectedWeapon.weaponClass).forEach((skin, index) => {
+      const column = index % 3;
+      const row = Math.floor(index / 3);
+      const x = 870 + column * 134;
+      const y = 250 + row * 127;
+      const unlocked = this.progress.unlockedWeaponSkinIds.includes(skin.id);
+      const selected = skin.id === selectedSkin.id;
+      const card = this.add.container(x, y);
+      card.add(this.add.image(0, 0, 'weapon-select-frame-skin-card-v1').setOrigin(0.5).setDisplaySize(120, 112).setAlpha(unlocked ? 0.98 : 0.64));
+      card.add(this.add.image(0, -5, this.weaponSkinTextureKey(skin)).setOrigin(0.5).setDisplaySize(78, 78).setAlpha(unlocked ? 0.98 : 0.42));
+      if (selected) card.add(this.add.rectangle(0, 0, 108, 100, 0x6bd3c1, 0).setStrokeStyle(2, accent, 1));
+      if (!unlocked) {
+        card.add(this.add.rectangle(0, -4, 106, 76, 0x05090f, 0.36));
+        card.add(this.add.text(0, -4, '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
+      }
+      card.add(this.add.text(0, 45, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: unlocked ? palette.cream : palette.muted, wordWrap: { width: 104 }, align: 'center' }).setOrigin(0.5, 0.5));
+      layer.add(card);
+      this.uiActionRegions.push({
+        phase: this.phase,
+        x,
+        y,
+        width: 126,
+        height: 118,
+        callback: () => { this.weaponSelectPreviewSkinId = skin.id; this.showWeaponSelect(mode, this.selectedStartFloor); },
+        setPressed: (pressed) => card.setScale(pressed ? 0.96 : 1),
+      });
+    });
+
+    const actionY = 656;
+    if (!selectedSkinUnlocked) {
+      this.addWeaponSelectImageButton(layer, 390, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
+      this.addWeaponSelectImageButton(layer, 615, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
+    } else {
+      this.addWeaponSelectImageButton(layer, 390, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
+        this.equipWeaponSkin(selectedSkin.id);
+        this.showWeaponSelect(mode, this.selectedStartFloor);
+      }, selectedSkin.id === equippedSkin.id ? 0x46636a : accent);
+      this.addWeaponSelectImageButton(layer, 615, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '进入战斗', () => {
+        this.equipWeaponSkin(selectedSkin.id);
+        if (mode === 'daily') void this.startDailyAttempt(selectedWeapon.id);
+        else this.startRun(this.selectedStartFloor, mode, selectedWeapon.id);
+      }, accent);
+    }
+    this.addWeaponSelectImageButton(layer, 95, 680, 178, 38, 'weapon-select-frame-back-v1', '返回', () => {
       if (mode === 'daily') this.showDailyChallenge();
       else this.showMainline(this.selectedStartFloor);
-    }, 'muted');
+    }, 0x46636a);
     this.overlay = layer;
   }
 
@@ -1137,6 +1375,23 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.addMenuImageButton(layer, safe.centerX, firstButtonY + buttonHeight + buttonGap, 330, buttonHeight, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
     this.addMenuImageButton(layer, safe.centerX, lastButtonY, 330, buttonHeight, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
     this.overlay = layer;
+  }
+
+  private addWeaponSelectImageButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, textureKey: string, label: string, callback: () => void, accent: number) {
+    const button = this.add.container(x, y);
+    const image = this.add.image(0, 0, textureKey).setOrigin(0.5).setDisplaySize(width, height).setAlpha(0.98);
+    const text = this.add.text(0, 0, label, {
+      fontFamily: 'Microsoft YaHei', fontSize: width < 190 ? '13px' : '14px', color: palette.cream, stroke: '#080d11', strokeThickness: 4,
+    }).setOrigin(0.5).setFontStyle('bold');
+    button.add([image, text]);
+    const setPressed = (pressed: boolean) => {
+      button.setScale(pressed ? 0.96 : 1);
+      image.setTint(pressed ? Phaser.Display.Color.IntegerToColor(accent).lighten(18).color : 0xffffff);
+      text.setAlpha(pressed ? 0.78 : 1);
+    };
+    parent.add(button);
+    this.uiActionRegions.push({ phase: this.phase, x, y, width: width + 18, height: height + 18, callback, setPressed });
+    return button;
   }
 
   private addMenuBackdrop(layer: Phaser.GameObjects.Container) {
@@ -1715,8 +1970,26 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private weaponAppearanceLabel(weapon: Weapon) {
-    const labels = ['基础外观', '裂纹外观', '霓虹外观', '深渊外观', '终焉外观'];
-    return labels[clamp(Math.floor(weapon.level) - 1, 0, labels.length - 1)];
+    return this.equippedWeaponSkin(weapon.weaponClass).name;
+  }
+
+  private equipWeaponSkin(id: string) {
+    const skin = this.weaponSkins.find((candidate) => candidate.id === id);
+    if (!skin || !this.progress.unlockedWeaponSkinIds.includes(id)) return;
+    this.progress.equippedWeaponSkinIds[skin.weaponClass] = id;
+    this.saveProgress();
+  }
+
+  private buyWeaponSkin(id: string, mode: RunMode) {
+    const skin = this.weaponSkins.find((candidate) => candidate.id === id);
+    if (!skin || skin.cost <= 0 || this.progress.unlockedWeaponSkinIds.includes(id)) return;
+    if (this.progress.metaCoins < skin.cost) return;
+    this.progress.metaCoins -= skin.cost;
+    this.progress.unlockedWeaponSkinIds.push(id);
+    this.progress.equippedWeaponSkinIds[skin.weaponClass] = id;
+    this.weaponSelectPreviewSkinId = id;
+    this.saveProgress();
+    this.showWeaponSelect(mode, this.selectedStartFloor);
   }
 
   private showDailyChallengeLegacy(toast?: string) {
@@ -1985,6 +2258,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.level = this.tutorialRun ? 8 : 1;
     this.xpNeed = experienceRequiredForLevel(this.level);
     this.kills = 0;
+    this.mutationTimer = 0;
+    this.sanLowActive = false;
+    this.sanLowTimer = 0;
+    this.frenzyAvailable = false;
+    this.frenzyActive = false;
+    this.frenzyTimer = 0;
     this.sanPulse = 0;
     this.mutated = false;
     this.damageBonus = 0;
@@ -2042,18 +2321,24 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private createPlayer() {
     this.player = this.add.container(650, 380).setDepth(10);
+    const bodyLayer = this.add.container(0, 0).setScale(this.playerSpriteScale);
+    const weaponLayer = this.add.container(0, 0);
+    this.playerBodyLayer = bodyLayer;
+    this.playerWeaponLayer = weaponLayer;
+    this.player.add(bodyLayer);
+    this.player.add(weaponLayer);
     this.playerSprite = undefined;
     const equippedSkin = this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
     const skinColor = equippedSkin.color;
     this.playerGlow = this.add.circle(0, 0, 42, this.mutated ? 0xed716e : 0x6bd3c1, 0.14);
-    this.player.add(this.playerGlow);
-    this.player.add(this.add.circle(0, 8, 34, this.mutated ? 0xed716e : skinColor, 0.2).setStrokeStyle(1, skinColor, 0.8));
+    bodyLayer.add(this.playerGlow);
+    bodyLayer.add(this.add.circle(0, 8, 34, this.mutated ? 0xed716e : skinColor, 0.2).setStrokeStyle(1, skinColor, 0.8));
     this.playerSpriteTargetHeight = 104;
-    this.playerSprite = this.addPlayerSprite(this.player, 0, 5, this.playerSpriteTargetHeight, equippedSkin);
+    this.playerSprite = this.addPlayerSprite(bodyLayer, 0, 5, this.playerSpriteTargetHeight, equippedSkin);
     if (!this.playerSprite) {
-      this.player.add(this.add.circle(0, 2, 18, this.mutated ? 0x9a3846 : skinColor, 1).setStrokeStyle(2, 0x17262d, 1));
-      this.player.add(this.add.rectangle(0, 23, 22, 21, this.mutated ? 0x8b3446 : 0x415c67, 1).setStrokeStyle(2, 0x17262d, 1));
-      this.player.add(this.add.text(0, -3, '男', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: '#17262d' }).setOrigin(0.5));
+      bodyLayer.add(this.add.circle(0, 2, 18, this.mutated ? 0x9a3846 : skinColor, 1).setStrokeStyle(2, 0x17262d, 1));
+      bodyLayer.add(this.add.rectangle(0, 23, 22, 21, this.mutated ? 0x8b3446 : 0x415c67, 1).setStrokeStyle(2, 0x17262d, 1));
+      bodyLayer.add(this.add.text(0, -3, '男', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: '#17262d' }).setOrigin(0.5));
     }
     this.heldWeapons = [];
     this.heldWeapon = undefined;
@@ -2194,19 +2479,36 @@ export class HospitalBattleScene extends Phaser.Scene {
       ? openingWaveEnemyHealthCap(kind, this.wave, this.currentWeaponDamage(activeWeapon))
       : Number.POSITIVE_INFINITY;
     const hp = Math.max(1, Math.min(Math.round(baseHp * hpScale), openingHpCap));
-    const radius = Math.round(stats.radius * 1.2);
+    const radius = isBoss ? stats.radius : Math.round(stats.radius * this.smallEnemyScale);
     const { x, y } = this.findSpawnPoint(radius);
     const node = this.add.container(x, y).setDepth(7);
     const color = this.enemyColor(kind);
-    const shape = kind === 'chaser' ? this.add.rectangle(0, 0, radius * 2, radius * 2, color, 1).setAngle(45) : kind === 'tentacle' ? this.add.star(0, 0, 8, radius * 0.55, radius, color, 1) : kind === 'eye' ? this.add.ellipse(0, 0, radius * 2.2, radius * 1.45, color, 1) : this.add.circle(0, 0, radius, color, 1);
-    node.add(shape.setStrokeStyle(isBoss ? 3 : 1, 0x101820, 1));
-    node.add(this.add.text(0, 0, this.enemyGlyph(kind), { fontFamily: 'Microsoft YaHei', fontSize: `${isBoss ? 20 : 12}px`, color: '#101820' }).setOrigin(0.5));
+    let body: Phaser.GameObjects.Container;
+    let visualWidth = radius * 2;
+    let visualHeight = radius * 2;
+    if (isBoss) {
+      const s = kind === 'boss' ? 1.45 : 1;
+      const g = this.add.graphics();
+      g.fillStyle(0x000000, .45); g.fillEllipse(0, 75 * s, 145 * s, 25 * s);
+      g.fillStyle(0x15161b); g.fillEllipse(0, 5 * s, 100 * s, 150 * s); g.fillCircle(0, -58 * s, 48 * s);
+      g.fillStyle(color, .55); g.fillCircle(-45 * s, 0, 42 * s); g.fillCircle(45 * s, 0, 42 * s);
+      const enemyGlyph = this.add.text(0, 0, this.enemyGlyph(kind), { fontFamily: 'Microsoft YaHei', fontSize: `${kind === 'boss' ? 20 : 12}px`, color: '#101820' }).setOrigin(0.5);
+      body = this.add.container(0, 0, [g, enemyGlyph]);
+      visualWidth = Math.round(radius * (kind === 'boss' ? 4.8 : 4.2));
+      visualHeight = Math.round(radius * (kind === 'boss' ? 5.1 : 4.4));
+    } else {
+      const small = this.createSmallEnemyBody(kind as SmallEnemyKind, radius, color);
+      body = small.body;
+      visualWidth = small.visualWidth;
+      visualHeight = small.visualHeight;
+    }
+    node.add(body);
     const hpBar = this.add.graphics();
-    hpBar.fillStyle(0x101820, 0.8).fillRect(-radius - 4, -radius - 12, radius * 2 + 8, 4);
-    hpBar.fillStyle(color, 1).fillRect(-radius - 4, -radius - 12, radius * 2 + 8, 4);
+    hpBar.fillStyle(0x101820, 0.8).fillRect(-visualWidth / 2 - 4, -visualHeight / 2 - 12, visualWidth + 8, 4);
+    hpBar.fillStyle(color, 1).fillRect(-visualWidth / 2 - 4, -visualHeight / 2 - 12, visualWidth + 8, 4);
     node.add(hpBar);
     this.world.add(node);
-    const enemy: Enemy = { kind, node, baseHp, hpScale, hp, maxHp: hp, speed: stats.speed, damage: stats.damage, radius, attackCd: 0.2, shootCd: 1.8, areaCd: 2.5, flash: 0, meleeHitCd: 0, deathTimer: 0, statusTimer: 0, statusTick: 0 };
+    const enemy: Enemy = { kind, node, body, baseHp, hpScale, hp, maxHp: hp, speed: stats.speed, damage: stats.damage, radius, visualWidth, visualHeight, facingRight: false, attackCd: 0.2, shootCd: 1.8, areaCd: 2.5, flash: 0, meleeHitCd: 0, deathTimer: 0, statusTimer: 0, statusTick: 0 };
     (node as Phaser.GameObjects.Container & { hpBar?: Phaser.GameObjects.Graphics }).hpBar = hpBar;
     this.enemies.push(enemy);
     this.waveSpawned += 1;
@@ -2365,49 +2667,49 @@ export class HospitalBattleScene extends Phaser.Scene {
           this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), enemy.kind === 'boss' ? '楼层 Boss' : '小首领');
         }
       } else if (enemy.kind === 'bomber') {
-        if (dist < 290) this.moveEnemy(enemy, dt, -0.7);
-        else if (dist > 430) this.moveEnemy(enemy, dt, 0.45);
-        if (enemy.shootCd <= 0 && dist < 620) {
+        if (dist < this.smallEnemyDistance(290)) this.moveEnemy(enemy, dt, -0.7);
+        else if (dist > this.smallEnemyDistance(430)) this.moveEnemy(enemy, dt, 0.45);
+        if (enemy.shootCd <= 0 && dist < this.smallEnemyDistance(620)) {
           enemy.shootCd = 3.2;
           this.enemyBomb(enemy);
         }
       } else if (enemy.kind === 'eye') {
-        if (dist < 310) this.moveEnemy(enemy, dt, -0.45);
-        else if (dist > 520) this.moveEnemy(enemy, dt, 0.35);
-        if (enemy.shootCd <= 0 && dist < 620) {
+        if (dist < this.smallEnemyDistance(310)) this.moveEnemy(enemy, dt, -0.45);
+        else if (dist > this.smallEnemyDistance(520)) this.moveEnemy(enemy, dt, 0.35);
+        if (enemy.shootCd <= 0 && dist < this.smallEnemyDistance(620)) {
           enemy.shootCd = 2.8;
           this.enemyBeam(enemy);
         }
       } else if (enemy.kind === 'tentacle') {
-        if (dist > 190) this.moveEnemy(enemy, dt, 0.75);
+        if (dist > this.smallEnemyDistance(190)) this.moveEnemy(enemy, dt, 0.75);
         if (enemy.areaCd <= 0) {
           enemy.areaCd = 3.2;
-          this.createAreaWarning(enemy.node.x, enemy.node.y, 190, 0x9a6bd1);
-          if (dist < 190) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.1), '触手横扫');
+          this.createAreaWarning(enemy.node.x, enemy.node.y, this.smallEnemyDistance(190), 0x9a6bd1);
+          if (dist < this.smallEnemyDistance(190)) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.1), '触手横扫');
         }
       } else if (enemy.kind === 'shooter') {
-        if (dist > 230) this.moveEnemy(enemy, dt, 1);
-        if (enemy.shootCd <= 0 && dist < 480) {
+        if (dist > this.smallEnemyDistance(230)) this.moveEnemy(enemy, dt, 1);
+        if (enemy.shootCd <= 0 && dist < this.smallEnemyDistance(480)) {
           enemy.shootCd = 2.3;
           this.enemyShot(enemy);
         }
       } else if (enemy.kind === 'disruptor') {
-        if (dist > 160) this.moveEnemy(enemy, dt, 0.75);
+        if (dist > this.smallEnemyDistance(160)) this.moveEnemy(enemy, dt, 0.75);
         if (enemy.areaCd <= 0) {
           enemy.areaCd = 3.8;
-          this.createAreaWarning(enemy.node.x, enemy.node.y, 150, 0xb798e2);
-          if (dist < 150) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.1), '干扰波');
+          this.createAreaWarning(enemy.node.x, enemy.node.y, this.smallEnemyDistance(150), 0xb798e2);
+          if (dist < this.smallEnemyDistance(150)) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.1), '干扰波');
         }
       } else {
         this.moveEnemy(enemy, dt, 1);
-        if (dist < enemy.radius + 24 && enemy.attackCd <= 0) {
+        if (dist < enemy.radius + this.smallEnemyDistance(24) && enemy.attackCd <= 0) {
           enemy.attackCd = 1.45;
           this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), '异常体');
         }
       }
       if (enemy.flash > 0) enemy.node.setAlpha(0.55); else enemy.node.setAlpha(1);
       const hpBar = (enemy.node as Phaser.GameObjects.Container & { hpBar?: Phaser.GameObjects.Graphics }).hpBar;
-      hpBar?.clear().fillStyle(0x101820, 0.8).fillRect(-enemy.radius - 4, -enemy.radius - 12, enemy.radius * 2 + 8, 5).fillStyle(this.enemyColor(enemy.kind), 1).fillRect(-enemy.radius - 4, -enemy.radius - 12, (enemy.radius * 2 + 8) * Math.max(0, enemy.hp / enemy.maxHp), 5);
+      hpBar?.clear().fillStyle(0x101820, 0.8).fillRect(-enemy.visualWidth / 2 - 4, -enemy.visualHeight / 2 - 12, enemy.visualWidth + 8, 5).fillStyle(this.enemyColor(enemy.kind), 1).fillRect(-enemy.visualWidth / 2 - 4, -enemy.visualHeight / 2 - 12, (enemy.visualWidth + 8) * Math.max(0, enemy.hp / enemy.maxHp), 5);
     }
     this.separateEnemies();
     this.enemies = this.enemies.filter((enemy) => {
@@ -2452,6 +2754,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const resolved = this.resolveBlockedPosition(nextX, nextY, enemy.radius);
     enemy.node.x = resolved.x;
     enemy.node.y = resolved.y;
+    if (enemy.kind !== 'boss' && enemy.kind !== 'miniBoss' && enemy.body && Math.abs(nextX - enemy.node.x) > 0.01) {
+      enemy.facingRight = nextX > enemy.node.x;
+      enemy.body.setScale(enemy.facingRight ? -1 : 1, 1);
+    }
   }
 
   private resolveBlockedPosition(x: number, y: number, radius: number) {
@@ -2607,6 +2913,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private meleeBladeSegment(weapon: Weapon, angle = this.weaponAngle) {
     const innerRadius = 16;
+    const reach = this.meleeReach(weapon);
     const direction = { x: Math.cos(angle), y: Math.sin(angle) };
     return {
       start: {
@@ -2614,10 +2921,15 @@ export class HospitalBattleScene extends Phaser.Scene {
         y: this.player.y + direction.y * innerRadius,
       },
       end: {
-        x: this.player.x + direction.x * weapon.range,
-        y: this.player.y + direction.y * weapon.range,
+        x: this.player.x + direction.x * reach,
+        y: this.player.y + direction.y * reach,
       },
     };
+  }
+
+  private meleeReach(weapon: Weapon) {
+    if (weapon.weaponClass !== 'sword') return weapon.range;
+    return Math.round(weapon.range + this.weaponVisualSpec(weapon).width * 1.1);
   }
 
   private meleeBladeSegments(weapon: Weapon) {
@@ -2671,9 +2983,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     const labels: Record<AttackStatus, string> = { poison: '毒', burn: '燃', weaken: '弱' };
     const colors: Record<AttackStatus, string> = { poison: '#8fd17c', burn: '#e78a57', weaken: '#b798e2' };
     enemy.statusMarker?.destroy();
-    enemy.statusMarker = this.add.text(0, -enemy.radius - 18, labels[status], { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: colors[status], stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5);
+    enemy.statusMarker = this.add.text(0, -enemy.visualHeight / 2 - 18, labels[status], { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: colors[status], stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5);
     enemy.node.add(enemy.statusMarker);
-    this.floatText(enemy.node.x, enemy.node.y - enemy.radius - 26, `${status === 'poison' ? '中毒' : status === 'burn' ? '燃烧' : '虚弱'}`, colors[status]);
+    this.floatText(enemy.node.x, enemy.node.y - enemy.visualHeight / 2 - 26, `${status === 'poison' ? '中毒' : status === 'burn' ? '燃烧' : '虚弱'}`, colors[status]);
   }
 
   private applyAttackEffectUpgrade(status: AttackStatus) {
@@ -2694,7 +3006,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.attackStatusSpreadTargets = growth.spreadTargets;
     this.attackStatusSpreadRadius = growth.spreadRadius;
     const labels: Record<AttackStatus, string> = { poison: '中毒', burn: '燃烧', weaken: '虚弱' };
-    this.floatText(this.player.x, this.player.y - 55, `${labels[nextStatus]}提升至 Lv.${this.attackStatusLevel}`, palette.amber);
+    this.floatText(this.player.x, this.playerLabelY(18), `${labels[nextStatus]}提升至 Lv.${this.attackStatusLevel}`, palette.amber);
   }
 
   private spreadAttackStatus(source: Enemy) {
@@ -2820,7 +3132,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (enemy.dead) return;
     enemy.hp -= amount;
     enemy.flash = 0.08;
-    if (this.damageNumbersEnabled) this.floatText(enemy.node.x, enemy.node.y - enemy.radius - 15, `-${Math.round(amount)}`, hex(color));
+    if (this.damageNumbersEnabled) this.floatText(enemy.node.x, enemy.node.y - enemy.visualHeight / 2 - 15, `-${Math.round(amount)}`, hex(color), 24, 34, 680);
     if (enemy.hp <= 0) this.killEnemy(enemy);
   }
 
@@ -2940,9 +3252,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (enemy.dead) return;
     enemy.dead = true;
     enemy.deathTimer = 0.8;
-    const marker = this.add.text(0, -enemy.radius - 8, 'X', { fontFamily: 'Arial', fontSize: '18px', color: '#f4e8c9', stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5);
+    const marker = this.add.text(0, -enemy.visualHeight / 2 - 8, 'X', { fontFamily: 'Arial', fontSize: '18px', color: '#f4e8c9', stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5);
     enemy.node.add(marker);
-    this.tweens.add({ targets: marker, y: -enemy.radius - 30, alpha: 0, duration: 800, onComplete: () => marker.destroy() });
+    this.tweens.add({ targets: marker, y: -enemy.visualHeight / 2 - 30, alpha: 0, duration: 800, onComplete: () => marker.destroy() });
     this.tweens.add({ targets: enemy.node, alpha: 0, duration: 800 });
     this.spreadAttackStatus(enemy);
     this.kills += 1;
@@ -2978,13 +3290,13 @@ export class HospitalBattleScene extends Phaser.Scene {
         .sort((a, b) => distance(a.node, this.player) - distance(b.node, this.player))[0];
       if (target) this.damageEnemy(target, this.dailyShieldRetaliation, 0x7ab9d0);
     }
-    this.san = clamp(this.san - healthDamage, 0, 100);
-    this.hp = this.san;
-    if (!this.mutated && this.san < 30) this.enterMutationMode();
+    this.hp = clamp(this.hp - healthDamage, 0, this.maxHp);
+    this.san = clamp(this.san - incoming * 1.2, 0, 100);
+    if (this.san <= 0 && !this.mutated && !this.frenzyAvailable && !this.frenzyActive) this.beginSanCollapse();
     const hitLabel = absorbed > 0
-      ? `${source} 护盾吸收 ${Math.round(absorbed)}${healthDamage > 0 ? ` · SAN -${Math.round(healthDamage)}` : ''}`
-      : `${source} SAN -${Math.round(healthDamage)}`;
-    this.floatText(this.player.x, this.player.y - 42, hitLabel, absorbed > 0 ? palette.cyan : palette.danger);
+      ? `${source} 护盾吸收 ${Math.round(absorbed)}${healthDamage > 0 ? ` · 生命 -${Math.round(healthDamage)}` : ''}`
+      : `${source} 生命 -${Math.round(healthDamage)}`;
+    this.floatText(this.player.x, this.playerLabelY(10), hitLabel, absorbed > 0 ? palette.cyan : palette.danger);
     this.cameras.main.flash(90, 180, 65, 65, false);
     if (this.screenShakeEnabled) this.cameras.main.shake(120, 0.006);
     this.playerHitTimer = 0.3;
@@ -3001,17 +3313,41 @@ export class HospitalBattleScene extends Phaser.Scene {
   private updateMutation(dt: number) {
     this.sanPulse += dt;
     this.updateWardBackground();
-    if (!this.mutated && this.san < 30) this.enterMutationMode();
+    if (this.mutated) return;
+    if (this.san <= 0 && !this.frenzyAvailable && !this.frenzyActive && this.mutationTimer <= 0) this.beginSanCollapse();
+    if (this.sanLowActive) {
+      this.sanLowTimer -= dt;
+      if (this.sanLowTimer <= 0) {
+        this.sanLowTimer = 0;
+        this.sanLowActive = false;
+        this.floatText(this.player.x, this.playerLabelY(18), '低 SAN 暴走结束 · 刷怪恢复', palette.cyan);
+      }
+    }
+    if (this.frenzyActive) {
+      this.frenzyTimer -= dt;
+      if (this.frenzyTimer <= 0) {
+        this.frenzyTimer = 0;
+        this.frenzyActive = false;
+        this.san = 35;
+        this.floatText(this.player.x, this.playerLabelY(18), '暴走结束 · SAN 暂时稳定', palette.cyan);
+      }
+    }
+    if (this.mutationTimer > 0) {
+      this.mutationTimer -= dt;
+      if (this.mutationTimer <= 0) {
+        this.mutated = true;
+        this.damageBonus += 10;
+        this.san = 42;
+        this.playerGlow.setFillStyle(0xed716e);
+        this.cameras.main.shake(380, 0.012);
+        this.floatText(this.player.x, this.playerLabelY(18), '变异完成 · 伤害提升', palette.danger);
+        this.updateWardBackground();
+      }
+    }
   }
 
   private enterMutationMode() {
-    if (this.mutated) return;
-    this.mutated = true;
-    this.damageBonus += 10;
-    this.playerGlow?.setFillStyle(0xed716e);
-    this.cameras.main.shake(280, 0.01);
-    this.floatText(this.player.x, this.player.y - 55, 'SAN 低于 30 · 异化模式', palette.danger);
-    this.updateWardBackground();
+    this.beginSanCollapse();
   }
 
   private updateWardBackground() {
@@ -3043,7 +3379,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const ring = this.add.circle(this.player.x, this.player.y, radius, 0xb798e2, 0.06).setStrokeStyle(3, 0xd9b9ff, 0.9).setDepth(8);
     this.world.add(ring);
     this.tweens.add({ targets: ring, scale: 1.14, alpha: 0, duration: 360, onComplete: () => ring.destroy() });
-    this.floatText(this.player.x, this.player.y - 62, `裂隙脉冲 · ${targets.length} 个目标`, '#d9b9ff');
+    this.floatText(this.player.x, this.playerLabelY(26), `裂隙脉冲 · ${targets.length} 个目标`, '#d9b9ff');
   }
 
   private triggerKillNova(x: number, y: number) {
@@ -3060,6 +3396,27 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floatText(x, y - 36, '猎杀爆裂', '#ffe2a0');
   }
 
+  private beginSanCollapse() {
+    if (this.mutated || this.mutationTimer > 0 || this.frenzyAvailable || this.frenzyActive) return;
+    this.sanLowActive = true;
+    this.sanLowTimer = 3;
+    this.frenzyAvailable = true;
+    this.spawnTimer = Math.min(this.spawnTimer, 0.05);
+    this.cameras.main.shake(220, 0.008);
+    this.floatText(this.player.x, this.playerLabelY(18), 'SAN 归零 · 暴走技能已就绪', palette.danger);
+  }
+
+  private triggerFrenzy() {
+    if (this.phase !== 'battle' || !this.frenzyAvailable || this.frenzyActive) return;
+    this.frenzyAvailable = false;
+    this.frenzyActive = true;
+    this.frenzyTimer = 8;
+    this.sanLowActive = false;
+    this.sanLowTimer = 0;
+    this.spawnTimer = Math.min(this.spawnTimer, 0.05);
+    this.cameras.main.shake(240, 0.01);
+    this.floatText(this.player.x, this.playerLabelY(18), '暴走启动 · 伤害提升 / 护盾减弱', palette.danger);
+  }
   private gainXp(amount: number) {
     this.xp += amount;
     this.checkLevelUp();
@@ -3768,6 +4125,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.enemies = [];
     this.projectiles = [];
     this.player?.destroy();
+    this.playerBodyLayer = undefined;
+    this.playerWeaponLayer = undefined;
     this.playerSprite = undefined;
     this.playerAnimation = 'idle';
     this.playerDirection = 'down';
@@ -3783,10 +4142,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.drops = [];
   }
 
-  private floatText(x: number, y: number, message: string, color: string) {
-    const text = this.add.text(x, y, message, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color, stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5).setDepth(30);
+  private floatText(x: number, y: number, message: string, color: string, fontSize = 12, rise = 24, duration = 650) {
+    const strokeThickness = fontSize >= 20 ? 4 : 3;
+    const text = this.add.text(x, y, message, { fontFamily: 'Microsoft YaHei', fontSize: `${fontSize}px`, color, stroke: '#0b1117', strokeThickness }).setOrigin(0.5).setDepth(30);
     this.world.add(text);
-    this.tweens.add({ targets: text, y: y - 24, alpha: 0, duration: 650, onComplete: () => text.destroy() });
+    this.tweens.add({ targets: text, y: y - rise, alpha: 0, duration, onComplete: () => text.destroy() });
   }
 
   private createAreaWarning(x: number, y: number, radius = 75, color = 0xb798e2) {

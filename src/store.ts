@@ -67,7 +67,7 @@ export class GameStore {
 export const store = new GameStore();
 
 declare global {
-  interface Window { __GAME_TEST_API__: { snapshot: () => object; workshop?: () => object } }
+  interface Window { __GAME_TEST_API__: { snapshot: () => object; workshop?: () => object }; Builda: any }
 }
 
 window.__GAME_TEST_API__ = {
