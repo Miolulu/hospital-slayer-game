@@ -220,10 +220,13 @@ export class HospitalBattleScene extends Phaser.Scene {
   private weapons: Weapon[] = [];
   private runMode: RunMode = 'mainline';
   private selectedWeaponId = 'knife';
+  private weaponSelectPreviewSkinId = '';
   private selectedStartFloor = 1;
   private progress: ProgressSave = {
     maxFloor: 1,
     unlockedWeaponIds: ['knife', 'ward-lantern'],
+    unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'],
+    equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' },
     unlockedSkinIds: ['patient-default'],
     equippedSkinId: 'patient-default',
     archiveKinds: [],
@@ -252,6 +255,21 @@ export class HospitalBattleScene extends Phaser.Scene {
     { id: 'violet-dream', name: '紫雾梦魇', color: 0xb798e2, setName: '紫雾套装', setBuff: '移速 +8%' },
     { id: 'street-runner', name: '夜行校服', color: 0x2b7880, assetPrefix: 'street-runner', setName: '街区夜行套装', setBuff: '移速 +5%' },
     { id: 'cthulhu-dark', name: '深潜祭服', color: 0x573a6b, assetPrefix: 'cthulhu-dark', setName: '深潜祭服套装', setBuff: '伤害 +8' },
+  ];
+  private weaponSkins: WeaponSkinDef[] = [
+    { id: 'sword-default', name: '基础病院刀', weaponClass: 'sword', color: 0xed716e, cost: 0, textureKey: 'weapon-sword' },
+    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png' },
+    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png' },
+    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 80, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png' },
+    { id: 'gun-default', name: '基础灯枪', weaponClass: 'gun', color: 0xf2bf62, cost: 0, textureKey: 'weapon-gun' },
+    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png' },
+    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png' },
+    { id: 'whip-default', name: '基础长鞭', weaponClass: 'whip', color: 0x8fd17c, cost: 0, textureKey: 'weapon-whip' },
+    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 60, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png' },
+    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png' },
+    { id: 'cannon-default', name: '基础回声炮', weaponClass: 'cannon', color: 0xb798e2, cost: 0, textureKey: 'weapon-cannon' },
+    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png' },
+    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png' },
   ];
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
@@ -376,6 +394,13 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('daily-panel-frame-v1', '/assets/art/daily/daily-panel-frame-v1.png');
     this.load.image('daily-start-button-v1', '/assets/art/daily/daily-start-button-v1.png');
     this.load.image('mainline-background-v1', '/assets/art/mainline-background-v1.png');
+    this.load.image('weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.png');
+    (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => {
+      this.load.image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.png`);
+    });
+    (['melee', 'ranged', 'magic', 'heavy'] as const).forEach((category) => {
+      this.load.image(`weapon-category-${category}`, `/assets/art/weapon-select/icons/weapon-category-${category}.png`);
+    });
     this.load.image('ward-day-v1', '/assets/art/ward-day-v1.png');
     this.load.image('ward-night-v1', '/assets/art/ward-night-v1.png');
     this.load.image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
@@ -395,6 +420,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
     (['sword', 'gun', 'whip', 'cannon'] as const).forEach((weaponClass) => {
       this.load.image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.png`);
+    });
+    this.weaponSkins.filter((skin) => skin.assetPath).forEach((skin) => {
+      this.load.image(skin.textureKey, skin.assetPath!);
     });
     (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
       this.load.spritesheet(`patient-walk-${direction}`, `/assets/art/animations/patient-walk-${direction}.png`, { frameWidth: 192, frameHeight: 192 });
