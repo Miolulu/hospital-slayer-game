@@ -2,8 +2,8 @@
   "document": {
     "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
     "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
-    "revision": 1902,
-    "lastCheckedAt": "2026-08-27T17:53:18+08:00"
+    "revision": 2029,
+    "lastCheckedAt": "2026-08-27T18:14:32+08:00"
   },
   "completedItems": [
     {
@@ -94,7 +94,17 @@
     {
       "summary": "主界面背景、标题和三张无字按钮切图接入",
       "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/menu/menu-background-v1.png, public/assets/art/menu/menu-title-v1.png, public/assets/art/menu/menu-button-archive-v1.png, public/assets/art/menu/menu-button-mainline-v1.png, public/assets/art/menu/menu-button-daily-v1.png"
+      "implementedIn": "src/main.ts, public/assets/art/menu/menu-background-v1.png, public/assets/art/menu/menu-title-v1.png, public/assets/art/menu/menu-title-v2.png, public/assets/art/menu/menu-button-archive-v1.png, public/assets/art/menu/menu-button-mainline-v1.png, public/assets/art/menu/menu-button-daily-v1.png"
+    },
+    {
+      "summary": "病历档案入口改为玩家信息与皮肤页面",
+      "status": "done",
+      "implementedIn": "src/main.ts"
+    },
+    {
+      "summary": "病历档案、主线通关和每日挑战统一使用左上角返回按钮",
+      "status": "done",
+      "implementedIn": "src/main.ts"
     }
   ],
   "pendingItems": [
@@ -167,6 +177,12 @@
       "status": "pending",
       "implementedIn": "src/main.ts",
       "reason": "当前主线升级卡仍可能出现升级武器选项，需要改成入场武器锁定并保留数值成长。"
+    },
+    {
+      "summary": "武器攻击效果改为从武器发射的霓虹像素特效",
+      "status": "pending",
+      "implementedIn": "src/main.ts, public/assets/art/weapons",
+      "reason": "文档刚新增该意见，当前仍使用几何图形和占位特效，等待对应武器特效素材或确认生图资源后接入。"
     }
   ],
   "verification": {

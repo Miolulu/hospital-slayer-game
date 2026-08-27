@@ -314,7 +314,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
-    this.load.image('menu-title-v1', '/assets/art/menu/menu-title-v1.png');
+    this.load.image('menu-title-v2', '/assets/art/menu/menu-title-v2.png');
     this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.png');
     this.load.image('menu-button-mainline-v1', '/assets/art/menu/menu-button-mainline-v1.png');
     this.load.image('menu-button-daily-v1', '/assets/art/menu/menu-button-daily-v1.png');
@@ -885,7 +885,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addMenuBackdrop(layer);
-    this.addMenuImageButton(layer, 640, 382, 330, 132, 'menu-button-archive-v1', '病历档案', () => this.showArchive());
+    // 病历档案入口对应玩家信息页，怪物图鉴暂时保留在内部供后续接入。
+    this.addMenuImageButton(layer, 640, 382, 330, 132, 'menu-button-archive-v1', '病历档案', () => this.showProfile());
     this.addMenuImageButton(layer, 640, 516, 330, 132, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
     this.addMenuImageButton(layer, 640, 650, 330, 132, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
     this.overlay = layer;
@@ -897,8 +898,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     background.setDisplaySize(background.width * backgroundScale, background.height * backgroundScale).setAlpha(0.98);
     layer.add(background);
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.14));
-    const title = this.add.image(W / 2, -10, 'menu-title-v1').setOrigin(0.5, 0);
-    title.setDisplaySize(W, W * title.height / title.width);
+    const title = this.add.image(W / 2, -8, 'menu-title-v2').setOrigin(0.5, 0);
+    const titleWidth = 1120;
+    title.setDisplaySize(titleWidth, titleWidth * title.height / title.width);
     layer.add(title);
     layer.add(this.add.rectangle(W / 2, H - 18, W, 36, 0x02070b, 0.42));
   }
@@ -965,7 +967,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         layer.add(this.add.text(1035, y, `${String(floor).padStart(2, '0')}  封锁病区`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0.5));
       }
     }
-    this.addButton(layer, 1035, 562, 190, 42, '返回主界面', () => this.showStart(), 'muted', 8);
+    this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
 
@@ -1107,7 +1109,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       }
     });
     layer.add(this.add.text(525, 652, `病例残页 ${this.progress.metaCoins} · 套装加成在进入战斗时生效`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setFixedSize(390, 14));
-    this.addButton(layer, 640, 688, 190, 30, '返回主界面', () => this.showStart(), 'muted', 8);
+    this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
 
@@ -1159,7 +1161,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.text(640, 400, '最终首领拥有范围技能和蓄力攻击，击败后可获得专属外观。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cyan }).setOrigin(0.5));
     if (!completed) this.addButton(layer, 640, 474, 220, 44, '选择武器并开始', () => this.showWeaponSelect('daily', 1), 'primary');
     if (toast) layer.add(this.add.text(640, 448, toast, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
-    this.addButton(layer, 640, 562, 190, 44, '返回主界面', () => this.showStart(), 'muted');
+    this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
   }
 
