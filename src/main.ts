@@ -315,9 +315,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
     this.load.image('menu-title-v1', '/assets/art/menu/menu-title-v1.png');
-    this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-0-v1.png');
-    this.load.image('menu-button-mainline-v1', '/assets/art/menu/menu-button-1-v1.png');
-    this.load.image('menu-button-daily-v1', '/assets/art/menu/menu-button-2-v1.png');
+    this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.png');
+    this.load.image('menu-button-mainline-v1', '/assets/art/menu/menu-button-mainline-v1.png');
+    this.load.image('menu-button-daily-v1', '/assets/art/menu/menu-button-daily-v1.png');
     this.load.image('ward-day-v1', '/assets/art/ward-day-v1.png');
     this.load.image('ward-night-v1', '/assets/art/ward-night-v1.png');
     this.load.image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
@@ -2949,6 +2949,29 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui?.setVisible(false);
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(45).setScrollFactor(0);
+    if (!win) {
+      layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000204, 1));
+      layer.add(this.add.text(640, 190, '你的大脑被大量怪物占据，失去意识...', {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '27px',
+        color: palette.cream,
+        stroke: '#13090d',
+        strokeThickness: 7,
+        align: 'center',
+        wordWrap: { width: 760 },
+      }).setOrigin(0.5).setFontStyle('bold'));
+      layer.add(this.add.text(640, 270, `第 ${this.floor} 层 · 第 ${this.wave} 波`, {
+        fontFamily: 'Courier New, Microsoft YaHei',
+        fontSize: '15px',
+        color: palette.danger,
+      }).setOrigin(0.5));
+      this.addMenuImageButton(layer, 640, 430, 330, 124, 'menu-button-mainline-v1', '重新挑战', () => {
+        this.startRun(this.floor, this.runMode, this.selectedWeaponId);
+      });
+      this.addMenuImageButton(layer, 640, 590, 330, 124, 'menu-button-archive-v1', '回到标题', () => this.showStart());
+      this.overlay = layer;
+      return;
+    }
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.94));
     this.addPixelFrame(layer, 640, 350, 650, 370, 0x101b24, win ? 0x8fd17c : 0xed716e);
     const finalFloor = this.floor >= TOTAL_FLOORS;

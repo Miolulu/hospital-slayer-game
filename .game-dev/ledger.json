@@ -2,8 +2,8 @@
   "document": {
     "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
     "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
-    "revision": 1531,
-    "lastCheckedAt": "2026-08-27T17:08:00+08:00"
+    "revision": 1899,
+    "lastCheckedAt": "2026-08-27T17:49:10+08:00"
   },
   "completedItems": [
     {
@@ -108,15 +108,74 @@
       "summary": "后期重做大 Boss 攻击",
       "status": "blocked",
       "reason": "飞书意见明确安排在后期，尚未给出新的攻击方式、数值和验收标准。"
+    },
+    {
+      "summary": "升级卡牌按移速、武器伤害、武器数量、攻击特效、生命护盾和攻速分类",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "当前代码已按六类生成卡牌，文档仍保留问题项；需要后续试玩确认卡池和数值是否符合预期。"
+    },
+    {
+      "summary": "战斗前白日病房改为人物立绘与气泡对白",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "现有对白页仍使用旧面板布局，缺少医生或护士立绘、气泡和说话者缩放。"
+    },
+    {
+      "summary": "主线战斗改为 10 波并只保留一个小 Boss",
+      "status": "pending",
+      "implementedIn": "src/main.ts, src/combatBalance.ts",
+      "reason": "当前主线仍是每层 20 波；与项目既有 30 层主线规则存在口径冲突，暂不直接覆盖。"
+    },
+    {
+      "summary": "放大战斗场景人物和怪物",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "需要重新评估碰撞半径、武器判定和移动视野后再调整。"
+    },
+    {
+      "summary": "失败界面黑屏、克苏鲁文案并使用主界面按钮",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "失败界面已接入黑屏文案和主界面按钮素材，但当前环境缺少独立触摸和浏览器视觉验收，暂不勾选文档。"
+    },
+    {
+      "summary": "主页隐藏图鉴入口",
+      "status": "blocked",
+      "reason": "与最新明确的主界面三按钮需求冲突；当前保留病历档案入口。"
+    },
+    {
+      "summary": "生命值改为 SAN 值并在低于 30 时切换异化模式",
+      "status": "pending",
+      "implementedIn": "src/main.ts, src/combatBalance.ts",
+      "reason": "当前仍同时显示生命、护盾和 SAN，并保留手动暴走技能；需要整体重做战斗 HUD 和受击逻辑。"
+    },
+    {
+      "summary": "战斗顶部波次去框、隐藏出怪数量和击杀记录",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "当前波次面板仍显示边框、出怪数量和本局击杀数。"
+    },
+    {
+      "summary": "每日挑战增加月度首领、排行榜和前三次免费挑战",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "当前仅有每日 50 波和一次完成限制，尚未接入月度数据、排行榜和奖励排名。"
+    },
+    {
+      "summary": "进入副本后禁止武器升级导致武器更换",
+      "status": "pending",
+      "implementedIn": "src/main.ts",
+      "reason": "当前主线升级卡仍可能出现升级武器选项，需要改成入场武器锁定并保留数值成长。"
     }
   ],
   "verification": {
-    "tests": "28 passed (17:08)",
-    "build": "passed (17:08)",
+    "tests": "28 passed (17:49)",
+    "build": "passed (17:49)",
     "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
     "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
-    "mainMenuAssetCheck": "passed: supplied background and title crop loaded; no-text button sheet split into three transparent PNGs and mapped to archive, mainline and daily challenge entries",
+    "mainMenuAssetCheck": "passed: supplied background and title crop loaded; no-text button sheet split into three transparent PNGs, semantic asset paths fixed, and mapped to archive, mainline and daily challenge entries",
     "independentTestAgent": "passed: 26 tests, TypeScript check, build, asset copy",
     "independentTouchTest": "blocked: no independent touch harness; static regression passed after UI fixes (evidence/final-static-retest-2026-08-27.md)"
   }
