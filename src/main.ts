@@ -313,6 +313,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('patient-boy', '/assets/art/patient-boy.png');
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
+    this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
+    this.load.image('menu-title-v1', '/assets/art/menu/menu-title-v1.png');
+    this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-0-v1.png');
+    this.load.image('menu-button-mainline-v1', '/assets/art/menu/menu-button-1-v1.png');
+    this.load.image('menu-button-daily-v1', '/assets/art/menu/menu-button-2-v1.png');
     this.load.image('ward-day-v1', '/assets/art/ward-day-v1.png');
     this.load.image('ward-night-v1', '/assets/art/ward-night-v1.png');
     this.load.image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
@@ -879,20 +884,52 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui?.setVisible(false);
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
-    this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.55);
-    this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 640, 350, 920, 540, 0x111d27, 0x6bd3c1);
-    layer.add(this.add.text(640, 128, 'NIGHT WARD / PATIENT 0001', { fontFamily: 'Courier New', fontSize: '14px', color: palette.cyan }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 174, '我在精神病院斩神', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '36px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 218, 'THE BOY WHO CUTS THE GODS', { fontFamily: 'Courier New', fontSize: '12px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.rectangle(390, 252, 500, 1, 0x46636a, 0.8).setOrigin(0));
-    layer.add(this.add.text(640, 282, '选择夜班档案', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
-    this.addButton(layer, 640, 344, 320, 58, '主线通关', () => this.showMainline(this.floor), 'primary', 10);
-    this.addButton(layer, 640, 422, 320, 50, '每日挑战', () => this.showDailyChallenge(), 'muted', 10);
-    this.addButton(layer, 552, 496, 150, 44, '我的', () => this.showProfile(), 'muted', 8);
-    this.addButton(layer, 728, 496, 150, 44, '图鉴', () => this.showArchive(), 'muted', 8);
-    layer.add(this.add.text(640, 560, '主线推进解锁武器与病区档案', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0.5));
+    this.addMenuBackdrop(layer);
+    this.addMenuImageButton(layer, 640, 382, 330, 132, 'menu-button-archive-v1', '病历档案', () => this.showArchive());
+    this.addMenuImageButton(layer, 640, 516, 330, 132, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
+    this.addMenuImageButton(layer, 640, 650, 330, 132, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
     this.overlay = layer;
+  }
+
+  private addMenuBackdrop(layer: Phaser.GameObjects.Container) {
+    const background = this.add.image(W / 2, H / 2, 'menu-background-v1').setOrigin(0.5);
+    const backgroundScale = Math.max(W / background.width, H / background.height);
+    background.setDisplaySize(background.width * backgroundScale, background.height * backgroundScale).setAlpha(0.98);
+    layer.add(background);
+    layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.14));
+    const title = this.add.image(W / 2, -10, 'menu-title-v1').setOrigin(0.5, 0);
+    title.setDisplaySize(W, W * title.height / title.width);
+    layer.add(title);
+    layer.add(this.add.rectangle(W / 2, H - 18, W, 36, 0x02070b, 0.42));
+  }
+
+  private addMenuImageButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, textureKey: string, label: string, callback: () => void) {
+    const button = this.add.container(x, y);
+    const image = this.add.image(0, 0, textureKey).setOrigin(0.5).setDisplaySize(width, height);
+    const text = this.add.text(0, 0, label, {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: '23px',
+      color: palette.cream,
+      stroke: '#080d11',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setFontStyle('bold');
+    button.add([image, text]);
+    const setPressed = (pressed: boolean) => {
+      button.setScale(pressed ? 0.96 : 1);
+      image.setTint(pressed ? 0xc6d8d0 : 0xffffff);
+      text.setAlpha(pressed ? 0.82 : 1);
+    };
+    parent.add(button);
+    this.uiActionRegions.push({
+      phase: this.phase,
+      x,
+      y,
+      width: width + 24,
+      height: Math.max(48, height + 4),
+      callback,
+      setPressed,
+    });
+    return button;
   }
 
   private showMainline(targetFloor = this.floor) {

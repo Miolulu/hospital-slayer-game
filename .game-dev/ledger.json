@@ -90,6 +90,11 @@
       "summary": "升级卡牌竖版美术、品质底图、类型图标和选中态接入",
       "status": "done",
       "implementedIn": "src/main.ts, public/assets/art/cards/upgrade-card-blue-v1.png, public/assets/art/cards/upgrade-card-purple-v1.png, public/assets/art/cards/upgrade-card-gold-v1.png, .game-dev/evidence/card-art-references/"
+    },
+    {
+      "summary": "主界面背景、标题和三张无字按钮切图接入",
+      "status": "done",
+      "implementedIn": "src/main.ts, public/assets/art/menu/menu-background-v1.png, public/assets/art/menu/menu-title-v1.png, public/assets/art/menu/menu-button-archive-v1.png, public/assets/art/menu/menu-button-mainline-v1.png, public/assets/art/menu/menu-button-daily-v1.png"
     }
   ],
   "pendingItems": [
@@ -111,6 +116,7 @@
     "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
     "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
+    "mainMenuAssetCheck": "passed: supplied background and title crop loaded; no-text button sheet split into three transparent PNGs and mapped to archive, mainline and daily challenge entries",
     "independentTestAgent": "passed: 26 tests, TypeScript check, build, asset copy",
     "independentTouchTest": "blocked: no independent touch harness; static regression passed after UI fixes (evidence/final-static-retest-2026-08-27.md)"
   }

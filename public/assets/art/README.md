@@ -53,3 +53,13 @@ The vertical Cthulhu card frames are kept at their source 1024x1536 ratio and se
 - `cards/upgrade-card-gold-v1.png` - level 3 / gold quality
 
 The upgrade scene draws each type icon into the circular opening and places the title and detail text inside the lower panel. The supplied idle, background and selected-state composition references are archived under `.game-dev/evidence/card-art-references/` and are not loaded at runtime.
+
+## Main menu slots
+
+The main menu uses the supplied hospital background and title artwork. The no-text button sheet was split into three transparent 1024x512 PNGs and is rendered with runtime labels:
+
+- `menu/menu-background-v1.png` - full-screen title background
+- `menu/menu-title-v1.png` - cropped title artwork without the sample buttons
+- `menu/menu-button-archive-v1.png` - patient records entry
+- `menu/menu-button-mainline-v1.png` - mainline entry
+- `menu/menu-button-daily-v1.png` - daily challenge entry
