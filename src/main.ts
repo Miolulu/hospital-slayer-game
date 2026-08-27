@@ -3040,9 +3040,14 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private addButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, style: 'primary' | 'muted' | 'danger' = 'primary', hitPadding = 14) {
-    if (x === 88 && y === 38) {
+    const isBackButton = x === 88 && y === 38;
+    if (isBackButton) {
       x = this.safeBackButtonX();
       y = this.safeBackButtonY();
+      width = 52;
+      height = 44;
+      label = '←';
+      hitPadding = Math.max(hitPadding, 12);
     }
     const colors = { primary: 0x2d6b69, muted: 0x26383f, danger: 0x8c3c4d };
     const lineColors = { primary: 0x7bd6c1, muted: 0x5b777c, danger: 0xed716e };
@@ -3055,7 +3060,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     button.add(shadow);
     button.add(rect);
     button.add(this.add.rectangle(0, 0, width - 8, height - 8, colors[style], 0).setStrokeStyle(1, lineColors[style], 0.55));
-    button.add(this.add.text(0, 0, label, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.cream }).setOrigin(0.5));
+    button.add(this.add.text(0, 0, label, { fontFamily: 'Microsoft YaHei', fontSize: isBackButton ? '25px' : '15px', color: palette.cream }).setOrigin(0.5));
     const setPressed = (pressed: boolean) => {
       button.setScale(pressed ? 0.97 : 1);
       rect.setFillStyle(pressed ? Phaser.Display.Color.IntegerToColor(colors[style]).lighten(12).color : colors[style], 1);

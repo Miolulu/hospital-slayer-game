@@ -2,8 +2,8 @@
   "document": {
     "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
     "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
-    "revision": 2029,
-    "lastCheckedAt": "2026-08-27T18:49:00+08:00"
+    "revision": 2040,
+    "lastCheckedAt": "2026-08-27T18:58:00+08:00"
   },
   "completedItems": [
     {
@@ -110,7 +110,7 @@
       "summary": "Builda 横屏安全区布局：主界面入口、标题和页面返回按钮避开安全区",
       "status": "done",
       "implementedIn": "src/main.ts",
-      "evidence": ".game-dev/evidence/builda-safe-area-menu-2026-08-27.png, .game-dev/evidence/builda-safe-area-mainline-2026-08-27.png"
+      "evidence": ".game-dev/evidence/builda-safe-area-menu-2026-08-27.png, .game-dev/evidence/builda-safe-area-mainline-2026-08-27.png, .game-dev/evidence/builda-return-icon-2026-08-27.png"
     }
   ],
   "pendingItems": [
@@ -192,10 +192,10 @@
     }
   ],
   "verification": {
-    "tests": "28 passed (18:43)",
-    "build": "passed (18:43)",
-    "buildaBundleCheck": "passed (18:49): build/builda-web.zip, h5, 42637562 bytes",
-    "buildaMobileBrowserCheck": "passed (18:49): Builda dev shell safe-area preview plus 844x390 landscape flow home -> mainline -> weapon -> dialogue -> battle; menu and mainline controls stay inside safe bounds; evidence/builda-safe-area-menu-2026-08-27.png and evidence/builda-safe-area-mainline-2026-08-27.png",
+    "tests": "28 passed (18:55)",
+    "build": "passed (18:55)",
+    "buildaBundleCheck": "passed (18:56): build/builda-web.zip, h5, 42637600 bytes",
+    "buildaMobileBrowserCheck": "passed (18:58): Builda dev shell safe-area preview plus 844x390 landscape flow home -> mainline -> weapon -> dialogue -> battle; menu and mainline controls stay inside safe bounds; return icon visible and touch target preserved; evidence/builda-safe-area-menu-2026-08-27.png, evidence/builda-safe-area-mainline-2026-08-27.png and evidence/builda-return-icon-2026-08-27.png",
     "visualBrowserCheck": "passed: profile, dialogue, battle, weapon-select, front idle pose, no black block in battle, upgrade-card-art (1280x720 and 960x540 landscape)",
     "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
     "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
