@@ -385,6 +385,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     kills: undefined as Phaser.GameObjects.Text | undefined,
     status: undefined as Phaser.GameObjects.Text | undefined,
     skill: undefined as Phaser.GameObjects.Text | undefined,
+    skillIcon: undefined as Phaser.GameObjects.Image | undefined,
     hpLabel: undefined as Phaser.GameObjects.Text | undefined,
     xpLabel: undefined as Phaser.GameObjects.Text | undefined,
     sanLabel: undefined as Phaser.GameObjects.Text | undefined,
@@ -437,6 +438,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('effect-gun-neon-v1', '/assets/art/weapons/effect-gun-neon-v1.png');
     this.load.image('effect-cannon-neon-v1', '/assets/art/weapons/effect-cannon-neon-v1.png');
     this.load.image('effect-whip-neon-v1', '/assets/art/weapons/effect-whip-neon-v1.png');
+    this.load.image('xp-drop-cthulhu-v1', '/assets/art/pickups/xp-drop-cthulhu-v1.png');
+    this.load.image('san-frenzy-v1', '/assets/art/hud/san-frenzy-v1.png');
     UPGRADE_ICON_KINDS.forEach((kind) => {
       this.load.image(`upgrade-icon-${kind}`, `/assets/art/cards/icons/upgrade-icon-${kind}.png`);
     });
@@ -451,6 +454,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
     this.load.spritesheet('patient-hit', '/assets/art/animations/patient-hit.png', { frameWidth: 192, frameHeight: 192 });
     this.load.spritesheet('patient-death', '/assets/art/animations/patient-death.png', { frameWidth: 192, frameHeight: 192 });
+    this.load.image('mini-boss-01', '/assets/art/enemies/bosses/mini-boss-01.png');
+    this.load.image('floor-boss-01', '/assets/art/enemies/bosses/floor-boss-01.png');
     this.skins.filter((skin) => skin.assetPrefix).forEach((skin) => {
       const root = `/assets/art/skins/${skin.assetPrefix}`;
       this.load.image(this.skinFrontTextureKey(skin), `${root}/front.png`);
@@ -554,7 +559,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         kills: this.kills,
         drops: this.drops.length,
         enemies: this.enemies.filter((enemy) => !enemy.dead).map((enemy) => ({ kind: enemy.kind, hp: enemy.hp, maxHp: enemy.maxHp })),
-        weapon: this.currentWeapon() ? { id: this.currentWeapon()!.id, name: this.currentWeapon()!.name, type: this.currentWeapon()!.type, ammo: this.currentWeapon()!.ammo, copies: this.currentWeapon()!.copies, level: this.currentWeapon()!.level, damage: this.currentWeaponDamage(this.currentWeapon()!), rotationsPerSecond: rotationsPerSecond(this.currentRotationSpeed(this.currentWeapon()!)) } : undefined,
+        weapon: this.currentWeapon() ? { id: this.currentWeapon()!.id, name: this.currentWeapon()!.name, type: this.currentWeapon()!.type, ammo: this.currentWeapon()!.ammo, copies: this.currentWeapon()!.copies, level: this.currentWeapon()!.level, damage: this.currentWeaponDamage(this.currentWeapon()!), skinId: this.equippedWeaponSkin(this.currentWeapon()!.weaponClass).id, rotationsPerSecond: rotationsPerSecond(this.currentRotationSpeed(this.currentWeapon()!)) } : undefined,
       }),
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -799,6 +804,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     panel.add(weaponIcon);
     this.hud.weaponIcon = this.add.image(56, 151, 'weapon-sword').setOrigin(0.5).setDisplaySize(46, 46);
     panel.add(this.hud.weaponIcon);
+    this.hud.skillIcon = this.add.image(230, 180, 'san-frenzy-v1').setOrigin(0.5).setDisplaySize(48, 48).setDepth(25).setVisible(false);
+    panel.add(this.hud.skillIcon);
     this.hud.skill = this.add.text(230, 180, '暴走', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream, backgroundColor: '#8c3c4d', padding: { left: 12, right: 12, top: 8, bottom: 8 } })
       .setOrigin(0.5).setDepth(26).setVisible(false)
       .setInteractive(new Phaser.Geom.Rectangle(-48, -25, 96, 50), Phaser.Geom.Rectangle.Contains);
@@ -1024,6 +1031,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const pulse = 0.04 + (Math.sin(this.sanPulse * 8) + 1) * 0.025;
     this.hud.sanOverlay?.setAlpha(sanAlert ? pulse : this.san < 30 ? 0.025 : 0);
     const skillVisible = this.phase === 'battle' && this.frenzyAvailable && !this.frenzyActive;
+    this.hud.skillIcon?.setVisible(skillVisible).setAlpha(skillVisible ? 0.92 + (Math.sin(this.sanPulse * 8) + 1) * 0.04 : 0);
     this.hud.skill?.setVisible(skillVisible).setAlpha(skillVisible ? 0.82 + (Math.sin(this.sanPulse * 8) + 1) * 0.09 : 0);
     const hpRatio = clamp(this.hp / Math.max(1, this.maxHp), 0, 1);
     const xpRatio = clamp(this.xp / Math.max(1, this.xpNeed), 0, 1);
@@ -1048,6 +1056,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.hud.wavePanel?.setScrollFactor(0, 0, true).setDepth(26);
     this.hud.resourcePanel?.setScrollFactor(0, 0, true).setDepth(26);
     this.hud.kills?.setScrollFactor(0, 0);
+    this.hud.skillIcon?.setScrollFactor(0, 0);
     this.hud.skill?.setScrollFactor(0, 0);
   }
 
@@ -1351,7 +1360,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         else this.startRun(this.selectedStartFloor, mode, selectedWeapon.id);
       }, accent);
     }
-    this.addWeaponSelectImageButton(layer, 95, 680, 178, 38, 'weapon-select-frame-back-v1', '返回', () => {
+    this.addWeaponSelectImageButton(layer, 95, 680, 178, 38, 'weapon-select-frame-back-v1', '', () => {
       if (mode === 'daily') this.showDailyChallenge();
       else this.showMainline(this.selectedStartFloor);
     }, 0x46636a);
@@ -2487,15 +2496,25 @@ export class HospitalBattleScene extends Phaser.Scene {
     let visualWidth = radius * 2;
     let visualHeight = radius * 2;
     if (isBoss) {
-      const s = kind === 'boss' ? 1.45 : 1;
-      const g = this.add.graphics();
-      g.fillStyle(0x000000, .45); g.fillEllipse(0, 75 * s, 145 * s, 25 * s);
-      g.fillStyle(0x15161b); g.fillEllipse(0, 5 * s, 100 * s, 150 * s); g.fillCircle(0, -58 * s, 48 * s);
-      g.fillStyle(color, .55); g.fillCircle(-45 * s, 0, 42 * s); g.fillCircle(45 * s, 0, 42 * s);
-      const enemyGlyph = this.add.text(0, 0, this.enemyGlyph(kind), { fontFamily: 'Microsoft YaHei', fontSize: `${kind === 'boss' ? 20 : 12}px`, color: '#101820' }).setOrigin(0.5);
-      body = this.add.container(0, 0, [g, enemyGlyph]);
-      visualWidth = Math.round(radius * (kind === 'boss' ? 4.8 : 4.2));
-      visualHeight = Math.round(radius * (kind === 'boss' ? 5.1 : 4.4));
+      const bossTextureKey = kind === 'boss' ? 'floor-boss-01' : 'mini-boss-01';
+      if (this.textures.exists(bossTextureKey)) {
+        const displaySize = kind === 'boss' ? 216 : 164;
+        const shadow = this.add.ellipse(0, displaySize * 0.36, displaySize * 0.62, displaySize * 0.18, 0x000000, 0.42);
+        const sprite = this.add.image(0, 0, bossTextureKey).setOrigin(0.5).setDisplaySize(displaySize, displaySize);
+        body = this.add.container(0, 0, [shadow, sprite]);
+        visualWidth = displaySize;
+        visualHeight = displaySize;
+      } else {
+        const s = kind === 'boss' ? 1.45 : 1;
+        const g = this.add.graphics();
+        g.fillStyle(0x000000, .45); g.fillEllipse(0, 75 * s, 145 * s, 25 * s);
+        g.fillStyle(0x15161b); g.fillEllipse(0, 5 * s, 100 * s, 150 * s); g.fillCircle(0, -58 * s, 48 * s);
+        g.fillStyle(color, .55); g.fillCircle(-45 * s, 0, 42 * s); g.fillCircle(45 * s, 0, 42 * s);
+        const enemyGlyph = this.add.text(0, 0, this.enemyGlyph(kind), { fontFamily: 'Microsoft YaHei', fontSize: `${kind === 'boss' ? 20 : 12}px`, color: '#101820' }).setOrigin(0.5);
+        body = this.add.container(0, 0, [g, enemyGlyph]);
+        visualWidth = Math.round(radius * (kind === 'boss' ? 4.8 : 4.2));
+        visualHeight = Math.round(radius * (kind === 'boss' ? 5.1 : 4.4));
+      }
     } else {
       const small = this.createSmallEnemyBody(kind as SmallEnemyKind, radius, color);
       body = small.body;
@@ -3272,8 +3291,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     const colors: Record<DropKind, number> = { xp: 0x8fd17c };
     const glyphs: Record<DropKind, string> = { xp: '+' };
     const node = this.add.container(x, y).setDepth(5);
-    node.add(this.add.circle(0, 0, 8, colors[kind], 0.9).setStrokeStyle(1, 0x0b1117, 1));
-    node.add(this.add.text(0, 0, glyphs[kind], { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: '#0b1117' }).setOrigin(0.5));
+    if (kind === 'xp' && this.textures.exists('xp-drop-cthulhu-v1')) {
+      node.add(this.add.image(0, 0, 'xp-drop-cthulhu-v1').setOrigin(0.5).setDisplaySize(34, 34).setBlendMode(Phaser.BlendModes.ADD));
+    } else {
+      node.add(this.add.circle(0, 0, 8, colors[kind], 0.9).setStrokeStyle(1, 0x0b1117, 1));
+      node.add(this.add.text(0, 0, glyphs[kind], { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: '#0b1117' }).setOrigin(0.5));
+    }
     this.world.add(node);
     this.drops.push({ node, kind, value, ttl: 12, attracted: false });
   }

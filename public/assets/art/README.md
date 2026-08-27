@@ -44,6 +44,20 @@ The four supplied base weapon images are cleaned with edge-connected background 
 
 The runtime maps every weapon class to its slot. The same asset is used by the orbiting battle weapon, weapon selection cards and the battle HUD icon. Keep the 160x160 canvas and transparent padding when replacing a slot so the orbit anchor remains stable.
 
+## Combat feedback slots
+
+- `pickups/xp-drop-cthulhu-v1.png` - Cthulhu-style experience pickup with an eye core.
+- `hud/san-frenzy-v1.png` - SAN collapse and manual frenzy skill icon.
+
+Both assets use transparent square canvases and are displayed at runtime size. The battle scene keeps a geometric fallback when an asset cannot be loaded.
+
+首领资源槽位：
+
+- `enemies/bosses/mini-boss-01.png` - 第 7 波小首领。
+- `enemies/bosses/floor-boss-01.png` - 楼层首领。
+
+首领图片按 512x512 透明方图接入，运行时根据首领类型缩放。资源未加载时保留原有几何首领作为兜底。
+
 ## Upgrade card slots
 
 The vertical Cthulhu card frames are kept at their source 1024x1536 ratio and selected by upgrade quality:

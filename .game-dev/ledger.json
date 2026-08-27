@@ -219,6 +219,18 @@
                                "status":  "done",
                                "implementedIn":  "src/main.ts",
                                "evidence":  ".game-dev/evidence/main-flow-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "武器选择页接入用户背景和独立框素材，支持四类武器、皮肤预览、购买与装备",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/weapon-select",
+                               "evidence":  ".game-dev/evidence/weapon-select-touch-1024x576-2026-08-27.png, .game-dev/evidence/weapon-select-skin-preview-touch-1024x576-2026-08-27.png"
+                           },
+                           {
+                               "summary":  "武器皮肤装备状态同步到战斗中的手持武器和 HUD 图标",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/weapon-select-battle-sync-touch-1024x576-2026-08-27.png"
                            }
                        ],
     "pendingItems":  [
@@ -259,11 +271,11 @@
                          }
                      ],
     "verification":  {
-                          "tests":  "passed: 4 个测试文件，28 项全部通过（22:31）",
-                          "build":  "passed: tsc --noEmit 和 vite build（22:31）；保留既有 builda-sdk.js 缺少 type=module 提示",
+                          "tests":  "passed: 4 个测试文件，28 项全部通过（23:06）",
+                          "build":  "passed: tsc --noEmit 和 vite build（23:07）；保留既有 builda-sdk.js 缺少 type=module 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                          "documentFetch":  "passed: revision 2405；38 项已完成，4 项待处理",
+                           "documentFetch":  "passed: revision 2407；38 项已完成，4 项待处理",
                           "documentCheckboxUpdate":  "passed: 12 个已实现条目通过 block_replace 勾选，并逐次重新获取文档确认",
                          "buildaBundleCheck":  "passed: bundle-pack dist builda-web.zip；bundle-check ok，HTML5 网页包 48,739,056 bytes；未上传",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
@@ -271,10 +283,13 @@
                          "buildaLandscapeAcceptance":  "blocked: 当前无可用 Builda 外壳真机/浏览器实例",
                          "upgradeCardIconCheck":  "passed: 14 transparent 256x256 PNG icons loaded from public/assets/art/cards/icons; top card slot uses 128px display size to fill the card opening; mainline upgrade-weapon card removed",
                          "dialogueSceneVisual":  "passed: local 1280x720 preview shows ward-day-v1 full-screen, two characters centered at the same standing scale, only the active speaker has a compact head-top bubble, and the final line fades into ward-night-v1 battle HUD",
-                         "dailyChallengeLayout":  "passed: local 1280x720 preview uses the supplied background, three separate supplied panel frames for boss, drops and entry weapon, the supplied tall ranking frame on the right, and the supplied start button; the button opens daily weapon selection",
+                          "dailyChallengeLayout":  "passed: local 1280x720 preview uses the supplied background, three separate supplied panel frames for boss, drops and entry weapon, the supplied tall ranking frame on the right, and the supplied start button; the button opens daily weapon selection",
+                          "weaponSelectLayout":  "passed: 1280x720 and 1024x576 landscape previews show the supplied weapon-select background, separate frame assets, four weapon categories and weapon-skin grid; locked skins remain previewable",
+                          "weaponSkinBattleSync":  "passed: selected unlocked weapon skin is persisted per weapon class and used by the battle-held weapon plus HUD icon; purchase path is wired to metaCoins but not exercised because current balance is 0",
                           "pixelFrameNeonEffectsRetest":  "passed: 通用像素边框和四类武器霓虹特效已接入并完成本地构建、测试和产物检查；详见 .game-dev/evidence/pixel-frame-neon-effects-retest-2026-08-27.md",
+                          "artAssetIntegration":  "passed: 新增经验掉落物、SAN 暴走技能图标、小首领和楼层首领四张透明 PNG，已接入战斗掉落、固定 HUD 和首领渲染；缺图时保留几何兜底；详见 .game-dev/reports/art-asset-integration-2026-08-27.md",
                           "godotMigrationEvaluation":  "passed: 当前试玩版保留 Phaser 3 + TypeScript + Vite；Godot 4.7.1 作为后续玩法和 UI 冻结后的独立主工程候选，评估记录见 .game-dev/reports/godot-migration-evaluation-2026-08-27.md",
-                          "pendingAudit":  "revision 2405 后剩余 4 项：平台付费刷新、月度挑战线上支付与榜单闭环、首领攻击后期重做、Builda 外壳真机居中复测。",
+                           "pendingAudit":  "revision 2407 后剩余 4 项：平台付费刷新、月度挑战线上支付与榜单闭环、首领攻击后期重做、Builda 外壳真机居中复测。",
                           "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-27.md"
                      }
 }
