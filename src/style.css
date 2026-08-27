@@ -28,15 +28,29 @@ html, body, #app, #game-shell {
 }
 
 #game-shell {
-  display: grid;
-  place-items: center;
+  position: relative;
+  display: block;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  isolation: isolate;
+}
+
+/* The Builda landscape shell is wider than the game's 16:9 design canvas.
+   Keep the letterbox dark and quiet so it does not duplicate the title art. */
+#game-shell.menu-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, #05080c 0%, #0a1117 26%, #0a1117 74%, #05080c 100%);
 }
 
 canvas {
   display: block;
+  position: relative;
+  z-index: 1;
   max-width: 100%;
   max-height: 100%;
   touch-action: none;

@@ -13,6 +13,7 @@ import {
   meleeTargetLimit,
   MAX_WEAPON_ROTATION_SPEED,
   MAX_ENEMY_HEALTH_MULTIPLIER,
+  openingWaveEnemyHealthCap,
   PAID_UPGRADE_REFRESH_SALE_ID,
   pickupPullSpeed,
   rotationsPerSecond,
@@ -27,10 +28,15 @@ import {
 } from './combatBalance';
 
 describe('hospital battle balance', () => {
-  it('makes the opening chaser survive exactly one basic knife hit', () => {
-    const hp = enemyCombatStats('chaser', 1).hp;
-    expect(hp).toBeGreaterThan(18);
-    expect(hp).toBeLessThanOrEqual(36);
+  it('lets the first three waves regular enemies fall to one basic knife hit', () => {
+    const knifeDamage = WEAPON_DAMAGE.knife;
+    [1, 2, 3].forEach((wave) => {
+      expect(enemyCombatStats('chaser', wave).hp).toBeLessThanOrEqual(knifeDamage);
+    });
+    expect(enemyCombatStats('shooter', 3).hp).toBeLessThanOrEqual(knifeDamage);
+    expect(enemyCombatStats('chaser', 4).hp).toBeGreaterThan(knifeDamage);
+    expect(openingWaveEnemyHealthCap('chaser', 3, knifeDamage)).toBe(knifeDamage);
+    expect(openingWaveEnemyHealthCap('miniBoss', 3, knifeDamage)).toBe(Number.POSITIVE_INFINITY);
   });
 
   it('gives each regular enemy a distinct durability role', () => {
@@ -131,14 +137,14 @@ describe('hospital battle balance', () => {
     expect(waveSpawningComplete(29.9, 30, 24, 66)).toBe(false);
   });
 
-  it('keeps every floor at the current 20-wave contract across the 30-floor plan', () => {
+  it('keeps every mainline floor at the 10-wave contract across the 30-floor plan', () => {
     expect(TOTAL_HOSPITAL_FLOORS).toBe(30);
-    expect(wavesPerFloorForFloor(1)).toBe(20);
-    expect(wavesPerFloorForFloor(10)).toBe(20);
-    expect(wavesPerFloorForFloor(11)).toBe(20);
-    expect(wavesPerFloorForFloor(20)).toBe(20);
-    expect(wavesPerFloorForFloor(21)).toBe(20);
-    expect(wavesPerFloorForFloor(30)).toBe(20);
+    expect(wavesPerFloorForFloor(1)).toBe(10);
+    expect(wavesPerFloorForFloor(10)).toBe(10);
+    expect(wavesPerFloorForFloor(11)).toBe(10);
+    expect(wavesPerFloorForFloor(20)).toBe(10);
+    expect(wavesPerFloorForFloor(21)).toBe(10);
+    expect(wavesPerFloorForFloor(30)).toBe(10);
   });
 
   it('collects every drop inside the pickup radius without a second interaction', () => {

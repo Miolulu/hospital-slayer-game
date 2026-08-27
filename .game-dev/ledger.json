@@ -1,218 +1,280 @@
-{
-  "document": {
-    "url": "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
-    "documentId": "MivtdorwjoYUORxTQYgcGRIjnad",
-    "revision": 2050,
-    "lastCheckedAt": "2026-08-27T19:19:34+08:00"
-  },
-  "completedItems": [
-    {
-      "summary": "基础病号服男孩 Q 版像素素材接入战斗与角色预览",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/patient-boy.png"
-    },
-    {
-      "summary": "武器选择界面展示武器皮肤",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "武器强化持续到当前楼层结束",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "波间通关提示与下一波倒计时调整为 1.8 秒",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "每波提高怪物强度和出怪速度，取消场上数量上限",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "波次收尾等待死亡渐隐和掉落物吸附结算",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "每日挑战调整为 50 波并加入联动升级卡牌",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "攻击特效改为可叠加的伤害、时长和传播成长线",
-      "status": "done",
-      "implementedIn": "src/main.ts, src/combatBalance.ts"
-    },
-    {
-      "summary": "每日挑战加入原创高辨识度联动卡和蓝色、紫色、金色品质",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "每日挑战 50 波按波次提升生命、伤害、出怪速度和出怪预算",
-      "status": "done",
-      "implementedIn": "src/main.ts, src/combatBalance.ts"
-    },
-    {
-      "summary": "战斗 HUD 固定在视口并避开摇杆，按钮触摸热区统一扩大",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "小男孩四方向真实步行帧接入战斗",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/animations/patient-walk-left.png, public/assets/art/animations/patient-walk-right.png, public/assets/art/animations/patient-walk-up.png, public/assets/art/animations/patient-walk-down.png"
-    },
-    {
-      "summary": "资料页、对白页和结算页的按钮热区分离，长状态文案支持换行",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "四种基础武器透明像素资源接入战斗环绕、武器选择卡片和 HUD",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/weapons/weapon-sword.png, public/assets/art/weapons/weapon-gun.png, public/assets/art/weapons/weapon-whip.png, public/assets/art/weapons/weapon-cannon.png"
-    },
-    {
-      "summary": "小男孩正面静止帧与左右交替腿步态接入",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/animations/patient-idle-front.png, public/assets/art/animations/patient-walk-left.png, public/assets/art/animations/patient-walk-right.png"
-    },
-    {
-      "summary": "修复左右行走帧黑块并重排交替腿步态",
-      "status": "done",
-      "implementedIn": "tmp/imagegen/make_patient_walk_revision.py, public/assets/art/animations/patient-walk-left.png, public/assets/art/animations/patient-walk-right.png, public/assets/art/animations/patient-walk-preview.gif"
-    },
-    {
-      "summary": "升级卡牌竖版美术、品质底图、类型图标和选中态接入",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/cards/upgrade-card-blue-v1.png, public/assets/art/cards/upgrade-card-purple-v1.png, public/assets/art/cards/upgrade-card-gold-v1.png, .game-dev/evidence/card-art-references/"
-    },
-    {
-      "summary": "主界面背景、标题和三张无字按钮切图接入",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/menu/menu-background-v1.png, public/assets/art/menu/menu-title-v1.png, public/assets/art/menu/menu-title-v2.png, public/assets/art/menu/menu-button-archive-v1.png, public/assets/art/menu/menu-button-mainline-v1.png, public/assets/art/menu/menu-button-daily-v1.png"
-    },
-    {
-      "summary": "病历档案入口改为玩家信息与皮肤页面",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "病历档案、主线通关和每日挑战统一使用左上角返回按钮",
-      "status": "done",
-      "implementedIn": "src/main.ts"
-    },
-    {
-      "summary": "Builda 横屏安全区布局：主界面入口、标题和页面返回按钮避开安全区",
-      "status": "done",
-      "implementedIn": "src/main.ts",
-      "evidence": ".game-dev/evidence/builda-safe-area-menu-2026-08-27.png, .game-dev/evidence/builda-safe-area-mainline-2026-08-27.png, .game-dev/evidence/builda-return-icon-2026-08-27.png"
-    },
-    {
-      "summary": "\u75c5\u4f8b\u6863\u6848\u4e0e\u5bf9\u767d\u9875\u4f7f\u7528\u7537\u5b69\u6b63\u9762\u75c5\u53f7\u670d\u7acb\u7ed8",
-      "status": "done",
-      "implementedIn": "src/main.ts, public/assets/art/animations/patient-idle-front.png",
-      "evidence": ".game-dev/evidence/builda-profile-front-landscape.png"
-    },
-    {
-      "summary": "重构病历档案、主线通关和每日挑战内页",
-      "status": "done",
-      "implementedIn": "src/main.ts",
-      "evidence": ".game-dev/evidence/builda-profile-front-landscape.png, .game-dev/evidence/final-static-retest-2026-08-27.md"
-    }
-  ],
-  "pendingItems": [
-    {
-      "summary": "免费刷新两次后，后续刷新调用平台支付接口",
-      "status": "blocked",
-      "implementedIn": "src/main.ts, src/combatBalance.ts",
-      "reason": "代码已调用 Builda.pay.showPayPanel 并处理取消、失败、重复订单；发布配置中的 payId 和价格未确认，当前也缺少 Builda App 真机验证。"
-    },
-    {
-      "summary": "后期重做大 Boss 攻击",
-      "status": "blocked",
-      "reason": "飞书意见明确安排在后期，尚未给出新的攻击方式、数值和验收标准。"
-    },
-    {
-      "summary": "升级卡牌按移速、武器伤害、武器数量、攻击特效、生命护盾和攻速分类",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "当前代码已按六类生成卡牌，文档仍保留问题项；需要后续试玩确认卡池和数值是否符合预期。"
-    },
-    {
-      "summary": "战斗前白日病房改为人物立绘与气泡对白",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "现有对白页仍使用旧面板布局，缺少医生或护士立绘、气泡和说话者缩放。"
-    },
-    {
-      "summary": "主线战斗改为 10 波并只保留一个小 Boss",
-      "status": "pending",
-      "implementedIn": "src/main.ts, src/combatBalance.ts",
-      "reason": "当前主线仍是每层 20 波；与项目既有 30 层主线规则存在口径冲突，暂不直接覆盖。"
-    },
-    {
-      "summary": "放大战斗场景人物和怪物",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "需要重新评估碰撞半径、武器判定和移动视野后再调整。"
-    },
-    {
-      "summary": "失败界面黑屏、克苏鲁文案并使用主界面按钮",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "失败界面已接入黑屏文案和主界面按钮素材，但当前环境缺少独立触摸和浏览器视觉验收，暂不勾选文档。"
-    },
-    {
-      "summary": "主页隐藏图鉴入口",
-      "status": "blocked",
-      "reason": "与最新明确的主界面三按钮需求冲突；当前保留病历档案入口。"
-    },
-    {
-      "summary": "生命值改为 SAN 值并在低于 30 时切换异化模式",
-      "status": "pending",
-      "implementedIn": "src/main.ts, src/combatBalance.ts",
-      "reason": "当前仍同时显示生命、护盾和 SAN，并保留手动暴走技能；需要整体重做战斗 HUD 和受击逻辑。"
-    },
-    {
-      "summary": "战斗顶部波次去框、隐藏出怪数量和击杀记录",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "当前波次面板仍显示边框、出怪数量和本局击杀数。"
-    },
-    {
-      "summary": "每日挑战增加月度首领、排行榜和前三次免费挑战",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "当前仅有每日 50 波和一次完成限制，尚未接入月度数据、排行榜和奖励排名。"
-    },
-    {
-      "summary": "进入副本后禁止武器升级导致武器更换",
-      "status": "pending",
-      "implementedIn": "src/main.ts",
-      "reason": "当前主线升级卡仍可能出现升级武器选项，需要改成入场武器锁定并保留数值成长。"
-    },
-    {
-      "summary": "武器攻击效果改为从武器发射的霓虹像素特效",
-      "status": "pending",
-      "implementedIn": "src/main.ts, public/assets/art/weapons",
-      "reason": "文档刚新增该意见，当前仍使用几何图形和占位特效，等待对应武器特效素材或确认生图资源后接入。"
-    }
-  ],
-  "verification": {
-    "tests": "28 passed (19:18)",
-    "build": "passed (19:18)",
-    "buildaBundleCheck": "passed (19:19): build/builda-web.zip and builda-web.zip, h5, 42640140 bytes",
-    "buildaMobileBrowserCheck": "passed (19:10): Builda dev shell 844x390 landscape safe-area preview; profile entry opened through touch PointerEvent; front patient portrait visible; evidence/builda-profile-front-landscape.png",
-    "visualBrowserCheck": "passed: profile skin preview, mainline floor selection, daily Boss portrait and leaderboard, weapon-select flow (1280x720 landscape); no runtime errors",
-    "animationAssetCheck": "passed: patient-idle-front and left/right four-frame sheets; transparent corners verified, no opaque black blocks, left/right leg phases visibly alternate",
-    "dailyCardVisualCheck": "blocked: current browser tab session unavailable",
-    "mainMenuAssetCheck": "passed: supplied background and title crop loaded; no-text button sheet split into three transparent PNGs, semantic asset paths fixed, and mapped to archive, mainline and daily challenge entries",
-    "independentTestAgent": "passed: 26 tests, TypeScript check, build, asset copy",
-    "independentTouchTest": "blocked: no independent touch harness; static regression passed after UI fixes (evidence/final-static-retest-2026-08-27.md)"
-  }
+﻿{
+    "document":  {
+                     "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
+                     "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
+                     "revision":  2407,
+                     "lastCheckedAt":  "2026-08-27T22:38:00+08:00",
+                     "completedCheckboxes":  38,
+                     "pendingCheckboxes":  4
+                 },
+    "completedItems":  [
+                           {
+                               "summary":  "主界面入口、背景、标题和三张主菜单按钮素材已接入",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/style.css, public/assets/art/menu",
+                               "evidence":  ".game-dev/evidence/direct-landscape-centered2.png"
+                           },
+                           {
+                               "summary":  "武器类型、武器选择和武器皮肤展示",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/weapons"
+                           },
+                           {
+                               "summary":  "皮肤档案、套装信息和正面人物展示",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/skins, public/assets/art/animations/patient-idle-front.png",
+                               "evidence":  ".game-dev/evidence/builda-profile-front-landscape.png"
+                           },
+                           {
+                               "summary":  "主线、每日挑战、武器选择、对白、战斗和结算流程串联",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/main-flow-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "对白页使用白日病房双角色气泡，点击推进并转场到战斗",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/dialogueLayoutCheck"
+                           },
+                           {
+                               "summary":  "战斗 HUD 固定在视口，含生命、经验、SAN、波次和资源信息，触摸热区统一扩大",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "任意位置触摸拖动移动，角色四向行走动画和受击动画接入",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/animations"
+                           },
+                           {
+                               "summary":  "波次结束等待死亡渐隐和掉落物吸附结算，再进入下一波",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "波次倒计时调整为约 1.8 秒并持续应用到楼层流程",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts"
+                           },
+                           {
+                               "summary":  "每波敌人生命、伤害、速度和生成节奏递增，取消场上数量上限",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/combatBalance.ts"
+                           },
+                           {
+                               "summary":  "每日挑战 50 波、稀有度卡牌和联动强化",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/combatBalance.ts",
+                               "evidence":  ".game-dev/evidence/dailyLayoutCheck"
+                           },
+                           {
+                               "summary":  "攻击特效做成可叠加的伤害、持续时间和传播成长",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/combatBalance.ts"
+                           },
+                           {
+                               "summary":  "升级卡牌包含移速、武器伤害、武器数量、攻击特效、生命/护盾和攻速六类",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts"
+                           },
+                           {
+                               "summary":  "升级卡牌品质分为蓝色、紫色和金色",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts"
+                           },
+                           {
+                               "summary":  "武器强化持续到当前楼层结束，失败时可从当前楼层第一波重开",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts"
+                           },
+                           {
+                               "summary":  "失败界面黑屏、失败文案、重新挑战和回到标题按钮已接入主菜单素材",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "主页暂时隐藏独立图鉴入口，病例档案入口改为我的页面",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts"
+                           },
+                           {
+                               "summary":  "Builda 安全区读取、页面返回入口和人物档案横屏布局已接入",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/builda-safe-area-menu-2026-08-27.png, .game-dev/evidence/builda-profile-front-landscape.png"
+                           },
+                           {
+                               "summary":  "人物素材、皮肤素材、左右行走序列和透明背景检查",
+                               "status":  "done",
+                               "implementedIn":  "public/assets/art/animations, public/assets/art/skins",
+                               "evidence":  ".game-dev/evidence/animationAssetCheck, .game-dev/evidence/skinAssetCheck"
+                           },
+                           {
+                               "summary":  "皮肤档案页横屏筛选、预览和网格布局",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/profileLayoutCheck"
+                           },
+                           {
+                               "summary":  "每日挑战页按首领、掉落装备、入场武器、排行榜和开始挑战分区布局",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/daily",
+                               "evidence":  ".game-dev/evidence/daily-layout-v2-2026-08-27.png"
+                           },
+                           {
+                               "summary":  "每日挑战页使用用户提供的克苏鲁医院深夜背景图",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/daily/daily-background-v2.png",
+                               "evidence":  "dist/assets/art/daily/daily-background-v2.png"
+                           },
+                           {
+                               "summary":  "升级卡牌使用克苏鲁像素圆形图标，并移除主线升级武器卡牌",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/cards/icons",
+                               "evidence":  ".game-dev/evidence/upgrade-icon-preview/upgrade-icon-set-check.png"
+                           },
+                           {
+                               "summary":  "副本内禁止升级卡更换已选武器",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts"
+                           },
+                           {
+                               "summary":  "扩大病院刀的攻击范围",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  "src/main.ts:967"
+                           },
+                           {
+                               "summary":  "枪类武器轨迹移至人物头顶并放大 1.2 倍",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  "src/main.ts:676, src/main.ts:785"
+                           },
+                           {
+                               "summary":  "主线前三波普通敌人调整为当前武器一击可击倒",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/combatBalance.ts",
+                               "evidence":  "src/combatBalance.test.ts"
+                           },
+                           {
+                               "summary":  "对白页改为白日病房实景对话，双方保持同尺度站在病房中央，只在说话者头顶显示小气泡",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/dialogue-scene-compact-2026-08-27.png, .game-dev/evidence/dialogue-transition-night-2026-08-27.png"
+                           },
+                           {
+                               "summary":  "主线战斗改为 10 波且只保留一个小首领",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/combatBalance.ts",
+                               "evidence":  "src/combatBalance.test.ts"
+                           },
+                           {
+                               "summary":  "放大战斗场景人物和怪物",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "暂停或退出后恢复比例，波间允许玩家继续自由移动",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-touch-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "生命值改为单一 SAN 值，低于 30 进入异化模式并移除暴走技能",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, src/combatBalance.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "战斗顶部只保留无框波次和倒计时，移除出怪数量与击杀记录",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "资料、主线和每日挑战页面统一改为左上角返回图标",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/builda-return-icon-2026-08-27.png"
+                           },
+                           {
+                               "summary":  "卡牌文字清晰并移除金色、蓝色等等级文字",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/cards",
+                               "evidence":  ".game-dev/evidence/final-touch-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "人物和怪物不能走上墙体",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/final-static-retest-2026-08-27.md"
+                           },
+                           {
+                               "summary":  "新手第一局满装备满等级、梦境教程和更多怪物类型",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  ".game-dev/evidence/main-flow-retest-2026-08-27.md"
+                           }
+                       ],
+    "pendingItems":  [
+                         {
+                             "summary":  "免费刷新两次后改为平台付费刷新",
+                             "status":  "blocked",
+                             "implementedIn":  "src/main.ts, src/combatBalance.ts",
+                             "reason":  "已调用平台支付入口，但商品标识、价格和真机支付结果尚未确认。"
+                         },
+                         {
+                             "summary":  "后期重做大首领攻击方式",
+                             "status":  "blocked",
+                             "reason":  "尚未确定新的攻击方式、数值和验收标准。"
+                         },
+                         {
+                             "summary":  "每日挑战改为月度首领、前 20 排行榜、前三次免费",
+                             "status":  "blocked",
+                             "implementedIn":  "src/main.ts",
+                             "reason":  "月度首领、前 20 榜单和前三次免费次数已接入本地流程；平台线上支付、榜单写入和奖励发放尚未完成真机验收。"
+                         },
+                         {
+                             "summary":  "所有页面使用克苏鲁像素风边框素材",
+                             "status":  "done",
+                             "implementedIn":  "src/main.ts, public/assets/art/ui-command-frame.webp, public/assets/art/ui-round-frame.webp",
+                             "evidence":  ".game-dev/evidence/pixel-frame-neon-effects-retest-2026-08-27.md"
+                         },
+                         {
+                             "summary":  "武器攻击效果替换为从武器发射的霓虹像素特效，并加入有怪外扩、无怪收缩的环绕动效",
+                             "status":  "done",
+                             "implementedIn":  "src/main.ts, public/assets/art/weapons",
+                             "evidence":  ".game-dev/evidence/pixel-frame-neon-effects-retest-2026-08-27.md"
+                         },
+                         {
+                             "summary":  "Builda 手机模拟预览横屏安全区居中、主菜单按钮居中",
+                             "status":  "blocked",
+                             "implementedIn":  "src/main.ts, src/style.css",
+                             "reason":  "本地 16:9 页面已按安全区居中；当前没有可用 Builda 外壳实例完成横屏重载和真机触摸复测。"
+                         }
+                     ],
+    "verification":  {
+                          "tests":  "passed: 4 个测试文件，28 项全部通过（22:31）",
+                          "build":  "passed: tsc --noEmit 和 vite build（22:31）；保留既有 builda-sdk.js 缺少 type=module 提示",
+                         "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
+                         "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
+                          "documentFetch":  "passed: revision 2405；38 项已完成，4 项待处理",
+                          "documentCheckboxUpdate":  "passed: 12 个已实现条目通过 block_replace 勾选，并逐次重新获取文档确认",
+                         "buildaBundleCheck":  "passed: bundle-pack dist builda-web.zip；bundle-check ok，HTML5 网页包 48,739,056 bytes；未上传",
+                         "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
+                         "mobileTouchAcceptance":  "blocked: 当前无独立真实触摸环境",
+                         "buildaLandscapeAcceptance":  "blocked: 当前无可用 Builda 外壳真机/浏览器实例",
+                         "upgradeCardIconCheck":  "passed: 14 transparent 256x256 PNG icons loaded from public/assets/art/cards/icons; top card slot uses 128px display size to fill the card opening; mainline upgrade-weapon card removed",
+                         "dialogueSceneVisual":  "passed: local 1280x720 preview shows ward-day-v1 full-screen, two characters centered at the same standing scale, only the active speaker has a compact head-top bubble, and the final line fades into ward-night-v1 battle HUD",
+                         "dailyChallengeLayout":  "passed: local 1280x720 preview uses the supplied background, three separate supplied panel frames for boss, drops and entry weapon, the supplied tall ranking frame on the right, and the supplied start button; the button opens daily weapon selection",
+                          "pixelFrameNeonEffectsRetest":  "passed: 通用像素边框和四类武器霓虹特效已接入并完成本地构建、测试和产物检查；详见 .game-dev/evidence/pixel-frame-neon-effects-retest-2026-08-27.md",
+                          "godotMigrationEvaluation":  "passed: 当前试玩版保留 Phaser 3 + TypeScript + Vite；Godot 4.7.1 作为后续玩法和 UI 冻结后的独立主工程候选，评估记录见 .game-dev/reports/godot-migration-evaluation-2026-08-27.md",
+                          "pendingAudit":  "revision 2405 后剩余 4 项：平台付费刷新、月度挑战线上支付与榜单闭环、首领攻击后期重做、Builda 外壳真机居中复测。",
+                          "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-27.md"
+                     }
 }

@@ -61,9 +61,9 @@ export const PAID_UPGRADE_REFRESH_SALE_ID = 'upgrade_refresh';
 export const TOTAL_HOSPITAL_FLOORS = 30;
 
 export function wavesPerFloorForFloor(floor: number) {
-  // Mainline floors keep the current 20-wave contract; daily challenge keeps its own 50-wave run.
+  // 主线每层固定 10 波，第 7 波为本层唯一小首领。
   void floor;
-  return 20;
+  return 10;
 }
 
 export const WEAPON_DAMAGE = {
@@ -87,8 +87,15 @@ export const WEAPON_DAMAGE = {
   hospitalCore: 420,
 } as const;
 
-const normalEnemyHp = (wave: number) => 28 + Math.max(1, wave) * 4;
+/** 前三波作为教学段，普通敌人生命不超过初始病院刀的 18 点伤害。 */
+const normalEnemyHp = (wave: number) => {
+  const safeWave = Math.max(1, Math.round(wave));
+  if (safeWave <= 3) return 12 + safeWave * 2;
+  return 28 + safeWave * 4;
+};
 const normalEnemyDamage = (wave: number) => 1.55 + Math.max(1, wave) * 0.35;
+
+const openingWaveHp = (hp: number, wave: number) => Math.min(hp, wave <= 3 ? 18 : hp);
 
 export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyCombatStats {
   const safeWave = Math.max(1, Math.min(20, Math.round(wave)));
@@ -97,7 +104,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
 
   if (kind === 'shooter') {
     return {
-      hp: Math.round(baseHp * 1.55),
+      hp: openingWaveHp(Math.round(baseHp * 1.55), safeWave),
       speed: 28 + safeWave * 0.4,
       damage: baseDamage + 0.8,
       radius: 16,
@@ -109,7 +116,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
 
   if (kind === 'disruptor') {
     return {
-      hp: Math.round(baseHp * 2.35),
+      hp: openingWaveHp(Math.round(baseHp * 2.35), safeWave),
       speed: 24 + safeWave * 0.35,
       damage: baseDamage + 0.6,
       radius: 18,
@@ -121,7 +128,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
 
   if (kind === 'tentacle') {
     return {
-      hp: Math.round(baseHp * 1.9),
+      hp: openingWaveHp(Math.round(baseHp * 1.9), safeWave),
       speed: 34 + safeWave * 0.45,
       damage: baseDamage + 1.1,
       radius: 20,
@@ -133,7 +140,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
 
   if (kind === 'bomber') {
     return {
-      hp: Math.round(baseHp * 2.05),
+      hp: openingWaveHp(Math.round(baseHp * 2.05), safeWave),
       speed: 30 + safeWave * 0.25,
       damage: baseDamage + 1.6,
       radius: 19,
@@ -145,7 +152,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
 
   if (kind === 'eye') {
     return {
-      hp: Math.round(baseHp * 2.25),
+      hp: openingWaveHp(Math.round(baseHp * 2.25), safeWave),
       speed: 26 + safeWave * 0.2,
       damage: baseDamage + 2.2,
       radius: 21,
@@ -180,7 +187,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
   }
 
   return {
-    hp: baseHp,
+    hp: openingWaveHp(baseHp, safeWave),
     speed: 47 + safeWave * 1.8,
     damage: baseDamage,
     radius: 15,
@@ -279,4 +286,11 @@ export function enemyHealthMultiplier(level: number, weaponTier: number, ammo: n
   const weaponScale = 1 + Math.max(0, weaponTier) * 0.2;
   const ammoScale = 1 + Math.max(0, ammo - 1) * 0.05;
   return Math.min(MAX_ENEMY_HEALTH_MULTIPLIER, levelScale * weaponScale * ammoScale);
+}
+
+/** 主线前三波普通敌人的实际生命上限，保证初始武器一击可击倒。 */
+export function openingWaveEnemyHealthCap(kind: CombatEnemyKind, wave: number, weaponDamage: number) {
+  const safeWave = Math.max(1, Math.round(wave));
+  if (safeWave > 3 || kind === 'miniBoss' || kind === 'boss') return Number.POSITIVE_INFINITY;
+  return Math.max(1, Math.round(weaponDamage));
 }
