@@ -11,6 +11,7 @@ export interface BossArtSheetSpec {
 }
 
 export const MOON_MOTH_QUEEN_ART = {
+  name: '月蚀蝶后',
   portraitKey: 'moon-moth-queen-portrait',
   deathKey: 'moon-moth-queen-death',
   walkKey: 'moon-moth-queen-walk',

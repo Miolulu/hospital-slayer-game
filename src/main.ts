@@ -535,7 +535,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
     this.load.image('dialogue-bubble-v2', '/assets/art/ui/dialogue-bubble-v2.png');
     this.load.image('touch-joystick-base-v1', '/assets/art/ui/touch-joystick-base-v1.png');
-    (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'boss-name', 'start-challenge'] as const).forEach((textAsset) => {
+    (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'start-challenge'] as const).forEach((textAsset) => {
       this.load.image(`ui-text-${textAsset}-v1`, `/assets/art/ui/text/ui-text-${textAsset}-v1.png`);
     });
     this.load.image('ui-stamp-uncompleted-v1', '/assets/art/ui/text/ui-stamp-uncompleted-v1.png');
@@ -619,6 +619,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
         this.load.spritesheet(this.skinWalkTextureKey(skin, direction), `${root}/walk-${direction}.png`, { frameWidth: 192, frameHeight: 192 });
       });
+      if (skin.coverPath) this.load.image(this.skinCoverTextureKey(skin), skin.coverPath);
     });
     SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => {
       this.load.spritesheet(key, path, { frameWidth, frameHeight });
@@ -801,6 +802,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const art = this.skinArtSpec(skin);
     if (art) return art.portraitKey;
     return skin.assetPrefix ? `skin-${skin.id}-front` : 'patient-idle-front';
+  }
+
+  private skinCoverTextureKey(skin: SkinDef) {
+    return skin.coverPath ? `skin-${skin.id}-cover` : this.skinFrontTextureKey(skin);
   }
 
   private skinWalkTextureKey(skin: SkinDef, direction: PlayerDirection) {
@@ -1166,6 +1171,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       ...this.skins.flatMap((skin) => skin.assetPrefix
         ? [
             this.skinFrontTextureKey(skin),
+            ...(skin.coverPath ? [this.skinCoverTextureKey(skin)] : []),
             ...(['left', 'right', 'up', 'down'] as PlayerDirection[]).map((direction) => this.skinWalkTextureKey(skin, direction)),
           ]
         : []),
@@ -1594,6 +1600,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<ProgressSave>;
       const defaultWeaponSkins = ['sword-default', 'gun-default', 'whip-default', 'cannon-default'];
+      const availableSkinIds = new Set(this.skins.map((skin) => skin.id));
       const equippedWeaponSkinIds = parsed.equippedWeaponSkinIds && typeof parsed.equippedWeaponSkinIds === 'object'
         ? parsed.equippedWeaponSkinIds
         : { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' };
@@ -1604,8 +1611,8 @@ export class HospitalBattleScene extends Phaser.Scene {
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
-        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string') : DEFAULT_UNLOCKED_SKIN_IDS,
-        equippedSkinId: typeof parsed.equippedSkinId === 'string' ? parsed.equippedSkinId : 'patient-default',
+        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string' && availableSkinIds.has(id)) : DEFAULT_UNLOCKED_SKIN_IDS,
+        equippedSkinId: typeof parsed.equippedSkinId === 'string' && availableSkinIds.has(parsed.equippedSkinId) ? parsed.equippedSkinId : 'patient-default',
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
         dailyCompletedDate: typeof parsed.dailyCompletedDate === 'string' ? parsed.dailyCompletedDate : undefined,
         dailyBestSeconds: Number.isFinite(Number(parsed.dailyBestSeconds)) && Number(parsed.dailyBestSeconds) > 0 ? Number(parsed.dailyBestSeconds) : undefined,
@@ -2897,12 +2904,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     const previewEquipped = previewSkin.id === this.progress.equippedSkinId;
     const previewAction = previewUnlocked
       ? (previewEquipped ? '已装备' : '装备')
-      : previewSkin.id === 'scarlet-night'
+      : previewSkin.category === 'boss'
         ? '去挑战'
         : `购买 ${this.skinPurchaseCost(previewSkin.id)}`;
     this.addButton(layer, boardX + 164 * caseSheetScale, boardY + 136 * caseSheetScale, 88 * caseSheetScale, 26 * caseSheetScale, previewAction, () => {
       if (previewUnlocked) this.equipSkin(previewSkin.id);
-      else if (previewSkin.id === 'scarlet-night') this.showDailyChallenge();
+      else if (previewSkin.category === 'boss') this.showDailyChallenge();
       else void this.buySkin(previewSkin.id);
     }, previewEquipped ? 'muted' : 'primary', 8);
 
@@ -2987,7 +2994,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       // from every card so the panel stays visually quiet.
       const actionCallback = unlocked
         ? () => this.equipSkin(skin.id)
-        : skin.id === 'scarlet-night'
+        : skin.category === 'boss'
           ? () => this.showDailyChallenge()
           : () => { void this.buySkin(skin.id); };
       this.uiActionRegions.push({
@@ -3163,7 +3170,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       bossPanel.add(this.add.circle(0, -2, 64, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
       bossPanel.add(this.add.text(0, -2, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
     }
-    this.addUiTextTexture(layer, bossX, 355, 190, 58, 'ui-text-boss-name-v1', '月蚀蝶后', 20);
+    layer.add(cthulhuText(bossX, 355, MOON_MOTH_QUEEN_ART.name, 20));
     layer.add(bossPanel);
     const dropItems = [
       { texture: 'relic-crown', label: '月蚀王冠' },
@@ -3281,7 +3288,13 @@ export class HospitalBattleScene extends Phaser.Scene {
       bossPanel.add(this.add.circle(0, -8, 56, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
       bossPanel.add(this.add.text(0, -8, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
     }
-    this.addUiTextTexture(layer, bossX, 294, 190, 58, 'ui-text-boss-name-v1', '月蚀蝶后', 19);
+    layer.add(this.add.text(bossX, 294, MOON_MOTH_QUEEN_ART.name, {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '19px',
+      color: palette.cream,
+      stroke: '#050b10',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(bossPanel);
 
     const dropPanel = this.addDailyPanelFrame(layer, bossX, 492, 310, 175);
@@ -3613,7 +3626,10 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private addPatientSprite(parent: Phaser.GameObjects.Container, x: number, y: number, targetHeight: number, skin?: SkinDef) {
     const selectedSkin = skin ?? this.skins[0];
-    const textureKey = this.skinHasCustomArt(selectedSkin) ? this.skinFrontTextureKey(selectedSkin) : (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
+    const customTextureKey = this.skinHasCustomArt(selectedSkin) ? this.skinCoverTextureKey(selectedSkin) : '';
+    const textureKey = customTextureKey && this.textures.exists(customTextureKey)
+      ? customTextureKey
+      : (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
     if (!this.textures.exists(textureKey)) return undefined;
     const sprite = this.add.image(x, y, textureKey).setOrigin(0.5);
     sprite.setDisplaySize(targetHeight * sprite.width / sprite.height, targetHeight);
@@ -3669,12 +3685,6 @@ export class HospitalBattleScene extends Phaser.Scene {
   private applyEquippedSkinBonus() {
     const skin = this.skins.find((candidate) => candidate.id === this.progress.equippedSkinId);
     if (!skin) return;
-    if (skin.id === 'scarlet-night') this.damageBonus += 6;
-    if (skin.id === 'cyan-ward') {
-      this.maxShield += 18;
-      this.shield = this.maxShield;
-    }
-    if (skin.id === 'violet-dream') this.runSpeed *= 1.08;
     if (skin.id === 'street-runner') this.runSpeed *= 1.05;
     if (skin.id === 'cthulhu-dark') this.damageBonus += 8;
   }
