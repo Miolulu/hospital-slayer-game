@@ -1970,13 +1970,15 @@ export class HospitalBattleScene extends Phaser.Scene {
       const unlocked = this.isWeaponUnlocked(weapon.id) || (mode === 'mainline' && weapon.id === 'knife');
       const x = 112 + layoutShift;
       const y = 170 + index * 132;
-      const color = unlocked ? weapon.color : 0x405158;
       const button = this.add.container(x, y);
-      const frame = this.add.image(0, 0, 'weapon-select-frame-category-v1').setOrigin(0.5).setDisplaySize(142, 116).setAlpha(unlocked ? 0.98 : 0.58);
-      button.add(frame);
-      if (this.textures.exists(meta.icon)) button.add(this.add.image(0, -11, meta.icon).setOrigin(0.5).setDisplaySize(76, 76).setAlpha(unlocked ? 0.98 : 0.45));
-      button.add(this.add.text(0, 39, meta.label, { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0.5).setFontStyle('bold'));
-      if (weapon.id === selectedWeapon.id) button.add(this.add.rectangle(0, 0, 126, 100, 0x6bd3c1, 0).setStrokeStyle(2, accent, 0.92));
+      const selected = weapon.id === selectedWeapon.id;
+      if (this.textures.exists(meta.icon)) {
+        if (selected) {
+          button.add(this.add.image(0, -11, meta.icon).setOrigin(0.5).setDisplaySize(104, 104).setTint(accent).setAlpha(0.22).setBlendMode(Phaser.BlendModes.ADD));
+        }
+        button.add(this.add.image(0, -11, meta.icon).setOrigin(0.5).setDisplaySize(92, 92).setAlpha(unlocked ? 0.98 : 0.45));
+      }
+      button.add(this.add.text(0, 48, meta.label, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: selected ? palette.cream : unlocked ? palette.muted : '#506167' }).setOrigin(0.5).setFontStyle('bold'));
       layer.add(button);
       this.uiActionRegions.push({
         phase: this.phase,
@@ -1994,17 +1996,19 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const main = this.add.container(500 + layoutShift, 292);
+    const mainX = 520 + layoutShift;
+    const main = this.add.container(mainX, 280);
     const mainFrame = this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5);
-    main.add(mainFrame.setScale(520 / mainFrame.width).setAlpha(0.98));
-    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(214, 214);
+    const mainFrameWidth = 560;
+    main.add(mainFrame.setScale(mainFrameWidth / mainFrame.width).setAlpha(0.98));
+    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(240, 240);
     main.add(mainImage);
     layer.add(main);
 
-    const skinPanelX = clamp(1004 + layoutShift, safe.left + 222, safe.right - 222);
+    const skinPanelX = clamp(1020 + layoutShift, safe.left + 240, safe.right - 240);
     layer.add(this.add.text(skinPanelX, this.safeTopY(112, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     const skinPanelFrame = this.add.container(skinPanelX, 360);
-    const skinPanelWidth = 444;
+    const skinPanelWidth = 480;
     const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
     const skinPanelFrameImage = hasSkinPanelFrame
       ? this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5)
@@ -2026,8 +2030,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       const unlocked = this.isWeaponSkinAvailable(skin.id);
       const selected = skin.id === selectedSkin.id;
       const card = this.add.container(x, y);
-      card.add(this.add.image(0, 0, 'weapon-select-frame-skin-card-v1').setOrigin(0.5).setDisplaySize(120, 112).setAlpha(unlocked ? 0.98 : 0.64));
-      card.add(this.add.image(0, -5, this.weaponSkinTextureKey(skin)).setOrigin(0.5).setDisplaySize(78, 78).setAlpha(unlocked ? 0.98 : 0.42));
+      card.add(this.add.image(0, 0, 'weapon-select-frame-skin-card-v1').setOrigin(0.5).setDisplaySize(126, 118).setAlpha(unlocked ? 0.98 : 0.64));
+      card.add(this.add.image(0, -5, this.weaponSkinTextureKey(skin)).setOrigin(0.5).setDisplaySize(76, 76).setAlpha(unlocked ? 0.98 : 0.42));
       if (selected) card.add(this.add.rectangle(0, 0, 108, 100, 0x6bd3c1, 0).setStrokeStyle(2, accent, 1));
       if (!unlocked) {
         card.add(this.add.rectangle(0, -4, 106, 76, 0x05090f, 0.36));
@@ -2046,14 +2050,16 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const actionY = this.safeBottomY(520, 28);
+    const actionY = this.safeBottomY(560, 40);
+    const actionLeftX = mainX - 108;
+    const actionRightX = mainX + 108;
     if (!selectedSkinUnlocked) {
       if (selectedSkin.category === 'boss') {
-        this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', '首领掉落', () => undefined, 0x46636a);
+        this.addWeaponSelectImageButton(layer, actionLeftX, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', '首领掉落', () => undefined, 0x46636a);
       } else {
-        this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
+        this.addWeaponSelectImageButton(layer, actionLeftX, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
       }
-      this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
+      this.addWeaponSelectImageButton(layer, actionRightX, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
       if (this.textures.exists('ad-reward-v1')) {
         this.addImageAction(layer, 842 + layoutShift, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
       }
@@ -2074,11 +2080,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         align: 'center',
       }).setOrigin(0.5));
     } else {
-      this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
+      this.addWeaponSelectImageButton(layer, actionLeftX, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
         this.equipWeaponSkin(selectedSkin.id);
         this.showWeaponSelect(mode, this.selectedStartFloor);
       }, selectedSkin.id === equippedSkin.id ? 0x46636a : accent);
-      this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '进入战斗', () => {
+      this.addWeaponSelectImageButton(layer, actionRightX, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '进入战斗', () => {
         this.equipWeaponSkin(selectedSkin.id);
         if (mode === 'daily') void this.startDailyAttempt(selectedWeapon.id);
         else this.startRun(this.selectedStartFloor, mode, selectedWeapon.id);
