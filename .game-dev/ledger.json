@@ -279,6 +279,12 @@
                                "status":  "done",
                                "implementedIn":  "src/playerSkinArt.ts, public/assets/art/player-skins/investigator-female-normal, tmp/imagegen/skin-audit/normalize_skins.py",
                                "evidence":  ".game-dev/evidence/pending-items-retest-2026-08-28.md；npm.cmd test；npm.cmd run build"
+                           },
+                           {
+                               "summary":  "升级卡牌移动端可读性优化，放大卡牌与图标并调整标题、说明和选择按钮位置",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts",
+                               "evidence":  "npm.cmd test（7 个测试文件，38 项通过）；npm.cmd run build；升级页卡牌布局按 1280x720 与 1024x576 横屏安全区重新计算"
                            }
                        ],
      "pendingItems":  [
@@ -319,6 +325,7 @@
                           }
                       ],
     "verification":  {
+                         "upgradeCardMobileLayout":  "passed: 升级页三张卡牌按横屏安全区放大，图标随卡牌比例同步，标题/说明提高字号、行距和描边，选择按钮改为卡牌下方独立文字热区；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "tests":  "passed: 7 个测试文件，38 项全部通过（2026-08-28 22:53）",
                          "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:54）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",

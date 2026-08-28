@@ -418,6 +418,8 @@ export class HospitalBattleScene extends Phaser.Scene {
   private profilePreviewSkinId = 'patient-default';
   private profileSkinCategory: ProfileSkinCategory = 'all';
   private profileSkinPage = 0;
+  private weaponSkinPage = 0;
+  private weaponSkinPageWeaponClass?: WeaponClass;
   private profileSkinPointer?: number;
   private profileSkinStartX = 0;
   private profileSkinMoved = false;
@@ -2144,6 +2146,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     };
     const selectedWeapon = baseWeapons.find((weapon) => weapon.id === this.selectedWeaponId) ?? baseWeapons[0];
     if (!selectedWeapon) return;
+    if (this.weaponSkinPageWeaponClass !== selectedWeapon.weaponClass) {
+      this.weaponSkinPageWeaponClass = selectedWeapon.weaponClass;
+      this.weaponSkinPage = 0;
+    }
+    const weaponSkins = this.weaponSkinsFor(selectedWeapon.weaponClass);
+    const weaponSkinPageCount = Math.max(1, Math.ceil(weaponSkins.length / 6));
+    this.weaponSkinPage = clamp(this.weaponSkinPage, 0, weaponSkinPageCount - 1);
+    const pageSkins = weaponSkins.slice(this.weaponSkinPage * 6, this.weaponSkinPage * 6 + 6);
     if (!this.weaponSelectPreviewSkinId || !this.weaponSkins.some((skin) => skin.id === this.weaponSelectPreviewSkinId && skin.weaponClass === selectedWeapon.weaponClass)) {
       this.weaponSelectPreviewSkinId = this.equippedWeaponSkin(selectedWeapon.weaponClass).id;
     }
@@ -2178,6 +2188,8 @@ export class HospitalBattleScene extends Phaser.Scene {
         callback: () => {
           if (!unlocked || (mode === 'daily' && !this.isWeaponUnlocked(weapon.id))) return;
           this.selectedWeaponId = weapon.id;
+          this.weaponSkinPage = 0;
+          this.weaponSkinPageWeaponClass = weapon.weaponClass;
           this.weaponSelectPreviewSkinId = this.equippedWeaponSkin(weapon.weaponClass).id;
           this.showWeaponSelect(mode, this.selectedStartFloor);
         },
@@ -2209,7 +2221,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       : undefined;
     const skinPanelScale = skinPanelFrameImage ? skinPanelWidth / skinPanelFrameImage.width : 1;
     const skinPanelHeight = skinPanelFrameImage ? skinPanelFrameImage.height * skinPanelScale : 296;
-    const skinPanelY = frameTopY + skinPanelHeight / 2;
+    const skinPanelTopY = frameTopY - 40;
+    const skinPanelY = skinPanelTopY + skinPanelHeight / 2;
     const skinPanelFrame = this.add.container(skinPanelX, skinPanelY);
     skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0.74));
     if (skinPanelFrameImage) {
@@ -2219,10 +2232,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     layer.add(skinPanelFrame);
     const skinGridColumnGap = Math.min(146, skinPanelWidth * 0.27);
-    const skinGridTop = 312;
-    const skinGridRowGap = 150;
+    const skinGridTop = skinPanelTopY + 126;
+    const skinGridRowGap = 116;
     const skinCardImageHeight = 94;
-    this.weaponSkinsFor(selectedWeapon.weaponClass).forEach((skin, index) => {
+    pageSkins.forEach((skin, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
       const x = skinPanelX - skinGridColumnGap + column * skinGridColumnGap;
@@ -2250,13 +2263,30 @@ export class HospitalBattleScene extends Phaser.Scene {
         x,
         y,
         width: 164,
-        height: 142,
+        height: 112,
         callback: () => { this.weaponSelectPreviewSkinId = skin.id; this.showWeaponSelect(mode, this.selectedStartFloor); },
         setPressed: (pressed) => card.setScale(pressed ? 0.96 : 1),
       });
     });
+    if (weaponSkinPageCount > 1) {
+      const pageY = skinPanelTopY + skinPanelHeight - 32;
+      const pageControlOffset = Math.min(108, skinPanelWidth * 0.22);
+      if (this.weaponSkinPage > 0) {
+        this.addImageAction(layer, skinPanelX - pageControlOffset, pageY, 52, 52, 'profile-arrow-left-v1', () => this.setWeaponSkinPage(this.weaponSkinPage - 1, weaponSkinPageCount), 10);
+      }
+      if (this.weaponSkinPage < weaponSkinPageCount - 1) {
+        this.addImageAction(layer, skinPanelX + pageControlOffset, pageY, 52, 52, 'profile-arrow-right-v1', () => this.setWeaponSkinPage(this.weaponSkinPage + 1, weaponSkinPageCount), 10);
+      }
+      layer.add(this.add.text(skinPanelX, pageY, `${this.weaponSkinPage + 1} / ${weaponSkinPageCount}`, {
+        fontFamily: 'Courier New',
+        fontSize: '11px',
+        color: palette.cream,
+        stroke: '#071015',
+        strokeThickness: 2,
+      }).setOrigin(0.5).setFontStyle('bold'));
+    }
 
-    const actionY = this.safeBottomY(620, 40);
+    const actionY = this.safeBottomY(frameTopY + mainFrameHeight + 24, 40);
     const actionLeftX = mainX - 154;
     const actionRightX = mainX + 154;
     const adActionX = mainX;
@@ -2266,7 +2296,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       } else {
         this.addWeaponSelectImageButton(layer, actionLeftX, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
       }
-      this.addWeaponSelectImageButton(layer, actionRightX, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
       if (this.textures.exists('ad-reward-v1')) {
         this.addImageAction(layer, adActionX, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
       }
@@ -3493,6 +3522,11 @@ export class HospitalBattleScene extends Phaser.Scene {
   private setProfileSkinPage(page: number, pageCount: number) {
     this.profileSkinPage = clamp(Math.round(page), 0, Math.max(0, pageCount - 1));
     this.showProfile();
+  }
+
+  private setWeaponSkinPage(page: number, pageCount: number) {
+    this.weaponSkinPage = clamp(Math.round(page), 0, Math.max(0, pageCount - 1));
+    this.showWeaponSelect(this.runMode, this.selectedStartFloor);
   }
 
   private equipSkin(id: string) {
@@ -5419,14 +5453,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     return `upgrade-card-${rarity}-v1`;
   }
 
-  private upgradeCardIcon(parent: Phaser.GameObjects.Container, kind: UpgradeIconKind, x: number, y: number, color: number) {
+  private upgradeCardIcon(parent: Phaser.GameObjects.Container, kind: UpgradeIconKind, x: number, y: number, color: number, iconSize = 94) {
     const textureKey = `upgrade-icon-${kind}`;
     if (this.textures.exists(textureKey)) {
       const icon = this.add.image(x, y, textureKey)
         .setOrigin(0.5)
         // The card assets already provide the circular opening. Keep each
         // authored icon inside that opening without adding a second ring.
-        .setDisplaySize(94, 94);
+        .setDisplaySize(iconSize, iconSize);
       parent.add(icon);
       return icon;
     }
@@ -5753,18 +5787,21 @@ export class HospitalBattleScene extends Phaser.Scene {
         return this.upgradeDefinitionFromConfig(config, rarity, status, weapon);
       });
     const choices = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
-    const cardHeight = Math.min(356, Math.max(336, Math.round(frameHeight * 0.57)));
-    const cardWidth = Math.max(180, Math.min(240, Math.min(Math.round(cardHeight * 0.67), Math.floor((frameWidth - 88) / 3))));
-    const cardSpacing = Math.min(Math.round(frameWidth / 4), cardWidth + 22);
+    // Give the three choices more of the viewport on phones. The authored
+    // card art is portrait, so width follows height and the gap stays large
+    // enough to prevent adjacent touch targets from merging.
+    const cardHeight = Math.min(420, Math.max(384, Math.round(frameHeight * 0.68)));
+    const cardWidth = Math.max(204, Math.min(282, Math.round(cardHeight * 0.67), Math.floor((frameWidth - 120) / 3)));
+    const cardSpacing = Math.min(cardWidth + 28, Math.floor((frameWidth - cardWidth) / 2));
     const cardXBase = centerX - cardSpacing;
-    const cardY = clamp(frameY - 35, frameTop + 244, frameBottom - cardHeight / 2 - 92);
+    const cardY = clamp(frameY - 18, frameTop + 260, frameBottom - cardHeight / 2 - 82);
     choices.forEach((choice, index) => {
       const x = cardXBase + index * cardSpacing;
       const card = this.add.container(x, cardY).setSize(cardWidth, cardHeight).setInteractive({ useHandCursor: true });
       const rarity = choice.rarity ?? 'blue';
       const rarityColor = rarity === 'gold' ? 0xffd18a : rarity === 'purple' ? 0xb798e2 : 0x5f9dff;
-      const cardTextColor = rarity === 'blue' ? '#d9edf3' : rarity === 'purple' ? '#2c2033' : '#3b2818';
-      const cardDetailColor = rarity === 'blue' ? '#9bbdc8' : rarity === 'purple' ? '#59445e' : '#71532e';
+      const cardTextColor = rarity === 'blue' ? '#e7f7f8' : rarity === 'purple' ? '#321b3b' : '#45270f';
+      const cardDetailColor = rarity === 'blue' ? '#c9e7ec' : rarity === 'purple' ? '#55355f' : '#68431f';
       const textureKey = this.upgradeCardTexture(rarity);
       if (this.textures.exists(textureKey)) {
         card.add(this.add.image(0, 0, textureKey).setOrigin(0.5).setDisplaySize(cardWidth, cardHeight));
@@ -5775,30 +5812,31 @@ export class HospitalBattleScene extends Phaser.Scene {
       // The source card opening sits above the card midpoint. Keep the halo
       // and raster icon on the same measured center so every type lands in
       // the circular opening instead of drifting into the text panel.
-      const iconCenterY = -58;
-      this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, iconCenterY, choice.color);
-      const titleSize = choice.title.length > 11 ? 15 : 17;
-      const detailSize = choice.detail.length > 42 ? 10 : 11;
-      card.add(this.add.text(0, 78, choice.title, {
+      const iconCenterY = Math.round(-cardHeight * 0.174);
+      this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, iconCenterY, choice.color, Math.round(Math.min(124, cardHeight * 0.29)));
+      const textWidth = Math.max(176, cardWidth - 30);
+      const titleSize = choice.title.length > 10 ? 21 : 23;
+      const detailSize = choice.detail.length > 58 ? 14 : 15;
+      card.add(this.add.text(0, Math.round(cardHeight * 0.186), choice.title, {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${titleSize}px`,
         color: cardTextColor,
         align: 'center',
         stroke: '#0b1117',
-        strokeThickness: rarity === 'blue' ? 2 : 1,
-        wordWrap: { width: 176 },
-        lineSpacing: 2,
-      }).setOrigin(0.5).setFixedSize(184, 48).setFontStyle('bold'));
-      card.add(this.add.text(0, 108, choice.detail, {
+        strokeThickness: rarity === 'blue' ? 3 : 2,
+        wordWrap: { width: textWidth - 8 },
+        lineSpacing: 3,
+      }).setOrigin(0.5).setFixedSize(textWidth, 58).setFontStyle('bold'));
+      card.add(this.add.text(0, Math.round(cardHeight * 0.29), choice.detail, {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${detailSize}px`,
         color: cardDetailColor,
         align: 'center',
         stroke: '#0b1117',
-        strokeThickness: 1,
-        wordWrap: { width: 174 },
-        lineSpacing: 2,
-      }).setOrigin(0.5).setFixedSize(180, 42));
+        strokeThickness: 2,
+        wordWrap: { width: textWidth - 10 },
+        lineSpacing: 4,
+      }).setOrigin(0.5).setFixedSize(textWidth, 76));
       layer.add(card);
       const applyChoice = () => {
         if (this.phase !== 'upgrade') return;
@@ -5823,7 +5861,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       card.on('pointerout', () => selectionFrame.setVisible(false));
       card.on('pointerdown', () => selectionFrame.setVisible(true));
       card.on('pointerup', applyChoice);
-      this.addButton(layer, x, cardY + cardHeight / 2 + 24, 142, 38, '选择', applyChoice, 'primary', 4);
+      this.addUpgradeTextAction(layer, x, cardY + cardHeight / 2 + 30, '选择', applyChoice, 'primary', false, 18, 176, 56);
     });
     const paidRefresh = upgradeRefreshRequiresPayment(this.upgradeRefreshCount);
     const refreshLabel = this.upgradePaymentPending
@@ -6131,12 +6169,23 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   /** Upgrade choices stay visually attached to their raster cards; no extra line frame is drawn. */
-  private addUpgradeTextAction(parent: Phaser.GameObjects.Container, x: number, y: number, label: string, callback: () => void, style: 'primary' | 'muted' | 'danger' = 'primary', refresh = false) {
+  private addUpgradeTextAction(
+    parent: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    label: string,
+    callback: () => void,
+    style: 'primary' | 'muted' | 'danger' = 'primary',
+    refresh = false,
+    fontSize = refresh ? 12 : 18,
+    hitWidth = refresh ? 300 : 176,
+    hitHeight = 56,
+  ) {
     const colors = { primary: palette.teal, muted: palette.muted, danger: palette.danger };
     const button = this.add.container(x, y);
     const labelNode = this.add.text(refresh ? -42 : 0, 0, label, {
       fontFamily: 'Microsoft YaHei',
-      fontSize: refresh ? '12px' : '15px',
+      fontSize: `${fontSize}px`,
       color: colors[style],
       stroke: '#071015',
       strokeThickness: 2,
@@ -6156,8 +6205,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       phase: this.phase,
       x,
       y,
-      width: refresh ? 300 : 150,
-      height: 52,
+      width: hitWidth,
+      height: hitHeight,
       callback,
       setPressed: (pressed) => {
         button.setScale(pressed ? 0.96 : 1);
