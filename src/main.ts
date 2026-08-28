@@ -241,6 +241,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private world!: Phaser.GameObjects.Container;
   private ui!: Phaser.GameObjects.Container;
   private arenaBackground?: Phaser.GameObjects.Image;
+  private arenaBackgroundTransition?: Phaser.GameObjects.Image;
   private arenaBackgroundTexture = '';
   private player!: Phaser.GameObjects.Container;
   private playerBodyLayer?: Phaser.GameObjects.Container;
@@ -501,6 +502,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ui-command-frame-v2', '/assets/art/ui/ui-command-frame-v2.png');
     this.load.image('ui-typography-kit-v1', '/assets/art/ui/ui-typography-kit-v1.png');
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
+    this.load.image('dialogue-bubble-v2', '/assets/art/ui/dialogue-bubble-v2.png');
     (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'boss-name', 'start-challenge'] as const).forEach((textAsset) => {
       this.load.image(`ui-text-${textAsset}-v1`, `/assets/art/ui/text/ui-text-${textAsset}-v1.png`);
     });
@@ -2144,11 +2146,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.tutorialRun) floorLabel.setText('入口教程');
 
     const stage = this.add.container(layoutShift, 0);
-    const npcX = 500;
-    const playerX = 780;
+    // Keep the player on the left and the hospital staff on the right. Both
+    // actors share the same floor baseline so the day-to-night cut has no
+    // visible jump in composition.
+    const npcX = 780;
+    const playerX = 500;
     const actorY = this.safeBottomY(515, 108);
     if (hasNpcLine) {
-      this.addDialogueCharacter(stage, npcX, actorY - 28, npcLine!.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
+      this.addDialogueCharacter(stage, npcX, actorY - 6, npcLine!.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
     }
     const playerShadow = this.add.graphics();
     playerShadow.fillStyle(0x05090f, 0.24).fillEllipse(playerX, actorY + 112, 126, 22);
@@ -2215,6 +2220,33 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private addDialogueBubble(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, speaker: string, message: string, tailSide: 'left' | 'right', accent: number) {
     const bubble = this.add.container(x, y);
+    if (this.textures.exists('dialogue-bubble-v2')) {
+      // The generated frame is 3:1; keep its native ratio so the tail and
+      // corner ornaments do not look vertically stretched on any viewport.
+      const frameWidth = width + 24;
+      const frameHeight = frameWidth * (724 / 2172);
+      const frame = this.add.image(0, -4, 'dialogue-bubble-v2')
+        .setOrigin(0.5)
+        .setDisplaySize(frameWidth, frameHeight);
+      bubble.add(frame);
+      const textColor = '#1f2b39';
+      if (speaker) bubble.add(this.add.text(-width / 2 + 22, -height / 2 + 15, speaker, {
+        fontFamily: UI_FONT_STACK,
+        fontSize: '12px',
+        color: textColor,
+      }).setFontStyle('bold'));
+      const messageTop = speaker ? -height / 2 + 36 : -height / 2 + 18;
+      const messageHeight = speaker ? height - 48 : height - 28;
+      bubble.add(this.add.text(-width / 2 + 22, messageTop, message, {
+        fontFamily: UI_FONT_STACK,
+        fontSize: '13px',
+        color: textColor,
+        lineSpacing: 4,
+        wordWrap: { width: width - 44 },
+      }).setFixedSize(width - 44, messageHeight));
+      parent.add(bubble);
+      return bubble;
+    }
     const left = -width / 2;
     const right = width / 2;
     const top = -height / 2;
@@ -2278,6 +2310,19 @@ export class HospitalBattleScene extends Phaser.Scene {
         } else {
           this.beginBattle();
         }
+        // The target scene is created before lifting the veil, so the
+        // hospital room keeps one shared origin while the transition eases
+        // into the night palette instead of cutting on a single frame.
+        const targetLayer = this.phase === 'battle' ? this.ui : this.overlay;
+        const fadeIn = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(200).setScrollFactor(0);
+        targetLayer?.add(fadeIn);
+        this.tweens.add({
+          targets: fadeIn,
+          alpha: 0,
+          duration: 650,
+          ease: 'Sine.easeOut',
+          onComplete: () => fadeIn.destroy(),
+        });
       },
     });
   }
@@ -2287,7 +2332,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.phase = 'battle';
     this.ui?.setVisible(true);
     this.updateHud();
-    if (this.tutorialRun) this.showTutorialGuide();
   }
 
   private showTutorialGuide() {
@@ -4221,9 +4265,30 @@ export class HospitalBattleScene extends Phaser.Scene {
   private updateWardBackground() {
     if (!this.arenaBackground) return;
     const textureKey = this.mutated ? 'ward-night-deep-v1' : 'ward-night-v1';
-    if (this.arenaBackgroundTexture === textureKey || !this.textures.exists(textureKey)) return;
+    if (this.arenaBackgroundTexture === textureKey || this.arenaBackgroundTransition?.texture.key === textureKey || !this.textures.exists(textureKey)) return;
     this.arenaBackgroundTexture = textureKey;
-    this.arenaBackground.setTexture(textureKey);
+    const next = this.add.image(
+      (WORLD_BOUNDS.left + WORLD_BOUNDS.right) / 2,
+      (WORLD_BOUNDS.top + WORLD_BOUNDS.bottom) / 2,
+      textureKey,
+    ).setOrigin(0.5).setDisplaySize(
+      WORLD_BOUNDS.right - WORLD_BOUNDS.left,
+      WORLD_BOUNDS.bottom - WORLD_BOUNDS.top,
+    ).setAlpha(0);
+    this.world.add(next);
+    this.arenaBackgroundTransition = next;
+    this.tweens.add({
+      targets: next,
+      alpha: 0.96,
+      duration: 900,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        if (this.arenaBackground !== next) return;
+        this.arenaBackground.destroy();
+        this.arenaBackground = next;
+        this.arenaBackgroundTransition = undefined;
+      },
+    });
   }
 
   private updateDailyAugments(dt: number) {

@@ -324,6 +324,7 @@
                            "dailyRankingLayout":  "passed: 1280x720 本地预览中排行榜首屏显示 10 行，前三名使用克苏鲁徽章，向上拖动可查看后续榜单；控制台无警告或错误。",
                            "openingDialogueRemoval":  "passed: 主线和每日挑战进入武器选择后直接开始战斗，不再显示白日病房开场对白。",
                            "firstFloorGate":  "passed: 新存档默认选择入口关，未完成入口教程时第 1 层显示锁定；入口教程结算后持久化解锁第 1 层。",
-                           "tutorialFlow":  "passed: 新手关采用白日病房玩家自述、6 波 10/20/30/40/50/1 预算与第 6 波首领，胜利后播放 3 句白日病房自述并回到第 1 层选择。"
+                           "tutorialFlow":  "passed: 新手关采用白日病房玩家自述、6 波 10/20/30/40/50/1 预算与第 6 波首领，胜利后播放 3 句白日病房自述并回到第 1 层选择。",
+                           "openingDialogueBubbleRetest":  "passed: local 1280x720 and 1024x576 previews show the generated dialogue frame at native 3:1 ratio, the tutorial guide panel is absent, and the day-ward to night-battle transition fades continuously."
                      }
 }
