@@ -17,12 +17,12 @@
     "coverPalette":  "ember",
     "minIOSMajor":  15,
     "buildEntry":  "index.html",
-    "bundleSize":  190036944,
-    "buildSize":  195377022,
-    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/9f7f0cf471d120f6458a07a925168de8.zip",
+    "bundleSize":  193121819,
+    "buildSize":  195410198,
+    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/b1f0e49df58f2bb15edbbf215beb42c8.zip",
     "bundleEntry":  "index.html",
-    "buildPrefix":  "builds/9f7f0cf471d120f6458a07a925168de8",
-    "bundleVersion":  "9f7f0cf471d120f6458a07a925168de8",
-    "bundleMd5":  "6f3f5752214d3e0f767690bfddc2a32b",
+    "buildPrefix":  "builds/b1f0e49df58f2bb15edbbf215beb42c8",
+    "bundleVersion":  "b1f0e49df58f2bb15edbbf215beb42c8",
+    "bundleMd5":  "2ceec5a7b98113316f82cb4930d0f29d",
     "sdkVersion":  "0.4.37"
 }

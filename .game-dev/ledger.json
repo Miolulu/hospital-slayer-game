@@ -314,7 +314,7 @@
                             "documentFetch":  "passed: revision 3457；52 项已完成，5 项待处理（2026-08-28 20:06）",
                             "documentCheckboxUpdate":  "passed: 本轮未发现新增意见或版本变化；文档仍为 52 项已完成、5 项待处理",
                            "buildaBundleCheck":  "blocked: 线上版本 9f7f0cf471d120f6458a07a925168de8 使用了错误的 WebP 压缩包；入口和脚本仍引用 .png，主背景、角色、卡牌及加载图在创游世界返回 404。",
-                          "buildaUpload":  "passed: upload-build 已上传构建 8b5f1aca8c503250d626c941cc7551d6；仅更新 H5 Bundle 与本地 manifest，未调用 publish、create-draft 或 update-draft",
+                           "buildaUpload":  "passed: 修复包已上传并更新现有创游世界草稿；Builda 构建 b1f0e49df58f2bb15edbbf215beb42c8，未执行公开发布。",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
                          "mobileTouchAcceptance":  "blocked: 当前无独立真实触摸环境",
                           "buildaLandscapeAcceptance":  "blocked: 当前无可用 Builda 外壳真机/浏览器实例",
@@ -343,6 +343,6 @@
                              "compressedBundle":  "blocked: 旧压缩包把 PNG 改为 WebP 却没有同步入口和脚本引用，静态 bundle-check 无法覆盖运行时 404；已在本地生成修复包 builda-web-fixed-webp-files-20260828.zip，包体 193121819 字节，引用检查通过。",
                              "buildaRuntimeDiagnosis":  "passed: 线上入口和 manifest 返回 200；对 10 个关键资源抽样确认 .png 全部 404、对应 .webp 返回 200，确认失败来自压缩包扩展名与运行时代码不一致。",
                              "buildaFixedBundleLocal":  "passed: 当前 dist 重新构建；仅保留一份 index-CEDYJxlD.js，PNG 全部转为同名 WebP 并同步 index.html/脚本引用；299 个 WebP、0 个 PNG、0 个目录条目，bundle-check 通过，包体 193121819 字节；未上传或发布。",
-                            "buildaDraftUpload":  "passed: Builda 草稿同步完成，gameId GD:48356599:1，currentVersionId 4ae92de7-f9b7-528b-afc7-a31c7a89939a，bundleVersion 9f7f0cf471d120f6458a07a925168de8；未公开发布。"
+                             "buildaDraftUpload":  "passed: 创游世界草稿同步完成，gameId GD:48356599:1，currentVersionId f8ebf40f-c7e2-5010-92e1-dd6465e412e1，bundleVersion b1f0e49df58f2bb15edbbf215beb42c8；cysjSyncStatus=synced，公开发布待用户操作。"
                      }
 }
