@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3624,
-                     "lastCheckedAt":  "2026-08-29T06:56:37+08:00",
+                     "lastCheckedAt":  "2026-08-29T07:05:37+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -392,6 +392,8 @@
                          "mobileUiSixIssues":  "passed: 896x504 手机横屏复测主菜单、病历档案（第二排皮肤立绘与文字）、每日挑战（广告图标与无紫色滚动条）、武器分页、主线楼层、对白、战斗 HUD 和升级卡牌；广告未完成提示为约 1.6 秒 Toast，素材按比例居中，按钮热区可触达，控制台无错误。",
                          "weaponRangeBalance":  "passed: 远程武器伤害目标筛选统一使用 weaponAttackRange；枪最小 420、炮最小 500，剑/鞭保留近战范围；新增测试覆盖远程范围大于近战。",
                          "testsLatest":  "passed: npm.cmd test，9 个测试文件、46 项全部通过（2026-08-29 06:56）",
-                         "buildLatest":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 06:56）；仅有既有大 chunk 提示。"
+                         "buildLatest":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 06:56）；仅有既有大 chunk 提示。",
+                         "pngDraftBundleLatest":  "passed: 当前 dist 临时副本排除全部 WebP 并压缩 PNG；包内 340 张 PNG、0 张 WebP，根目录 index.html/builda-sdk.js 均存在，bundle-check --webview-compatible 通过，包体 87756767 字节。",
+                         "buildaDraftUploadMobileUiLatest":  "passed: 移动端六项体验修复已同步创游世界草稿；gameId GD:48356599:1，currentVersionId 52481de0-5e08-5f81-8657-dd4985299e61，bundleVersion 42f147f547f4ab95ace27624571cd77f，bundleSize 87756767 字节，cysjSyncStatus=synced，公开发布待用户操作。"
                      }
 }
