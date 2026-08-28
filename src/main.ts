@@ -1727,22 +1727,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       .setAlpha(0.98);
     layer.add(background);
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.16));
-    const textShade = this.add.rectangle(panelX, 360, 450, 430, 0x02070b, 0.46)
-      .setStrokeStyle(1, 0x46636a, 0.52);
-    layer.add(textShade);
-    layer.add(this.add.rectangle(panelX, this.safeTopY(177, 18), 360, 2, paletteRgb.danger, 0.7));
-    layer.add(this.add.text(panelX, this.safeTopY(132, 18), '主线通关', {
-      fontFamily: 'Courier New, Microsoft YaHei',
-      fontSize: '30px',
-      color: palette.cream,
-      stroke: '#05090f',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(panelX, this.safeTopY(205, 18), '病历记录  ·  夜间再入院', {
-      fontFamily: 'Microsoft YaHei',
-      fontSize: '13px',
-      color: palette.cyan,
-    }).setOrigin(0.5));
     layer.add(this.add.text(panelX - 200, 270, '又来到了这座医院...\n难道还要和那群恶心的怪物战斗吗？', {
       fontFamily: 'Microsoft YaHei',
       fontSize: '24px',
@@ -1752,17 +1736,17 @@ export class HospitalBattleScene extends Phaser.Scene {
       stroke: '#05090f',
       strokeThickness: 4,
     }).setOrigin(0, 0.5));
-    layer.add(this.add.text(panelX - 200, 395, '楼层还在向上延伸。黑雾里没有尽头。', {
+    layer.add(this.add.text(panelX - 200, 395, '（本关为新手教学关卡）', {
       fontFamily: 'Microsoft YaHei',
       fontSize: '13px',
-      color: palette.muted,
+      color: palette.amber,
       wordWrap: { width: 390 },
     }));
     const continueIntro = () => {
       if (this.progress.mainlineIntroSeen) return;
       this.progress.mainlineIntroSeen = true;
       this.saveProgress();
-      this.showMainline(this.floor);
+      this.showMainline(0);
     };
     this.uiActionRegions.push({
       phase: this.phase,
@@ -1773,7 +1757,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       callback: continueIntro,
       setPressed: () => undefined,
     });
-    this.addButton(layer, panelX, this.safeBottomY(610, 40), 300, 54, '进入楼层档案', continueIntro, 'primary', 12);
+    this.addButton(layer, panelX, this.safeBottomY(610, 40), 300, 54, '进入楼层', continueIntro, 'primary', 12);
     this.overlay = layer;
     this.tweens.add({ targets: layer, alpha: 1, duration: 720, ease: 'Sine.easeOut' });
   }
