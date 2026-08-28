@@ -1788,8 +1788,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
     const selected = this.selectedStartFloor;
-    layer.add(this.add.text(centerX, this.safeTopY(46, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(centerX, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(W / 2, this.safeTopY(46, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(W / 2, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
     layer.add(this.add.text(safe.right - 8, this.safeTopY(52, 18), `已开放 ${this.progress.maxFloor} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.green }).setOrigin(1, 0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(104, 18), Math.min(1030, safe.width), 1, 0x46636a, 0.78));
 
@@ -1829,7 +1829,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       const glow = this.add.rectangle(0, 0, floorSlotWidth + 18, floorSlotHeight + 18, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.12) : 0.035);
       card.add(glow);
       if (unlocked) this.tweens.add({ targets: glow, alpha: isSelected ? 0.5 : 0.28, duration: 760, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      card.add(this.add.rectangle(0, 0, floorSlotWidth, floorSlotHeight, unlocked ? 0x0d1b22 : 0x11191e, 0.18).setStrokeStyle(isSelected ? 3 : 1, isSelected ? paletteRgb.amber : unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.96 : 0.7));
+      card.add(this.add.rectangle(0, 0, floorSlotWidth, floorSlotHeight, unlocked ? 0x0d1b22 : 0x11191e, 0.18).setStrokeStyle(1, unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.72 : 0.7));
       if (this.textures.exists('mainline-building-floor-shell-v1')) {
         card.add(this.add.image(0, 0, 'mainline-building-floor-shell-v1')
           .setOrigin(0.5)
@@ -1840,10 +1840,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? (isSelected ? 'mainline-floor-selected-v1' : 'mainline-floor-unlocked-v1')
         : (isSelected ? 'mainline-floor-locked-selected-v1' : 'mainline-floor-locked-v1');
       if (isSelected && unlocked) {
-        const halo = this.add.rectangle(0, 0, floorSlotWidth + 12, floorSlotHeight + 12, paletteRgb.cyan, 0.1)
-          .setStrokeStyle(2, paletteRgb.amber, 0.82);
-        card.add(halo);
-        this.tweens.add({ targets: halo, alpha: 0.2, duration: 860, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: glow, alpha: 0.5, duration: 860, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       }
       if (this.textures.exists(textureKey)) {
         const source = this.textures.get(textureKey).getSourceImage() as { width: number; height: number };
@@ -1855,19 +1852,6 @@ export class HospitalBattleScene extends Phaser.Scene {
           .setDisplaySize(displayWidth, displayHeight)
           .setAlpha(unlocked ? 0.98 : 0.92));
       }
-      const labelColor = unlocked ? palette.cream : palette.muted;
-      const stateColor = isSelected && unlocked ? palette.amber : unlocked ? palette.danger : palette.muted;
-      card.add(this.add.text(-floorShellWidth / 2 + 24, -floorShellHeight / 2 + 22, this.floorLabel(floor), {
-        fontFamily: 'Microsoft YaHei', fontSize: floor === 0 ? '15px' : '14px', color: labelColor,
-        stroke: '#061017', strokeThickness: 4,
-      }).setOrigin(0, 0.5).setFontStyle('bold'));
-      const stateLabel = unlocked
-        ? (isSelected ? '\u5f53\u524d\u9009\u4e2d' : '\u5df2\u89e3\u9501')
-        : '\u672a\u89e3\u9501';
-      card.add(this.add.text(floorShellWidth / 2 - 24, -floorShellHeight / 2 + 22, stateLabel, {
-        fontFamily: 'Microsoft YaHei', fontSize: '11px', color: stateColor,
-        stroke: '#061017', strokeThickness: 4,
-      }).setOrigin(1, 0.5));
       this.floorScrollContent.add(card);
       if (unlocked) {
         const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
@@ -1881,8 +1865,6 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const detailX = clamp(940 + layoutShift, safe.left + 250, safe.right - 250);
     const detail = this.add.container(detailX, 382);
-    detail.add(this.add.rectangle(0, 0, 500, 470, 0x071117, 0.96).setStrokeStyle(2, selected === 0 ? paletteRgb.amber : paletteRgb.cyan, 0.9));
-    detail.add(this.add.rectangle(0, 0, 484, 454, 0x071117, 0).setStrokeStyle(1, 0x46636a, 0.66));
     detail.add(this.add.text(-220, -206, this.floorLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '25px', color: selected === 0 ? palette.amber : palette.cream }).setFontStyle('bold'));
     detail.add(this.add.text(220, -204, `${selected === 0 ? '教程' : `进度 ${selected} / ${TOTAL_FLOORS}`}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.green }).setOrigin(1, 0));
     detail.add(this.add.text(-220, -168, this.floorZoneLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
@@ -1896,7 +1878,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       detail.add(this.add.text(-220, 170, `通关后解锁 ${selected < TOTAL_FLOORS ? this.floorLabel(selected + 1) : '终局档案'}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.green }));
     }
     layer.add(detail);
-    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始入口教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12);
+    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12);
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
