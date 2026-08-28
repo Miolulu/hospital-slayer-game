@@ -22,6 +22,7 @@ import {
   volleyDamageMultiplier,
   waveSpawningComplete,
   wavesPerFloorForFloor,
+  weaponAttackRange,
   weaponDamageAtLevel,
   WEAPON_DAMAGE,
   upgradeRefreshRequiresPayment,
@@ -373,6 +374,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private loadingProgress?: Phaser.GameObjects.Graphics;
   private loadingStatus?: Phaser.GameObjects.Text;
   private overlay?: Phaser.GameObjects.Container;
+  private transientToast?: Phaser.GameObjects.Container;
   private canvasUiPointerDownHandler?: (event: PointerEvent) => void;
   private canvasUiPointerMoveHandler?: (event: PointerEvent) => void;
   private canvasUiPointerUpHandler?: (event: PointerEvent) => void;
@@ -751,7 +753,6 @@ export class HospitalBattleScene extends Phaser.Scene {
         ['daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png'],
         ['daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png'],
         ['daily-ranking-frame-v1', '/assets/art/daily/daily-ranking-frame-v1.png'],
-        ['daily-ranking-scrollbar-v1', '/assets/art/daily/daily-ranking-scrollbar-v1.png'],
         ['daily-panel-frame-v1', '/assets/art/daily/daily-panel-frame-v1.png'],
         ['daily-start-button-v1', '/assets/art/daily/daily-start-button-v1.png'],
         ['daily-ad-icon-v1', '/assets/art/ui/daily-ad-icon-v1.png'],
@@ -768,6 +769,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         ['weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.png'],
         ['weapon-select-frame-skin-panel-v1', '/assets/art/weapon-select/weapon-select-frame-skin-panel-v1.png'],
         ['ad-reward-v1', '/assets/art/ui/ad-reward-v1.png'],
+        // Weapon skin pagination uses the same mirrored arrow pair as the
+        // profile archive. Load them with this group so page two never falls
+        // back to Phaser's green missing-texture marker.
+        ['profile-arrow-left-v1', '/assets/art/ui/profile-arrow-left-v1.png'],
+        ['profile-arrow-right-v1', '/assets/art/ui/profile-arrow-right-v1.png'],
       ].forEach(([key, path]) => image(key, path));
       (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.png`));
       (['melee', 'ranged', 'magic', 'heavy'] as const).forEach((category) => image(`weapon-category-${category}`, `/assets/art/weapon-select/icons/weapon-category-${category}.png`));
@@ -1584,8 +1590,12 @@ export class HospitalBattleScene extends Phaser.Scene {
   private buildHud() {
     const text = (x: number, y: number, value: string, size = 16, color = palette.cream) => this.add.text(x, y, value, { fontFamily: 'Microsoft YaHei', fontSize: `${size}px`, color, lineSpacing: 3 });
     const safe = this.pageSafeBounds(0);
+    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120);
     // 固定 HUD 只保留 SAN、经验和当前武器，统一放进美术贴图预留区。
-    const panel = this.add.container(safe.left + 132, H - 164).setDepth(25).setScrollFactor(0, 0, true);
+    // Keep the compact status group inside the left safe edge. The bars and
+    // weapon slot are laid out from a single fixed anchor so no part clips on
+    // narrow mobile canvases.
+    const panel = this.add.container(panelAnchor.x, panelAnchor.y).setDepth(25).setScrollFactor(0, 0, true);
     this.hud.panel = panel;
     this.ui.add(panel);
     this.hud.sanOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0xc44557, 0).setDepth(0);
@@ -1606,15 +1616,15 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.hud.xpBar.setDepth(1);
     this.hud.sanBar.setDepth(1);
     // 手机端把资源条改为横向，缩窄屏幕时仍能一眼分辨余量；状态面板不再叠加整块底框。
-    const hudLabelOffset = 68;
-    this.hud.xp = text(-hudLabelOffset, -112, 'XP 0%', this.uiFontSize(18, 1.85), palette.cyan).setOrigin(0.5).setDepth(4).setFontStyle('bold');
-    this.hud.san = text(hudLabelOffset, -112, 'SAN 100', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setDepth(4).setFontStyle('bold');
+    const hudCenterX = 120;
+    this.hud.xp = text(58, -112, 'XP 0%', this.uiFontSize(18, 1.85), palette.cyan).setOrigin(0.5).setDepth(4).setFontStyle('bold');
+    this.hud.san = text(182, -112, 'SAN 100', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setDepth(4).setFontStyle('bold');
     if (this.textures.exists('ui-round-frame')) {
-      panel.add(this.add.image(0, 69, 'ui-round-frame').setOrigin(0.5).setDisplaySize(78, 78).setDepth(2).setAlpha(0.96));
+      panel.add(this.add.image(hudCenterX, 69, 'ui-round-frame').setOrigin(0.5).setDisplaySize(78, 78).setDepth(2).setAlpha(0.96));
     }
-    this.hud.weaponIcon = this.add.image(0, 69, 'weapon-sword').setOrigin(0.5).setDisplaySize(72, 72).setDepth(4);
+    this.hud.weaponIcon = this.add.image(hudCenterX, 69, 'weapon-sword').setOrigin(0.5).setDisplaySize(72, 72).setDepth(4);
     panel.add(this.hud.weaponIcon);
-    this.hud.weapon = text(0, 116, '病院刀', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setFixedSize(168, 32).setAlign('center').setDepth(4).setFontStyle('bold');
+    this.hud.weapon = text(hudCenterX, 116, '病院刀', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setFixedSize(196, 32).setAlign('center').setDepth(4).setFontStyle('bold');
     panel.add([this.hud.xp, this.hud.san, this.hud.weapon]);
     this.pinHudToViewport();
   }
@@ -1736,7 +1746,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       : this.buildaSafeArea.right * scaleX + 20;
     const safeBottom = this.buildaSafeArea.bottom * scaleY;
     const safe = this.pageSafeBounds(0);
-    this.hud.panel?.setPosition(safe.left + 132, H - 164 - safeBottom);
+    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120 - safeBottom);
+    this.hud.panel?.setPosition(panelAnchor.x, panelAnchor.y);
     this.hud.wavePanel?.setX(safe.centerX);
     this.hud.resourcePanel?.setPosition(W - 122 - Math.max(0, capsuleRight - 20), safeTop + 36);
   }
@@ -1823,7 +1834,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       const angle = this.weaponAngle + (index * FULL_TURN) / copies;
       held.setPosition(Math.cos(angle) * innerRadius, orbitCenterY + Math.sin(angle) * innerRadius);
       held.setRotation(angle + this.weaponVisualSpec(weapon).rotation);
-      const active = this.enemies.some((enemy) => !enemy.dead && distance(enemy.node, this.player) < weapon.range + 70);
+      const active = this.enemies.some((enemy) => !enemy.dead && distance(enemy.node, this.player) < weaponAttackRange(weapon.type, weapon.weaponClass, weapon.range) + 70);
       if (active) {
         held.setTint(weapon.color);
         held.setAlpha(0.84 + (Math.sin(this.elapsed * 14 + index) + 1) * 0.08);
@@ -1866,8 +1877,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     const barHeight = 15;
     const barTop = -91;
     const barWidth = 116;
-    const xpBarX = -126;
-    const sanBarX = 10;
+    const xpBarX = 0;
+    const sanBarX = 124;
     this.hud.xpBar?.clear()
       .fillStyle(0x081116, 0.96).fillRect(xpBarX, barTop, barWidth, barHeight)
       .fillStyle(0x4b8ee8, 1).fillRect(xpBarX, barTop, barWidth * xpRatio, barHeight)
@@ -1883,8 +1894,13 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (!this.ui) return;
     // Re-apply the fixed layer contract because camera follow can change nested container state.
     const visible = this.phase === 'battle' || this.phase === 'boss-intro' || this.phase === 'boss-death' || this.phase === 'wave-cleanup' || this.phase === 'wave-break';
+    const canvasRect = this.game?.canvas?.getBoundingClientRect();
+    const scaleY = canvasRect?.height ? H / canvasRect.height : 1;
+    const safeBottom = this.buildaSafeArea.bottom * scaleY;
+    const safe = this.pageSafeBounds(0);
+    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120 - safeBottom);
     this.ui.setPosition(0, 0).setDepth(100).setAlpha(1).setScrollFactor(0, 0, true).setVisible(visible);
-    this.hud.panel?.setScrollFactor(0, 0, true).setDepth(25);
+    this.hud.panel?.setPosition(panelAnchor.x, panelAnchor.y).setScrollFactor(0, 0, true).setDepth(25);
     this.hud.sanOverlay?.setScrollFactor(0, 0);
     this.hud.wave?.setScrollFactor(0, 0);
     this.hud.timer?.setScrollFactor(0, 0);
@@ -2319,23 +2335,23 @@ export class HospitalBattleScene extends Phaser.Scene {
   private createWeaponRoster(): Weapon[] {
     return [
       { id: 'knife', name: '病院刀', glyph: '刀', weaponClass: 'sword', type: 'melee', effect: 'slash', color: 0xed716e, damage: WEAPON_DAMAGE.knife, cooldown: 0.42, range: 90, rotationSpeed: 4.8, level: 1, copies: 1, ammo: 1, owned: true },
-      { id: 'ward-lantern', name: '病房灯枪', glyph: '枪', weaponClass: 'gun', type: 'ranged', effect: 'spark', color: 0xf2bf62, damage: WEAPON_DAMAGE.wardLantern, cooldown: 0.72, range: 360, rotationSpeed: 3.8, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'ward-lantern', name: '病房灯枪', glyph: '枪', weaponClass: 'gun', type: 'ranged', effect: 'spark', color: 0xf2bf62, damage: WEAPON_DAMAGE.wardLantern, cooldown: 0.72, range: 420, rotationSpeed: 3.8, level: 0, copies: 0, ammo: 1, owned: false },
       { id: 'thorn', name: '荆棘长鞭', glyph: '鞭', weaponClass: 'whip', type: 'melee', effect: 'tentacle', color: 0x8fd17c, damage: WEAPON_DAMAGE.thorn, cooldown: 0.64, range: 100, rotationSpeed: 5.6, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'echo', name: '回声炮', glyph: '炮', weaponClass: 'cannon', type: 'ranged', effect: 'burst', color: 0xb798e2, damage: WEAPON_DAMAGE.echo, cooldown: 0.62, range: 410, rotationSpeed: 4.4, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'crown', name: '冠冕雷炮', glyph: '雷', weaponClass: 'cannon', type: 'ranged', effect: 'beam', color: 0xe5d47a, damage: WEAPON_DAMAGE.crown, cooldown: 0.58, range: 480, rotationSpeed: 5.2, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'echo', name: '回声炮', glyph: '炮', weaponClass: 'cannon', type: 'ranged', effect: 'burst', color: 0xb798e2, damage: WEAPON_DAMAGE.echo, cooldown: 0.62, range: 500, rotationSpeed: 4.4, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'crown', name: '冠冕雷炮', glyph: '雷', weaponClass: 'cannon', type: 'ranged', effect: 'beam', color: 0xe5d47a, damage: WEAPON_DAMAGE.crown, cooldown: 0.58, range: 560, rotationSpeed: 5.2, level: 0, copies: 0, ammo: 1, owned: false },
       { id: 'flesh-tentacle', name: '血肉触手', glyph: '触', weaponClass: 'whip', type: 'melee', effect: 'tentacle', color: 0x9a6bd1, damage: WEAPON_DAMAGE.fleshTentacle, cooldown: 0.58, range: 104, rotationSpeed: 5.1, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'laser-eye', name: '激光眼', glyph: '眼', weaponClass: 'gun', type: 'ranged', effect: 'laser', color: 0xf06eaa, damage: WEAPON_DAMAGE.laserEye, cooldown: 0.7, range: 540, rotationSpeed: 4.9, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'sanity-bomb', name: '理智炸弹', glyph: '弹', weaponClass: 'cannon', type: 'ranged', effect: 'bomb', color: 0xe78a57, damage: WEAPON_DAMAGE.sanityBomb, cooldown: 0.86, range: 430, rotationSpeed: 4.2, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'laser-eye', name: '激光眼', glyph: '眼', weaponClass: 'gun', type: 'ranged', effect: 'laser', color: 0xf06eaa, damage: WEAPON_DAMAGE.laserEye, cooldown: 0.7, range: 560, rotationSpeed: 4.9, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'sanity-bomb', name: '理智炸弹', glyph: '弹', weaponClass: 'cannon', type: 'ranged', effect: 'bomb', color: 0xe78a57, damage: WEAPON_DAMAGE.sanityBomb, cooldown: 0.86, range: 520, rotationSpeed: 4.2, level: 0, copies: 0, ammo: 1, owned: false },
       { id: 'void-scissors', name: '虚空剪', glyph: '剪', weaponClass: 'sword', type: 'melee', effect: 'void', color: 0x6b83e8, damage: WEAPON_DAMAGE.voidScissors, cooldown: 0.52, range: 112, rotationSpeed: 6.0, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'neon-orbit', name: '霓虹轨道', glyph: '轨', weaponClass: 'gun', type: 'ranged', effect: 'neon', color: 0x49e5c2, damage: WEAPON_DAMAGE.neonOrbit, cooldown: 0.56, range: 560, rotationSpeed: 5.6, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'neon-orbit', name: '霓虹轨道', glyph: '轨', weaponClass: 'gun', type: 'ranged', effect: 'neon', color: 0x49e5c2, damage: WEAPON_DAMAGE.neonOrbit, cooldown: 0.56, range: 620, rotationSpeed: 5.6, level: 0, copies: 0, ammo: 1, owned: false },
       { id: 'abyss-drill', name: '深渊钻', glyph: '钻', weaponClass: 'sword', type: 'melee', effect: 'burst', color: 0xd7d7e8, damage: WEAPON_DAMAGE.abyssDrill, cooldown: 0.5, range: 122, rotationSpeed: 6.4, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'star-cannon', name: '星骸炮', glyph: '星', weaponClass: 'cannon', type: 'ranged', effect: 'beam', color: 0x7ab9d0, damage: WEAPON_DAMAGE.starCannon, cooldown: 0.68, range: 620, rotationSpeed: 4.6, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'dream-mine', name: '梦魇雷', glyph: '雷', weaponClass: 'cannon', type: 'ranged', effect: 'bomb', color: 0xf2bf62, damage: WEAPON_DAMAGE.dreamMine, cooldown: 0.78, range: 480, rotationSpeed: 4.8, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'star-cannon', name: '星骸炮', glyph: '星', weaponClass: 'cannon', type: 'ranged', effect: 'beam', color: 0x7ab9d0, damage: WEAPON_DAMAGE.starCannon, cooldown: 0.68, range: 700, rotationSpeed: 4.6, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'dream-mine', name: '梦魇雷', glyph: '雷', weaponClass: 'cannon', type: 'ranged', effect: 'bomb', color: 0xf2bf62, damage: WEAPON_DAMAGE.dreamMine, cooldown: 0.78, range: 620, rotationSpeed: 4.8, level: 0, copies: 0, ammo: 1, owned: false },
       { id: 'eldritch-whip', name: '古神鞭', glyph: '鞭', weaponClass: 'whip', type: 'melee', effect: 'tentacle', color: 0xb46be0, damage: WEAPON_DAMAGE.eldritchWhip, cooldown: 0.44, range: 138, rotationSpeed: 6.7, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'skull-rail', name: '颅骨轨炮', glyph: '轨', weaponClass: 'gun', type: 'ranged', effect: 'laser', color: 0xff8fba, damage: WEAPON_DAMAGE.skullRail, cooldown: 0.62, range: 680, rotationSpeed: 5.0, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'cosmic-mortar', name: '宇宙迫击炮', glyph: '陨', weaponClass: 'cannon', type: 'ranged', effect: 'bomb', color: 0xd99263, damage: WEAPON_DAMAGE.cosmicMortar, cooldown: 0.84, range: 720, rotationSpeed: 4.1, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'god-eye', name: '神之眼', glyph: '眼', weaponClass: 'gun', type: 'ranged', effect: 'laser', color: 0xffd86f, damage: WEAPON_DAMAGE.godEye, cooldown: 0.55, range: 760, rotationSpeed: 5.4, level: 0, copies: 0, ammo: 1, owned: false },
-      { id: 'hospital-core', name: '医院核心', glyph: '核', weaponClass: 'cannon', type: 'ranged', effect: 'beam', color: 0xc7f4e8, damage: WEAPON_DAMAGE.hospitalCore, cooldown: 0.5, range: 820, rotationSpeed: 5.8, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'skull-rail', name: '颅骨轨炮', glyph: '轨', weaponClass: 'gun', type: 'ranged', effect: 'laser', color: 0xff8fba, damage: WEAPON_DAMAGE.skullRail, cooldown: 0.62, range: 760, rotationSpeed: 5.0, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'cosmic-mortar', name: '宇宙迫击炮', glyph: '陨', weaponClass: 'cannon', type: 'ranged', effect: 'bomb', color: 0xd99263, damage: WEAPON_DAMAGE.cosmicMortar, cooldown: 0.84, range: 820, rotationSpeed: 4.1, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'god-eye', name: '神之眼', glyph: '眼', weaponClass: 'gun', type: 'ranged', effect: 'laser', color: 0xffd86f, damage: WEAPON_DAMAGE.godEye, cooldown: 0.55, range: 860, rotationSpeed: 5.4, level: 0, copies: 0, ammo: 1, owned: false },
+      { id: 'hospital-core', name: '医院核心', glyph: '核', weaponClass: 'cannon', type: 'ranged', effect: 'beam', color: 0xc7f4e8, damage: WEAPON_DAMAGE.hospitalCore, cooldown: 0.5, range: 920, rotationSpeed: 5.8, level: 0, copies: 0, ammo: 1, owned: false },
     ];
   }
 
@@ -3604,8 +3620,15 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const previewSkin = this.skins.find((skin) => skin.id === this.profilePreviewSkinId) ?? this.skins[0];
     const caseInk = '#17131b';
-    const caseAccent = '#7f2937';
-    const caseMuted = '#334a4a';
+    const caseAccent = '#7d1f35';
+    const caseMuted = '#24545b';
+    const caseTextStroke = '#fff3d0';
+    const caseStrokeThickness = 2;
+    const caseLabelSize = this.compactUi() ? 27 : this.uiFontSize(15, 1.35);
+    const caseNameSize = this.compactUi() ? 30 : this.uiFontSize(21, 1.25);
+    const caseDetailSize = this.compactUi() ? 24 : this.uiFontSize(14, 1.35);
+    const caseIdSize = this.compactUi() ? 22 : this.uiFontSize(13, 1.35);
+    const caseSkinNameSize = this.compactUi() ? 25 : this.uiFontSize(14, 1.35);
     const boardX = 340 + layoutShift;
     const boardY = 408;
     // Keep the case sheet close to the skin panel width and scale every
@@ -3619,16 +3642,17 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     // Keep identity details in the paper's upper-left field, where the
     // decorative sheet leaves a clear reading area at every viewport size.
-    board.add(this.add.text(-205, -118, '\u75c5\u4eba\u59d3\u540d', { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(13, 1.35)}px`, color: caseAccent, stroke: '#ead9b8', strokeThickness: 1 }).setFontStyle('bold'));
-    board.add(this.add.text(-205, -91, this.playerNickname, { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(20, 1.25)}px`, color: caseInk, stroke: '#ead9b8', strokeThickness: 1, wordWrap: { width: 190 } }).setFontStyle('bold'));
-    board.add(this.add.text(-205, -59, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(14, 1.3)}px`, color: caseAccent, stroke: '#ead9b8', strokeThickness: 1 }).setFontStyle('bold'));
-    board.add(this.add.text(-205, -31, `\u75c5\u5386\u7f16\u53f7  W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(11, 1.35)}px`, color: caseMuted, stroke: '#ead9b8', strokeThickness: 1 }).setFontStyle('bold'));
-    board.add(this.add.text(-250, 24, '\u75c7\u72b6\u8bb0\u5f55', { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(13, 1.35)}px`, color: caseAccent, stroke: '#ead9b8', strokeThickness: 1 }).setFontStyle('bold'));
-    board.add(this.add.text(-250, 48, '\u5931\u7720 / \u4f4e\u8bed\u5e7b\u542c / \u7ea2\u5149\u8fc7\u5ea6\u53cd\u5e94', { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(12, 1.35)}px`, color: caseInk, stroke: '#ead9b8', strokeThickness: 1, wordWrap: { width: 220 } }).setFontStyle('bold'));
+    board.add(this.add.text(-205, -118, '\u75c5\u4eba\u59d3\u540d', { fontFamily: UI_FONT_STACK, fontSize: `${caseLabelSize}px`, color: caseAccent, stroke: caseTextStroke, strokeThickness: caseStrokeThickness }).setFontStyle('bold'));
+    board.add(this.add.text(-205, -91, this.playerNickname, { fontFamily: UI_FONT_STACK, fontSize: `${caseNameSize}px`, color: caseInk, stroke: caseTextStroke, strokeThickness: caseStrokeThickness, wordWrap: { width: 190 } }).setFontStyle('bold'));
+    board.add(this.add.text(-205, -59, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: UI_FONT_STACK, fontSize: `${caseLabelSize}px`, color: caseAccent, stroke: caseTextStroke, strokeThickness: caseStrokeThickness }).setFontStyle('bold'));
+    board.add(this.add.text(-205, -31, `\u75c5\u5386\u7f16\u53f7  W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: UI_FONT_STACK, fontSize: `${caseIdSize}px`, color: caseMuted, stroke: caseTextStroke, strokeThickness: caseStrokeThickness }).setFontStyle('bold'));
+    board.add(this.add.text(-250, 24, '\u75c7\u72b6\u8bb0\u5f55', { fontFamily: UI_FONT_STACK, fontSize: `${caseLabelSize}px`, color: caseAccent, stroke: caseTextStroke, strokeThickness: caseStrokeThickness }).setFontStyle('bold'));
+    board.add(this.add.text(-250, 48, '\u5931\u7720 / \u4f4e\u8bed\u5e7b\u542c / \u7ea2\u5149\u8fc7\u5ea6\u53cd\u5e94', { fontFamily: UI_FONT_STACK, fontSize: `${caseDetailSize}px`, color: caseInk, stroke: caseTextStroke, strokeThickness: caseStrokeThickness, wordWrap: { width: 220 } }).setFontStyle('bold'));
     if (this.textures.exists('profile-barcode-v1')) board.add(this.add.image(-146, 108, 'profile-barcode-v1').setOrigin(0.5).setDisplaySize(208, 48).setAlpha(0.96));
+    board.add(this.add.rectangle(164, 111, 210, 40, 0x101b24, 0.84).setStrokeStyle(1, 0xe7c28b, 0.8));
     const portrait = this.addPatientSprite(board, 164, -3, 198, previewSkin);
     if (portrait && previewSkin.id !== 'patient-default' && !this.skinHasCustomArt(previewSkin)) portrait.setTint(previewSkin.color);
-    board.add(this.add.text(164, 111, previewSkin.name, { fontFamily: UI_FONT_STACK, fontSize: `${this.uiFontSize(12, 1.35)}px`, color: caseInk, stroke: '#ead9b8', strokeThickness: 1 }).setOrigin(0.5).setFontStyle('bold'));
+    board.add(this.add.text(164, 111, previewSkin.name, { fontFamily: UI_FONT_STACK, fontSize: `${caseSkinNameSize}px`, color: '#fff3d0', stroke: '#101b24', strokeThickness: 3, wordWrap: { width: 180, useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5).setFixedSize(190, 38).setFontStyle('bold'));
     layer.add(board);
 
     const previewUnlocked = this.isSkinAvailable(previewSkin.id);
@@ -3718,7 +3742,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     const pageSkins = visibleSkins.slice(this.profileSkinPage * 6, this.profileSkinPage * 6 + 6);
     const skinGridTop = 324;
     const skinGridColumnGap = 146;
-    const skinGridGapY = 148;
+    // Keep the second row's nameplate inside the raster panel on compact
+    // landscape viewports, with enough breathing room below the text.
+    const skinGridGapY = 136;
     this.profileSkinViewport = { left: skinPanelX - 280, right: skinPanelX + 280, top: 232, bottom: 612 };
     pageSkins.forEach((skin, index) => {
       const unlocked = this.isSkinAvailable(skin.id);
@@ -3732,20 +3758,25 @@ export class HospitalBattleScene extends Phaser.Scene {
       // Keep each page to two rows of three and enlarge the portrait without
       // changing its source aspect ratio.
       if (this.textures.exists('profile-skin-frame-v1')) {
-        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.78));
+        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.58));
       }
-      const mini = this.addPatientSprite(card, 0, -9, 80, skin);
+      const mini = this.addPatientSprite(card, 0, -8, 108, skin);
+      if (mini && mini.displayWidth > 68) mini.setDisplaySize(68, mini.displayHeight * 68 / mini.displayWidth);
       if (mini && skin.id !== 'patient-default' && !this.skinHasCustomArt(skin)) mini.setTint(skin.color);
-      if (mini && !unlocked) mini.setAlpha(0.42);
+      // Keep locked skins fully readable; the lock frame and a light veil
+      // communicate availability without making the character disappear.
+      if (mini && !unlocked) mini.setAlpha(0.94);
       // A second frame pass keeps lock seals and edge ornament above the
       // portrait while preserving the original portrait proportions.
       if (this.textures.exists('profile-skin-frame-v1')) {
-        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.78));
+        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.58));
       }
       card.add(this.add.text(0, 112, this.uiLabel(skin.name), {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${this.uiFontSize(14)}px`,
         color: unlocked ? palette.cream : palette.muted,
+        stroke: '#071015',
+        strokeThickness: 3,
         wordWrap: { width: 136 },
         align: 'center',
         lineSpacing: 1,
@@ -3892,7 +3923,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.skinAdMessage = '';
       this.saveProgress();
     }
+    const failureMessage = this.skinAdMessage;
+    this.skinAdMessage = '';
     this.showProfile();
+    if (failureMessage) this.showToast(failureMessage);
   }
 
   private configuredSkinSaleId(id: string) {
@@ -3987,13 +4021,20 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.weaponSkinAdMessage = '';
       this.saveProgress();
     }
+    const failureMessage = this.weaponSkinAdMessage;
+    this.weaponSkinAdMessage = '';
     this.showWeaponSelect(mode, this.selectedStartFloor);
+    if (failureMessage) this.showToast(failureMessage);
   }
 
   private showDailyChallengeLegacy(toast?: string) {
     this.phase = 'start';
     this.ui?.setVisible(false);
     this.clearOverlay();
+    if (toast) {
+      this.showToast(toast);
+      toast = undefined;
+    }
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v1', 0.56);
     const safe = this.pageSafeBounds(12);
@@ -4007,7 +4048,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.text(centerX, 312, completed ? '每日只能完成一次，明日刷新挑战资格。' : '选择主线已解锁的武器，完成 50 波挑战。', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setOrigin(0.5));
     layer.add(this.add.text(centerX, 360, '挑战规则：选定武器后不可更换。每次升级三选一，银色、金色、棱彩卡牌会组合出不同战斗流派。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 510 } }).setOrigin(0.5));
     if (!completed) this.addButton(layer, centerX, this.safeBottomY(474, 74), 220, 44, '选择武器并开始', () => this.showWeaponSelect('daily', 1), 'primary');
-    if (toast) layer.add(this.add.text(centerX, this.safeBottomY(448, 94), toast, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
   }
@@ -4017,6 +4057,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.phase = 'start';
     this.ui?.setVisible(false);
     this.clearOverlay();
+    if (toast) {
+      this.showToast(toast);
+      toast = undefined;
+    }
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v2', 0.28);
     const safe = this.pageSafeBounds(12);
@@ -4101,12 +4145,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       fontSize: '11px',
       color: attempts >= 3 ? palette.amber : palette.cyan,
     }).setOrigin(0.5));
-    if (toast) layer.add(this.add.text(centerX, this.safeBottomY(611, 28), toast, {
-      fontFamily: 'Microsoft YaHei',
-      fontSize: `${this.uiFontSize(10, 1.45)}px`,
-      color: palette.amber,
-      wordWrap: { width: 300 },
-    }).setOrigin(0.5));
 
     const rankingX = clamp(1080 + layoutShift, safe.left + 180, safe.right - 180);
     const rankingY = this.safeBottomY(370, 282);
@@ -4135,11 +4173,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     ).setVisible(false).setScrollFactor(0);
     layer.add(rankingMask);
     this.dailyRankingRows.setMask(rankingMask.createGeometryMask());
-    if (this.textures.exists('daily-ranking-scrollbar-v1')) {
-      boardPanel.add(this.add.image(151, 30, 'daily-ranking-scrollbar-v1').setOrigin(0.5).setDisplaySize(18, 300).setAlpha(0.88));
-    }
-    this.dailyRankingScrollThumb = this.add.rectangle(151, -120, 8, 28, 0xb798e2, 0.9).setOrigin(0.5);
-    boardPanel.add(this.dailyRankingScrollThumb);
+    // The artwork already contains the ranking rail. Avoid adding a second
+    // vector thumb that reads as an unrelated purple bar beside the board.
+    this.dailyRankingScrollThumb = undefined;
     this.renderDailyRankingRows();
     boardPanel.add(this.add.rectangle(0, 165, 300, 1, 0x6bd3c1, 0.28));
     boardPanel.add(this.add.text(-76, 180, '我的排行', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: `${this.uiFontSize(12)}px`, color: palette.muted }));
@@ -4164,6 +4200,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.phase = 'start';
     this.ui?.setVisible(false);
     this.clearOverlay();
+    if (toast) {
+      this.showToast(toast);
+      toast = undefined;
+    }
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v2', 0.28);
     const safe = this.pageSafeBounds(12);
@@ -4224,9 +4264,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.text(infoX, 214, '选定武器后完成 50 波战斗，升级卡牌会改变攻击节奏。', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted, wordWrap: { width: 300 } }).setOrigin(0.5));
     layer.add(this.add.text(infoX, 286, '通关最快记录', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
     layer.add(this.add.text(infoX, 315, this.formatDailyTime(this.progress.dailyBestSeconds), { fontFamily: 'Courier New', fontSize: '24px', color: this.progress.dailyBestSeconds ? palette.green : palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    if (!completed) this.addDailyImageButton(layer, centerX, this.safeBottomY(635, 52), 330, 86, attempts >= 3 ? '观看广告 +1 次' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    if (!completed) this.addDailyImageButton(layer, centerX, this.safeBottomY(635, 52), 330, 86, attempts >= 3 ? '观看广告 +1 次' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2, 'daily-ad-icon-monthly-v1');
     layer.add(this.add.text(centerX, this.safeBottomY(700, 10), `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3 · 广告次数 ${this.dailyAdTicketsAvailable()}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
-    if (toast) layer.add(this.add.text(centerX, this.safeBottomY(611, 28), toast, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber, wordWrap: { width: 300 } }).setOrigin(0.5));
 
     const boardPanel = this.addDailyRankingFrame(layer, clamp(1080 + layoutShift, safe.left + 175, safe.right - 175), this.safeBottomY(370, 282), 350, 600);
     boardPanel.add(this.add.text(-125, -268, '排行榜', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.cream }).setFontStyle('bold'));
@@ -4535,10 +4574,15 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private addPatientSprite(parent: Phaser.GameObjects.Container, x: number, y: number, targetHeight: number, skin?: SkinDef) {
     const selectedSkin = skin ?? this.skins[0];
-    const customTextureKey = this.skinHasCustomArt(selectedSkin) ? this.skinCoverTextureKey(selectedSkin) : '';
-    const textureKey = customTextureKey && this.textures.exists(customTextureKey)
-      ? customTextureKey
-      : (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
+    // Store covers are presentation art and may contain transparent padding.
+    // Use the front portrait for cards so every row gets the same visible
+    // character scale, then fall back to the cover only when needed.
+    const customTextureKeys = this.skinHasCustomArt(selectedSkin)
+      ? [this.skinFrontTextureKey(selectedSkin), this.skinCoverTextureKey(selectedSkin)]
+      : [];
+    const customTextureKey = customTextureKeys.find((key) => this.textures.exists(key));
+    const textureKey = customTextureKey
+      ?? (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
     if (!this.textures.exists(textureKey)) return undefined;
     const sprite = this.add.image(x, y, textureKey).setOrigin(0.5);
     sprite.setDisplaySize(targetHeight * sprite.width / sprite.height, targetHeight);
@@ -5239,7 +5283,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
 
     const candidates = this.enemies
-      .filter((enemy) => !enemy.dead && distance(enemy.node, this.player) <= weapon.range)
+      .filter((enemy) => !enemy.dead && distance(enemy.node, this.player) <= weaponAttackRange(weapon.type, weapon.weaponClass, weapon.range))
       .sort((a, b) => distance(a.node, this.player) - distance(b.node, this.player));
     if (candidates.length > 0) audio.playWeaponAttack(weapon.weaponClass);
     for (let shot = 0; shot < shots; shot += 1) {
@@ -6673,6 +6717,36 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.drops = [];
   }
 
+  private showToast(message: string, color = palette.amber, duration = 1600) {
+    if (!message.trim()) return;
+    this.transientToast?.destroy(true);
+    const safe = this.pageSafeBounds(10);
+    const toast = this.add.container(safe.centerX, safe.top + 82).setDepth(320).setScrollFactor(0);
+    const backdrop = this.add.rectangle(0, 0, 430, 48, 0x071117, 0.94).setStrokeStyle(2, 0x6bd3c1, 0.6);
+    const label = this.add.text(0, 0, message, {
+      fontFamily: UI_FONT_STACK,
+      fontSize: `${this.uiFontSize(14, 1.2)}px`,
+      color,
+      stroke: '#071117',
+      strokeThickness: 3,
+      align: 'center',
+      wordWrap: { width: 396, useAdvancedWrap: true },
+    }).setOrigin(0.5).setFixedSize(396, 42).setFontStyle('bold').setResolution(2);
+    toast.add([backdrop, label]);
+    this.transientToast = toast;
+    this.tweens.add({
+      targets: toast,
+      alpha: 0,
+      delay: Math.max(300, duration),
+      duration: 300,
+      ease: 'Quad.Out',
+      onComplete: () => {
+        if (this.transientToast === toast) this.transientToast = undefined;
+        toast.destroy(true);
+      },
+    });
+  }
+
   private floatText(x: number, y: number, message: string, color: string, fontSize = 12, rise = 24, duration = 650) {
     const strokeThickness = fontSize >= 20 ? 4 : 3;
     const text = this.add.text(x, y, message, { fontFamily: 'Microsoft YaHei', fontSize: `${fontSize}px`, color, stroke: '#0b1117', strokeThickness }).setOrigin(0.5).setDepth(30);
@@ -6727,6 +6801,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     return {
       x: (event.clientX - rect.left) * W / Math.max(1, rect.width),
       y: (event.clientY - rect.top) * H / Math.max(1, rect.height),
+    };
+  }
+
+  /** Convert a viewport anchor into coordinates rendered correctly by the zoomed battle camera. */
+  private cameraZoomAdjustedUiPoint(x: number, y: number) {
+    const zoom = Math.max(0.001, this.cameras.main.zoom || 1);
+    if (Math.abs(zoom - 1) < 0.001) return { x, y };
+    return {
+      x: W / 2 + (x - W / 2) / zoom,
+      y: H / 2 + (y - H / 2) / zoom,
     };
   }
 

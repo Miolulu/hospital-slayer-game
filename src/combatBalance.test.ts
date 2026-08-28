@@ -23,6 +23,7 @@ import {
   volleyDamageMultiplier,
   waveSpawningComplete,
   wavesPerFloorForFloor,
+  weaponAttackRange,
   weaponDamageAtLevel,
   WEAPON_DAMAGE,
 } from './combatBalance';
@@ -97,6 +98,16 @@ describe('hospital battle balance', () => {
     expect(volleyDamageMultiplier(1)).toBe(0.55);
     expect(meleeTargetLimit(1)).toBe(2);
     expect(meleeTargetLimit(2)).toBe(4);
+  });
+
+  it('keeps melee attacks close while giving guns and cannons a clear reach advantage', () => {
+    expect(weaponAttackRange('melee', 'sword', 90)).toBe(90);
+    expect(weaponAttackRange('melee', 'whip', 138)).toBe(138);
+    expect(weaponAttackRange('ranged', 'gun', 120)).toBe(420);
+    expect(weaponAttackRange('ranged', 'cannon', 120)).toBe(500);
+    expect(weaponAttackRange('ranged', 'gun', 620)).toBe(620);
+    expect(weaponAttackRange('ranged', 'gun', 120)).toBeGreaterThan(weaponAttackRange('melee', 'whip', 138));
+    expect(weaponAttackRange('ranged', 'cannon', 120)).toBeGreaterThan(weaponAttackRange('melee', 'whip', 138));
   });
 
   it('uses a rising XP curve instead of one fixed level cost', () => {

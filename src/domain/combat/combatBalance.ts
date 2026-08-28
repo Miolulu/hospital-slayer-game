@@ -31,6 +31,15 @@ const SMALL_ENEMY_SPEED_MULTIPLIER = 1.5;
 
 export const DEFAULT_PICKUP_RADIUS = 132;
 
+export type WeaponRangeClass = 'sword' | 'whip' | 'gun' | 'cannon';
+
+/** Keep ranged weapons outside the melee envelope even when a legacy config has a low range. */
+export function weaponAttackRange(type: 'melee' | 'ranged', weaponClass: WeaponRangeClass, configuredRange: number) {
+  const safeRange = Math.max(0, Math.round(configuredRange));
+  if (type === 'melee') return safeRange;
+  return Math.max(safeRange, weaponClass === 'gun' ? 420 : 500);
+}
+
 export const FREE_UPGRADE_REFRESHES = 2;
 
 export interface DailyWaveScaling {

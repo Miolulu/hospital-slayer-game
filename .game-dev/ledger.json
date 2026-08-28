@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3624,
-                     "lastCheckedAt":  "2026-08-29T04:53:00+08:00",
+                     "lastCheckedAt":  "2026-08-29T06:56:37+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -291,6 +291,12 @@
                                "status":  "done",
                                "implementedIn":  "src/presentation/scenes/MainScene.ts",
                                "evidence":  "本地 844x390 与 667x375 手机视口复测；胜利、失败、升级、战斗 HUD、主菜单和主要入口画面均未越界；控制台无错误；失败标题贴图按原始比例显示"
+                           },
+                           {
+                               "summary":  "武器选择页分页箭头补齐并修复第二页缺失贴图",
+                               "status":  "done",
+                               "implementedIn":  "src/presentation/scenes/MainScene.ts, public/assets/art/ui/profile-arrow-left-v1.png, public/assets/art/ui/profile-arrow-right-v1.png",
+                               "evidence":  "896x504 手机横屏复测：武器选择第一页、第二页左右箭头均可见，第二页不再出现 Phaser 绿色缺失贴图方框"
                            }
                        ],
      "pendingItems":  [
@@ -382,6 +388,10 @@
                           "testsFinal":  "passed: npm.cmd test，9 个测试文件、45 项全部通过（2026-08-29 04:51）",
                           "buildFinal":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（本轮支付商品配置复核后重新执行）；仅有既有大 chunk 提示。",
                           "paymentCatalog":  "passed: builda.publish.json 声明 32 个商品，包含 6 个玩家皮肤、25 个武器皮肤和 1 个升级卡牌刷新；价格为 30000～50000 G 币（皮肤 3～5 元）或 10000 G 币（刷新），payId 全部符合平台 ASCII 规则且无重复。",
-                          "paymentFlowMock":  "passed: 本地 Builda mock 支付链路覆盖成功、取消/失败、空订单号和重复订单；成功订单才解锁皮肤或刷新卡牌，取消/失败/重复订单均不发放。真实 G 币扣款仍需在创游世界草稿或手机端宿主环境验证。"
+                         "paymentFlowMock":  "passed: 本地 Builda mock 支付链路覆盖成功、取消/失败、空订单号和重复订单；成功订单才解锁皮肤或刷新卡牌，取消/失败/重复订单均不发放。真实 G 币扣款仍需在创游世界草稿或手机端宿主环境验证。",
+                         "mobileUiSixIssues":  "passed: 896x504 手机横屏复测主菜单、病历档案（第二排皮肤立绘与文字）、每日挑战（广告图标与无紫色滚动条）、武器分页、主线楼层、对白、战斗 HUD 和升级卡牌；广告未完成提示为约 1.6 秒 Toast，素材按比例居中，按钮热区可触达，控制台无错误。",
+                         "weaponRangeBalance":  "passed: 远程武器伤害目标筛选统一使用 weaponAttackRange；枪最小 420、炮最小 500，剑/鞭保留近战范围；新增测试覆盖远程范围大于近战。",
+                         "testsLatest":  "passed: npm.cmd test，9 个测试文件、46 项全部通过（2026-08-29 06:56）",
+                         "buildLatest":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 06:56）；仅有既有大 chunk 提示。"
                      }
 }
