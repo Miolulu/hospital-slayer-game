@@ -15,8 +15,12 @@ export interface MonthlyChallengeConfig {
   name: string;
   portraitKey: string;
   drops: MonthlyBossDrops;
-  /** 通过挑战后额外获得两把武器皮肤的概率，范围 0 到 1。 */
-  weaponDropChance: number;
+  /** 玩家皮肤掉落概率，范围 0 到 1。 */
+  playerSkinDropChance: number;
+  /** 近战武器皮肤掉落概率，范围 0 到 1。 */
+  meleeWeaponDropChance: number;
+  /** 远程武器皮肤掉落概率，范围 0 到 1。 */
+  rangedWeaponDropChance: number;
 }
 
 /** 当前月度首领配置。新增月份时在这里追加配置即可轮换。 */
@@ -27,10 +31,12 @@ export const MONTHLY_CHALLENGE_CONFIGS: readonly MonthlyChallengeConfig[] = [
     portraitKey: 'moon-moth-queen-portrait',
     drops: {
       playerSkinId: 'moon-moth-queen',
-      meleeWeaponSkinId: 'sword-cthulhu',
-      rangedWeaponSkinId: 'gun-cthulhu',
+      meleeWeaponSkinId: 'sword-moon-moth',
+      rangedWeaponSkinId: 'gun-moon-moth',
     },
-    weaponDropChance: 0.35,
+    playerSkinDropChance: 0.015,
+    meleeWeaponDropChance: 0.01,
+    rangedWeaponDropChance: 0.01,
   },
 ];
 
@@ -62,10 +68,34 @@ export function monthlyRewardIdsForRank(config: MonthlyChallengeConfig, rank: nu
   return [];
 }
 
-/** 额外武器掉落使用可测试的随机值，避免把概率逻辑写死在场景里。 */
+export interface MonthlyBossDropRandomValues {
+  playerSkin?: number;
+  meleeWeapon?: number;
+  rangedWeapon?: number;
+}
+
+function clampRandomValue(value: number) {
+  return Math.max(0, Math.min(0.999999, Number.isFinite(value) ? value : 1));
+}
+
+function clampChance(value: number) {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
+/** 三种月度首领掉落分别独立判定，随机值参数用于测试固定结果。 */
+export function rollMonthlyBossDrops(config: MonthlyChallengeConfig, randomValues: MonthlyBossDropRandomValues = {}): string[] {
+  const ids: string[] = [];
+  const playerRoll = clampRandomValue(randomValues.playerSkin ?? Math.random());
+  const meleeRoll = clampRandomValue(randomValues.meleeWeapon ?? Math.random());
+  const rangedRoll = clampRandomValue(randomValues.rangedWeapon ?? Math.random());
+  if (playerRoll < clampChance(config.playerSkinDropChance)) ids.push(config.drops.playerSkinId);
+  if (meleeRoll < clampChance(config.meleeWeaponDropChance)) ids.push(config.drops.meleeWeaponSkinId);
+  if (rangedRoll < clampChance(config.rangedWeaponDropChance)) ids.push(config.drops.rangedWeaponSkinId);
+  return ids;
+}
+
+/** 兼容旧调用方：使用同一随机值判定两种武器掉落。 */
 export function rollMonthlyWeaponDrop(config: MonthlyChallengeConfig, randomValue = Math.random()): string[] {
-  const roll = Math.max(0, Math.min(0.999999, randomValue));
-  return roll < Math.max(0, Math.min(1, config.weaponDropChance))
-    ? [config.drops.meleeWeaponSkinId, config.drops.rangedWeaponSkinId]
-    : [];
+  return rollMonthlyBossDrops(config, { playerSkin: 1, meleeWeapon: randomValue, rangedWeapon: randomValue })
+    .filter((id) => id === config.drops.meleeWeaponSkinId || id === config.drops.rangedWeaponSkinId);
 }

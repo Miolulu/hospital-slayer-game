@@ -52,7 +52,6 @@ import {
 import {
   monthlyChallengeForMonth,
   monthlyRewardIdsForRank,
-  rollMonthlyWeaponDrop,
   type MonthlyChallengeConfig,
 } from './dailyChallenge';
 import {
@@ -87,6 +86,7 @@ const W = 1280;
 const H = 720;
 const MAX_WEAPON_COPIES = 5;
 const TOTAL_FLOORS = TOTAL_HOSPITAL_FLOORS;
+const SKIN_TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
 const FULL_TURN = Math.PI * 2;
 const ARENA = { left: 160, right: 1120, top: 116, bottom: 642 };
 const WORLD_BOUNDS = { left: -720, right: 2000, top: -520, bottom: 1700 };
@@ -99,6 +99,7 @@ type WeaponEffect = 'slash' | 'spark' | 'burst' | 'beam' | 'tentacle' | 'laser' 
 type BuffKind = 'damage' | 'health' | 'shield';
 type RunMode = 'mainline' | 'daily';
 type WeaponClass = 'sword' | 'whip' | 'gun' | 'cannon';
+type SkinAcquisitionCategory = 'basic' | 'store' | 'boss';
 type AttackStatus = UpgradeAttackStatus;
 type PlayerDirection = 'left' | 'right' | 'up' | 'down';
 type PlayerAnimation = 'idle' | 'walk-left' | 'walk-right' | 'walk-up' | 'walk-down' | 'hit' | 'death';
@@ -112,11 +113,15 @@ interface ProgressSave {
   equippedWeaponSkinIds: Partial<Record<WeaponClass, string>>;
   unlockedSkinIds: string[];
   equippedSkinId: string;
+  skinTrialExpiresAt?: Record<string, number>;
+  weaponSkinTrialExpiresAt?: Record<string, number>;
   archiveKinds: string[];
   dailyCompletedDate?: string;
   dailyBestSeconds?: number;
   dailyAttemptDate?: string;
+  dailyAttemptMonth?: string;
   dailyAttempts?: number;
+  dailyAdTickets?: number;
   dailyRewardMonth?: string;
   dailyRewardIds?: string[];
   dailyRewardTitle?: string;
@@ -126,6 +131,11 @@ interface ProgressSave {
 interface DailyBoardEntry {
   rank: number;
   name: string;
+  score: number;
+}
+
+interface DailySelfRank {
+  rank: number;
   score: number;
 }
 
@@ -219,6 +229,9 @@ interface WeaponSkinDef {
   cost: number;
   textureKey: string;
   assetPath?: string;
+  dropOnly?: boolean;
+  category?: SkinAcquisitionCategory;
+  unlockFloor?: number;
 }
 
 interface UpgradeDef {
@@ -318,10 +331,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' },
     unlockedSkinIds: ['patient-default'],
     equippedSkinId: 'patient-default',
+    skinTrialExpiresAt: {},
+    weaponSkinTrialExpiresAt: {},
     archiveKinds: [],
     dailyBestSeconds: undefined,
     dailyAttemptDate: undefined,
+    dailyAttemptMonth: undefined,
     dailyAttempts: 0,
+    dailyAdTickets: 0,
     dailyRewardMonth: undefined,
     dailyRewardIds: [],
     dailyRewardTitle: undefined,
@@ -337,23 +354,28 @@ export class HospitalBattleScene extends Phaser.Scene {
   private profileSkinMoved = false;
   private profileSkinViewport = { left: 0, right: 0, top: 0, bottom: 0 };
   private skinPaymentPending = false;
+  private skinAdPending = false;
+  private skinAdMessage = '';
   private dailyBoard: DailyBoardEntry[] = [];
+  private dailySelfRank?: DailySelfRank;
   private dailyBoardLoaded = false;
   private skins: SkinDef[] = SKINS;
   private weaponSkins: WeaponSkinDef[] = [
-    { id: 'sword-default', name: '基础病院刀', weaponClass: 'sword', color: 0xed716e, cost: 0, textureKey: 'weapon-sword' },
-    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png' },
-    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png' },
-    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 80, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png' },
-    { id: 'gun-default', name: '基础灯枪', weaponClass: 'gun', color: 0xf2bf62, cost: 0, textureKey: 'weapon-gun' },
-    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png' },
-    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png' },
-    { id: 'whip-default', name: '基础长鞭', weaponClass: 'whip', color: 0x8fd17c, cost: 0, textureKey: 'weapon-whip' },
-    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 60, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png' },
-    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png' },
-    { id: 'cannon-default', name: '基础回声炮', weaponClass: 'cannon', color: 0xb798e2, cost: 0, textureKey: 'weapon-cannon' },
-    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png' },
-    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png' },
+    { id: 'sword-default', name: '基础病院刀', weaponClass: 'sword', color: 0xed716e, cost: 0, textureKey: 'weapon-sword', category: 'basic' },
+    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png', category: 'store' },
+    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png', category: 'store' },
+    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 80, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png', category: 'store' },
+    { id: 'sword-moon-moth', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-sword-moon-moth', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-clean.png', dropOnly: true, category: 'boss' },
+    { id: 'gun-default', name: '基础灯枪', weaponClass: 'gun', color: 0xf2bf62, cost: 0, textureKey: 'weapon-gun', category: 'basic' },
+    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png', category: 'store' },
+    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png', category: 'store' },
+    { id: 'gun-moon-moth', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-gun-moon-moth', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-clean.png', dropOnly: true, category: 'boss' },
+    { id: 'whip-default', name: '基础长鞭', weaponClass: 'whip', color: 0x8fd17c, cost: 0, textureKey: 'weapon-whip', category: 'basic' },
+    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 60, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png', category: 'store' },
+    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png', category: 'store' },
+    { id: 'cannon-default', name: '基础回声炮', weaponClass: 'cannon', color: 0xb798e2, cost: 0, textureKey: 'weapon-cannon', category: 'basic' },
+    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png', category: 'store' },
+    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png', category: 'store' },
   ];
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
@@ -551,6 +573,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('back-icon-v1', '/assets/art/ui/back-icon-v1.png');
     this.load.image('profile-arrow-left-v1', '/assets/art/ui/profile-arrow-left-v1.png');
     this.load.image('profile-arrow-right-v1', '/assets/art/ui/profile-arrow-right-v1.png');
+    this.load.image('daily-ad-icon-v1', '/assets/art/ui/daily-ad-icon-v1.png');
+    this.load.image('daily-ad-icon-monthly-v1', '/assets/art/ui/daily-ad-icon-monthly-v1.png');
     this.load.image('daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png');
     this.load.image('daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png');
     this.load.image('daily-ranking-frame-v1', '/assets/art/daily/daily-ranking-frame-v1.png');
@@ -1603,6 +1627,50 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.hud.skill?.setScrollFactor(0, 0);
   }
 
+  private syncFloorUnlocks(clearedFloor: number) {
+    const floor = Math.max(0, Math.floor(clearedFloor));
+    this.skins
+      .filter((skin) => skin.category === 'basic' && skin.unlockFloor !== undefined && floor >= skin.unlockFloor)
+      .forEach((skin) => {
+        if (!this.progress.unlockedSkinIds.includes(skin.id)) this.progress.unlockedSkinIds.push(skin.id);
+      });
+    this.weaponSkins
+      .filter((skin) => skin.category === 'basic' && skin.unlockFloor !== undefined && floor >= skin.unlockFloor)
+      .forEach((skin) => {
+        if (!this.progress.unlockedWeaponSkinIds.includes(skin.id)) this.progress.unlockedWeaponSkinIds.push(skin.id);
+      });
+  }
+
+  private isTemporaryUnlockActive(trials: Record<string, number> | undefined, id: string) {
+    const expiresAt = trials?.[id];
+    return Number.isFinite(expiresAt) && expiresAt > Date.now();
+  }
+
+  private isSkinAvailable(id: string) {
+    return this.progress.unlockedSkinIds.includes(id) || this.isTemporaryUnlockActive(this.progress.skinTrialExpiresAt, id);
+  }
+
+  private isWeaponSkinAvailable(id: string) {
+    return this.progress.unlockedWeaponSkinIds.includes(id) || this.isTemporaryUnlockActive(this.progress.weaponSkinTrialExpiresAt, id);
+  }
+
+  private normalizeTemporaryUnlocks() {
+    const prune = (trials: Record<string, number> | undefined) => {
+      if (!trials) return {};
+      Object.keys(trials).forEach((id) => {
+        if (!this.isTemporaryUnlockActive(trials, id)) delete trials[id];
+      });
+      return trials;
+    };
+    this.progress.skinTrialExpiresAt = prune(this.progress.skinTrialExpiresAt);
+    this.progress.weaponSkinTrialExpiresAt = prune(this.progress.weaponSkinTrialExpiresAt);
+    if (!this.isSkinAvailable(this.progress.equippedSkinId)) this.progress.equippedSkinId = 'patient-default';
+    (['sword', 'gun', 'whip', 'cannon'] as WeaponClass[]).forEach((weaponClass) => {
+      const equippedId = this.progress.equippedWeaponSkinIds[weaponClass] ?? `${weaponClass}-default`;
+      if (!this.isWeaponSkinAvailable(equippedId)) this.progress.equippedWeaponSkinIds[weaponClass] = `${weaponClass}-default`;
+    });
+  }
+
   private loadProgress() {
     try {
       const raw = window.localStorage.getItem('hospital-godslayer-progress');
@@ -1610,6 +1678,13 @@ export class HospitalBattleScene extends Phaser.Scene {
       const parsed = JSON.parse(raw) as Partial<ProgressSave>;
       const defaultWeaponSkins = ['sword-default', 'gun-default', 'whip-default', 'cannon-default'];
       const availableSkinIds = new Set(this.skins.map((skin) => skin.id));
+      const validTrialMap = (value: unknown) => {
+        if (!value || typeof value !== 'object') return {};
+        return Object.fromEntries(Object.entries(value).filter(([id, expiresAt]) => {
+          const expiry = Number(expiresAt);
+          return Boolean(id) && Number.isFinite(expiry) && expiry > Date.now();
+        }).map(([id, expiresAt]) => [id, Number(expiresAt)]));
+      };
       const equippedWeaponSkinIds = parsed.equippedWeaponSkinIds && typeof parsed.equippedWeaponSkinIds === 'object'
         ? parsed.equippedWeaponSkinIds
         : { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' };
@@ -1620,13 +1695,17 @@ export class HospitalBattleScene extends Phaser.Scene {
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
-        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string' && availableSkinIds.has(id)) : DEFAULT_UNLOCKED_SKIN_IDS,
-        equippedSkinId: typeof parsed.equippedSkinId === 'string' && availableSkinIds.has(parsed.equippedSkinId) ? parsed.equippedSkinId : 'patient-default',
+         unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string' && availableSkinIds.has(id)) : DEFAULT_UNLOCKED_SKIN_IDS,
+         equippedSkinId: typeof parsed.equippedSkinId === 'string' && availableSkinIds.has(parsed.equippedSkinId) ? parsed.equippedSkinId : 'patient-default',
+         skinTrialExpiresAt: validTrialMap(parsed.skinTrialExpiresAt),
+         weaponSkinTrialExpiresAt: validTrialMap(parsed.weaponSkinTrialExpiresAt),
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
         dailyCompletedDate: typeof parsed.dailyCompletedDate === 'string' ? parsed.dailyCompletedDate : undefined,
         dailyBestSeconds: Number.isFinite(Number(parsed.dailyBestSeconds)) && Number(parsed.dailyBestSeconds) > 0 ? Number(parsed.dailyBestSeconds) : undefined,
-         dailyAttemptDate: typeof parsed.dailyAttemptDate === 'string' ? parsed.dailyAttemptDate : undefined,
-         dailyAttempts: Math.max(0, Math.floor(Number(parsed.dailyAttempts) || 0)),
+        dailyAttemptDate: typeof parsed.dailyAttemptDate === 'string' ? parsed.dailyAttemptDate : undefined,
+        dailyAttemptMonth: typeof parsed.dailyAttemptMonth === 'string' ? parsed.dailyAttemptMonth : undefined,
+        dailyAttempts: Math.max(0, Math.floor(Number(parsed.dailyAttempts) || 0)),
+        dailyAdTickets: Math.max(0, Math.floor(Number(parsed.dailyAdTickets) || 0)),
          dailyRewardMonth: typeof parsed.dailyRewardMonth === 'string' ? parsed.dailyRewardMonth : undefined,
          dailyRewardIds: Array.isArray(parsed.dailyRewardIds) ? parsed.dailyRewardIds.filter((id): id is string => typeof id === 'string') : [],
          dailyRewardTitle: typeof parsed.dailyRewardTitle === 'string' ? parsed.dailyRewardTitle : undefined,
@@ -1644,11 +1723,13 @@ export class HospitalBattleScene extends Phaser.Scene {
           this.progress.equippedWeaponSkinIds[weaponClass] = defaultId;
         }
       });
-      if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
-      if (!this.progress.unlockedSkinIds.includes(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
-    } catch {
-       this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: DEFAULT_UNLOCKED_SKIN_IDS.slice(), equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, dailyRewardMonth: undefined, dailyRewardIds: [], dailyRewardTitle: undefined, metaCoins: 0 };
-    }
+       if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
+       if (!this.progress.unlockedSkinIds.includes(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
+       this.syncFloorUnlocks(this.progress.maxFloor - 1);
+       this.normalizeTemporaryUnlocks();
+     } catch {
+       this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: DEFAULT_UNLOCKED_SKIN_IDS.slice(), equippedSkinId: 'patient-default', skinTrialExpiresAt: {}, weaponSkinTrialExpiresAt: {}, archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttemptMonth: undefined, dailyAttempts: 0, dailyAdTickets: 0, dailyRewardMonth: undefined, dailyRewardIds: [], dailyRewardTitle: undefined, metaCoins: 0 };
+     }
   }
 
   private saveProgress() {
@@ -1666,22 +1747,32 @@ export class HospitalBattleScene extends Phaser.Scene {
       // The standalone browser preview has no host identity; keep the local patient label.
     }
     this.playerIdentityLoaded = true;
-    this.dailyBoard = this.dailyBoard.map((entry) => entry.rank === 3 ? { ...entry, name: this.playerNickname } : entry);
     return this.playerNickname;
   }
 
   private async loadDailyBoard() {
     if (this.dailyBoardLoaded) return;
     this.dailyBoard = [];
+    this.dailySelfRank = undefined;
     try {
       const result = await window.Builda?.rank?.getRankList('daily_night', { limit: 20, timeoutMs: 1400 });
       const list = result?.ok && Array.isArray(result.data?.list) ? result.data.list : [];
+      if (result?.ok && result.data?.self && Number.isFinite(result.data.self.rank) && Number.isFinite(result.data.self.score)) {
+        this.dailySelfRank = {
+          rank: Math.max(1, Math.floor(result.data.self.rank)),
+          score: Math.round(result.data.self.score),
+        };
+      }
       if (list.length > 0) {
-        this.dailyBoard = list.slice(0, 20).map((entry: { rank: number; player?: { name?: string }; score: number }) => ({
-          rank: entry.rank,
-          name: entry.player?.name?.trim().slice(0, 14) || `患者 ${entry.rank}`,
-          score: Math.max(0, Math.round(entry.score)),
-        }));
+        this.dailyBoard = list.slice(0, 20).flatMap((entry: { rank: number; player?: { name?: string }; score: number }) => {
+          const name = entry.player?.name?.trim();
+          if (!name || !Number.isFinite(entry.rank) || !Number.isFinite(entry.score)) return [];
+          return [{
+            rank: Math.max(1, Math.floor(entry.rank)),
+            name: name.slice(0, 14),
+            score: Math.round(entry.score),
+          }];
+        });
       }
     } catch {
       // Standalone previews have no host board; an empty board is intentional.
@@ -1699,13 +1790,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
   }
 
-  private dailyPlayerRankLabel(board: DailyBoardEntry[], bestSeconds?: number) {
-    if (!bestSeconds || !Number.isFinite(bestSeconds)) return '未上榜';
-    const score = this.dailyScoreForTime(bestSeconds);
+  private dailyPlayerRankLabel(board: DailyBoardEntry[]) {
+    if (this.dailySelfRank) return `第${this.dailySelfRank.rank}名`;
     const ownEntry = board.find((entry) => entry.name === this.playerNickname);
-    if (ownEntry && ownEntry.score > 0) return `第${Math.max(1, ownEntry.rank)}名`;
-    const higherScores = board.filter((entry) => entry.score > score).length;
-    return `第${Math.max(1, higherScores + 1)}名`;
+    return ownEntry ? `第${Math.max(1, ownEntry.rank)}名` : '未上榜';
   }
 
   private async submitDailyScore(seconds: number) {
@@ -1728,31 +1816,6 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private monthlyChallenge(): MonthlyChallengeConfig {
     return monthlyChallengeForMonth(this.monthKey());
-  }
-
-  private monthlyRewardNames(ids: readonly string[]) {
-    return ids.map((id) => this.skins.find((skin) => skin.id === id)?.name
-      ?? this.weaponSkins.find((skin) => skin.id === id)?.name
-      ?? id);
-  }
-
-  private grantMonthlyBossDrop() {
-    const month = this.monthKey();
-    if (this.progress.dailyRewardMonth === month) return this.progress.dailyRewardIds ?? [];
-    const config = this.monthlyChallenge();
-    const ids = [config.drops.playerSkinId, ...rollMonthlyWeaponDrop(config)];
-    ids.forEach((id) => {
-      if (this.skins.some((skin) => skin.id === id) && !this.progress.unlockedSkinIds.includes(id)) {
-        this.progress.unlockedSkinIds.push(id);
-      }
-      if (this.weaponSkins.some((skin) => skin.id === id) && !this.progress.unlockedWeaponSkinIds.includes(id)) {
-        this.progress.unlockedWeaponSkinIds.push(id);
-      }
-    });
-    this.progress.dailyRewardMonth = month;
-    this.progress.dailyRewardIds = ids;
-    this.progress.dailyRewardTitle = undefined;
-    return ids;
   }
 
   private applyMonthlyRankReward(rank: number) {
@@ -1780,32 +1843,46 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private dailyAttemptsUsed() {
-    if (this.progress.dailyAttemptDate !== this.todayKey()) return 0;
+    const currentMonth = this.monthKey();
+    const attemptMonth = this.progress.dailyAttemptMonth ?? this.progress.dailyAttemptDate?.slice(0, 7);
+    if (attemptMonth !== currentMonth) return 0;
     return Math.max(0, Math.floor(this.progress.dailyAttempts ?? 0));
+  }
+
+  private dailyAdTicketsAvailable() {
+    return Math.max(0, Math.floor(this.progress.dailyAdTickets ?? 0));
   }
 
   private async startDailyAttempt(weaponId: string) {
     const today = this.todayKey();
+    const month = this.monthKey();
     let attempts = this.dailyAttemptsUsed();
     if (attempts >= 3) {
       const sdk = window.Builda;
-      if (!sdk?.pay?.showPayPanel) {
-        this.showDailyChallenge('免费次数已用完，当前环境未接入平台支付');
-        return;
-      }
-      try {
-        const result = await sdk.pay.showPayPanel(PAID_UPGRADE_REFRESH_SALE_ID, { timeoutMs: 15000 });
-        if (!result.ok || !result.data.success) {
-          this.showDailyChallenge('付费挑战未完成，本次未进入');
+      let adTickets = this.dailyAdTicketsAvailable();
+      if (adTickets <= 0) {
+        if (!sdk?.ad?.showRewardAd) {
+          this.showDailyChallenge('免费次数已用完，当前环境未接入激励广告');
           return;
         }
-      } catch {
-        this.showDailyChallenge('平台支付暂不可用，本次未进入');
-        return;
+        try {
+          const result = await sdk.ad.showRewardAd('daily_challenge_attempt', { timeoutMs: 15000 });
+          if (!result.ok || !result.data.success) {
+            this.showDailyChallenge('广告未完成，本次未增加挑战次数');
+            return;
+          }
+          adTickets += 1;
+        } catch {
+          this.showDailyChallenge('激励广告暂不可用，本次未进入');
+          return;
+        }
       }
+      adTickets -= 1;
+      this.progress.dailyAdTickets = adTickets;
     }
     attempts += 1;
     this.progress.dailyAttemptDate = today;
+    this.progress.dailyAttemptMonth = month;
     this.progress.dailyAttempts = attempts;
     this.saveProgress();
     this.startRun(1, 'daily', weaponId);
@@ -1956,7 +2033,11 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const actionY = this.safeBottomY(520, 28);
     if (!selectedSkinUnlocked) {
-      this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
+      if (selectedSkin.dropOnly) {
+        this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', '首领掉落', () => undefined, 0x46636a);
+      } else {
+        this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
+      }
       this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
     } else {
       this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
@@ -2492,7 +2573,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     thumb.setSize(8, thumbHeight).setY(trackTop + thumbHeight / 2 + travel * progress);
   }
 
-  private addDailyImageButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, accent: number) {
+  private addDailyImageButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, accent: number, iconKey = 'daily-ad-icon-v1') {
     const button = this.add.container(x, y);
     const image = this.add.image(0, 0, 'daily-start-button-v1').setOrigin(0.5).setDisplaySize(width, height);
     const labelNode = label === '开始挑战' && this.textures.exists('ui-text-start-challenge-v1')
@@ -2501,6 +2582,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         fontFamily: 'Microsoft YaHei', fontSize: '19px', color: palette.cream, stroke: '#080d11', strokeThickness: 4,
       }).setOrigin(0.5).setFontStyle('bold');
     button.add([image, labelNode]);
+    if (label.includes('广告') && this.textures.exists(iconKey)) {
+      const adIcon = this.add.image(-112, 0, iconKey).setOrigin(0.5).setDisplaySize(58, 58);
+      labelNode.setX(24);
+      button.add(adIcon);
+    }
     const setPressed = (pressed: boolean) => {
       button.setScale(pressed ? 0.96 : 1);
       image.setTint(pressed ? 0xc6d8d0 : 0xffffff);
@@ -3235,7 +3321,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     const completed = this.isDailyCompleted();
     const attempts = this.dailyAttemptsUsed();
     const monthly = this.monthlyChallenge();
-    const monthlyDropIds = this.progress.dailyRewardMonth === this.monthKey() ? (this.progress.dailyRewardIds ?? []) : [];
     const cthulhuText = (x: number, y: number, value: string, size: number, color = palette.cream) => this.add.text(x, y, value, {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: String(size) + 'px',
@@ -3250,7 +3335,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.addUiTextTexture(layer, bossX, 79, 170, 56, 'ui-text-boss-month-v1', '本月首领', 15, palette.violet);
     const bossPortraitKey = this.textures.exists(monthly.portraitKey) ? monthly.portraitKey : MOON_MOTH_QUEEN_ART.portraitKey;
     if (this.textures.exists(bossPortraitKey)) {
-      bossPanel.add(this.add.image(0, -2, bossPortraitKey).setOrigin(0.5).setDisplaySize(250, 180));
+      const portrait = this.add.image(0, -2, bossPortraitKey).setOrigin(0.5);
+      const portraitScale = Math.min(230 / portrait.width, 230 / portrait.height);
+      bossPanel.add(portrait.setScale(portraitScale));
     } else {
       bossPanel.add(this.add.circle(0, -2, 64, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
       bossPanel.add(this.add.text(0, -2, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
@@ -3276,22 +3363,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         stroke: '#050b10',
         strokeThickness: 2,
       }).setOrigin(0.5));
-      if (monthlyDropIds.includes(item.id)) {
-        layer.add(this.add.text(x, 620, '已获得', {
-          fontFamily: 'Microsoft YaHei',
-          fontSize: '9px',
-          color: palette.green,
-          stroke: '#050b10',
-          strokeThickness: 2,
-        }).setOrigin(0.5));
-      }
     });
-    layer.add(this.add.text(bossX, 644, completed
-      ? `本月首通掉落：${this.monthlyRewardNames(monthlyDropIds).join('、') || '已记录'}`
-      : `通关后有 ${Math.round(monthly.weaponDropChance * 100)}% 概率获得两把武器皮肤`, {
+    layer.add(this.add.text(bossX, 644, '月末奖励按平台排行榜结果发放', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '10px',
-      color: completed ? palette.green : palette.muted,
+      color: palette.muted,
       stroke: '#050b10',
       strokeThickness: 2,
       wordWrap: { width: 330 },
@@ -3311,9 +3387,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.addUiTextTexture(layer, infoX, 258, 64, 64, statusStampKey, statusStampFallback, 15, monthlyBestSeconds ? palette.green : palette.danger);
     if (monthlyBestSeconds) layer.add(cthulhuText(infoX, 304, this.formatDailyTime(monthlyBestSeconds), 18, palette.green));
     const dailyActionY = this.safeBottomY(635, 52);
-    const dailyActionLabel = attempts >= 3 ? '付费挑战' : completed ? '刷新纪录' : '开始挑战';
-    this.addDailyImageButton(layer, centerX, dailyActionY, 330, 86, dailyActionLabel, () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
-    layer.add(this.add.text(centerX, this.safeBottomY(700, 10), '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
+    const dailyActionLabel = attempts >= 3 ? '观看广告 +1 次' : completed ? '刷新纪录' : '开始挑战';
+    this.addDailyImageButton(layer, centerX, dailyActionY, 330, 86, dailyActionLabel, () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2, 'daily-ad-icon-monthly-v1');
+    layer.add(this.add.text(centerX, this.safeBottomY(700, 10), `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3 · 广告次数 ${this.dailyAdTicketsAvailable()}`, {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '11px',
       color: attempts >= 3 ? palette.amber : palette.cyan,
@@ -3333,7 +3409,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     boardPanel.add(this.add.text(-76, -154, '昵称', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     boardPanel.add(this.add.text(108, -154, '通关记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
     boardPanel.add(this.add.rectangle(0, -136, 300, 1, 0x6bd3c1, 0.28));
-    const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && monthlyBestSeconds ? { ...entry, score: this.dailyScoreForTime(monthlyBestSeconds) } : entry);
+    const board = this.dailyBoard;
     const rankingListTop = -120;
     const rankingListBottom = 180;
     const rankingRowHeight = 30;
@@ -3360,10 +3436,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.renderDailyRankingRows();
     boardPanel.add(this.add.rectangle(0, 165, 300, 1, 0x6bd3c1, 0.28));
     boardPanel.add(this.add.text(-76, 180, '我的排行', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }));
-    boardPanel.add(this.add.text(72, 180, this.dailyPlayerRankLabel(board, monthlyBestSeconds), {
+    boardPanel.add(this.add.text(72, 180, this.dailyPlayerRankLabel(board), {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '15px',
-      color: monthlyBestSeconds ? palette.green : palette.danger,
+      color: this.dailySelfRank ? palette.green : palette.danger,
     }).setOrigin(1, 0));
     layer.add(boardPanel);
     this.addButton(layer, 88, 38, 100, 34, '返回', () => this.showStart(), 'muted', 8);
@@ -3441,8 +3517,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.text(infoX, 214, '选定武器后完成 50 波战斗，升级卡牌会改变攻击节奏。', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted, wordWrap: { width: 300 } }).setOrigin(0.5));
     layer.add(this.add.text(infoX, 286, '通关最快记录', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
     layer.add(this.add.text(infoX, 315, this.formatDailyTime(this.progress.dailyBestSeconds), { fontFamily: 'Courier New', fontSize: '24px', color: this.progress.dailyBestSeconds ? palette.green : palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    if (!completed) this.addDailyImageButton(layer, centerX, this.safeBottomY(635, 52), 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
-    layer.add(this.add.text(centerX, this.safeBottomY(700, 10), `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
+    if (!completed) this.addDailyImageButton(layer, centerX, this.safeBottomY(635, 52), 330, 86, attempts >= 3 ? '观看广告 +1 次' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    layer.add(this.add.text(centerX, this.safeBottomY(700, 10), `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3 · 广告次数 ${this.dailyAdTicketsAvailable()}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
     if (toast) layer.add(this.add.text(centerX, this.safeBottomY(611, 28), toast, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber, wordWrap: { width: 300 } }).setOrigin(0.5));
 
     const boardPanel = this.addDailyRankingFrame(layer, clamp(1080 + layoutShift, safe.left + 175, safe.right - 175), this.safeBottomY(370, 282), 350, 600);
@@ -3450,7 +3526,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     boardPanel.add(this.add.text(-137, -228, '名次', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     boardPanel.add(this.add.text(-65, -228, '昵称', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     boardPanel.add(this.add.text(137, -228, '用时', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
-    const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && this.progress.dailyBestSeconds ? { ...entry, score: this.dailyScoreForTime(this.progress.dailyBestSeconds) } : entry);
+    const board = this.dailyBoard;
     board.slice(0, 20).forEach((entry, index) => {
       const y = -207 + index * 18;
       const own = entry.name === this.playerNickname;
@@ -5479,7 +5555,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       ? this.runMode === 'daily' ? '每日挑战完成' : finalFloor ? `全部 ${TOTAL_FLOORS} 层清除完成` : `第 ${this.floor} 层清除完成`
       : '失去意识';
     let resultDetail = win
-      ? this.runMode === 'daily' ? '50 波挑战完成，已解锁月蚀蝶后皮肤。' : finalFloor ? `第 ${TOTAL_FLOORS} 层已清理完成。病区暂时恢复安静。` : `第 ${this.floor} 层已清理完成。准备进入第 ${this.floor + 1} 层。`
+      ? this.runMode === 'daily'
+        ? '50 波挑战完成，成绩已提交，月末按平台排行榜发放奖励。'
+        : finalFloor ? `第 ${TOTAL_FLOORS} 层已清理完成。病区暂时恢复安静。` : `第 ${this.floor} 层已清理完成。准备进入第 ${this.floor + 1} 层。`
       : `你倒在第 ${this.floor} 层第 ${this.wave} 波。当前楼层会保留，重开从第 1 波开始。`;
     if (win && this.tutorialRun) {
       resultTitle = '入口教程完成';
@@ -5498,15 +5576,11 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (!this.dailyBossRewardGranted) {
         this.dailyBossRewardGranted = true;
         const alreadyCompletedThisMonth = this.isDailyCompleted();
-        this.grantMonthlyBossDrop();
         this.progress.dailyCompletedDate = this.todayKey();
         this.progress.dailyBestSeconds = alreadyCompletedThisMonth && this.progress.dailyBestSeconds
           ? Math.min(this.progress.dailyBestSeconds, this.elapsed)
           : this.elapsed;
         if (!this.progress.archiveKinds.includes('boss')) this.progress.archiveKinds.push('boss');
-        if (!alreadyCompletedThisMonth) {
-          this.progress.metaCoins += 30;
-        }
         this.saveProgress();
         void this.submitDailyScore(this.elapsed);
       }
