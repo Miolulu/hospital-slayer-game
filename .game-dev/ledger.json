@@ -2,10 +2,10 @@
     "document":  {
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
-                     "revision":  3457,
-                     "lastCheckedAt":  "2026-08-28T20:06:09+08:00",
-                     "completedCheckboxes":  52,
-                     "pendingCheckboxes":  5
+                     "revision":  3623,
+                     "lastCheckedAt":  "2026-08-28T21:14:10+08:00",
+                     "completedCheckboxes":  53,
+                     "pendingCheckboxes":  6
                  },
     "completedItems":  [
                            {
@@ -273,6 +273,12 @@
                                "status":  "done",
                                "implementedIn":  "src/main.ts",
                                "evidence":  "npm.cmd test；npm.cmd run build；6 波预算、递增怪物池和教程转场逻辑复核"
+                           },
+                           {
+                               "summary":  "调查员女正常版静态图与四向行走序列去除白色毛刺",
+                               "status":  "done",
+                               "implementedIn":  "src/playerSkinArt.ts, public/assets/art/player-skins/investigator-female-normal, tmp/imagegen/skin-audit/normalize_skins.py",
+                               "evidence":  ".game-dev/evidence/pending-items-retest-2026-08-28.md；npm.cmd test；npm.cmd run build"
                            }
                        ],
      "pendingItems":  [
@@ -294,16 +300,15 @@
                               "reason":  "排行榜可视行数、触摸拖动/滚轮滚动和前三名徽章已完成并完成本地回归；文档要求的所有页面字体位置仍需逐页验收。"
                           },
                           {
-                              "summary":  "调查员女正常版前后动效和静态图去除白色毛刺",
-                              "status":  "blocked",
-                              "implementedIn":  "src/playerSkinArt.ts, public/assets/art/player-skins/investigator-female-normal",
-                              "reason":  "调查员女正常版的静态图与四向行走序列已接入，但当前没有完成逐帧透明边缘复核，也没有用户确认的替换素材；暂不改写现有美术。"
-                          },
-                          {
                               "summary":  "主线敌人每类两种皮肤并在图鉴和楼层中轮换展示",
                               "status":  "blocked",
                               "implementedIn":  "src/patientEnemyArt.ts, src/main.ts",
                               "reason":  "主线战斗已按敌人类型随机选择两种已接入变体；独立怪物图鉴入口目前隐藏，文档要求的图鉴轮换和逐楼层不同立绘仍未完成验收。"
+                          },
+                          {
+                              "summary":  "接入广告和付费接口并先整理皮肤、武器清单与规则",
+                              "status":  "blocked",
+                              "reason":  "已确认需要先整理清单和规则；等待用户分类确认后再接入 Builda SDK 广告与付费接口。"
                           }
                       ],
     "verification":  {
@@ -311,8 +316,8 @@
                            "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 19:56）；保留既有 builda-sdk.js 缺少 type=module 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                            "documentFetch":  "passed: revision 3457；52 项已完成，5 项待处理（2026-08-28 20:06）",
-                            "documentCheckboxUpdate":  "passed: 本轮未发现新增意见或版本变化；文档仍为 52 项已完成、5 项待处理",
+                            "documentFetch":  "passed: revision 3623；53 项已完成，6 项待处理（2026-08-28 21:14）",
+                            "documentCheckboxUpdate":  "passed: revision 3623；已勾选调查员女正常版白色毛刺处理项，文档剩余 6 项待处理",
                            "buildaBundleCheck":  "blocked: 线上版本 9f7f0cf471d120f6458a07a925168de8 使用了错误的 WebP 压缩包；入口和脚本仍引用 .png，主背景、角色、卡牌及加载图在创游世界返回 404。",
                            "buildaUpload":  "passed: 修复包已上传并更新现有创游世界草稿；Builda 构建 b1f0e49df58f2bb15edbbf215beb42c8，未执行公开发布。",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
@@ -329,8 +334,8 @@
                           "artAssetIntegration":  "passed: 新增经验掉落物、SAN 暴走技能图标、小首领和楼层首领四张透明 PNG，已接入战斗掉落、固定 HUD 和首领渲染；缺图时保留几何兜底；详见 .game-dev/reports/art-asset-integration-2026-08-27.md",
                           "uiAssetInventory":  "passed: 已盘点战斗状态组、触摸摇杆、状态标记、伤害数字、攻击预警、分隔线和缺失立绘；替换清单见 .game-dev/reports/ui-asset-inventory-2026-08-27.md",
                           "godotMigrationEvaluation":  "passed: 当前试玩版保留 Phaser 3 + TypeScript + Vite；Godot 4.7.1 作为后续玩法和 UI 冻结后的独立主工程候选，评估记录见 .game-dev/reports/godot-migration-evaluation-2026-08-27.md",
-                           "pendingAudit":  "revision 3457 后剩余 5 项：月度挑战线上支付与榜单闭环、动态非图片 UI 资源替换、排行榜全量字体位置验收、调查员女正常版白色毛刺、主线敌人多皮肤轮换。",
-                          "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-27.md",
+                           "pendingAudit":  "revision 3623 后剩余 6 项：月度挑战线上支付与榜单闭环、动态非图片 UI 资源替换、排行榜全量字体位置验收、主线敌人多皮肤轮换、广告与付费接口及清单规则确认、真实平台排行榜验收。",
+                          "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-28.md",
                            "playerHitAspectFix":  "passed: 移除人物受击时的非等比 squash/stretch 缩放；自定义皮肤在受击和死亡状态保持自身立绘比例；30 项测试与生产构建通过。",
                            "upgradeCardCatalog":  "passed: 五类普通卡牌按蓝70%、紫20%、金10%抽取并使用阶梯数值；每日特殊卡与武器数量卡固定金色；说明模板、感染共振移除均集中到 src/upgradeCards.ts；32 项测试与生产构建通过。",
                            "dailyRankingLayout":  "passed: 1280x720 本地预览中排行榜首屏显示 10 行，前三名使用克苏鲁徽章，向上拖动可查看后续榜单；控制台无警告或错误。",
@@ -343,6 +348,8 @@
                              "compressedBundle":  "blocked: 旧压缩包把 PNG 改为 WebP 却没有同步入口和脚本引用，静态 bundle-check 无法覆盖运行时 404；已在本地生成修复包 builda-web-fixed-webp-files-20260828.zip，包体 193121819 字节，引用检查通过。",
                              "buildaRuntimeDiagnosis":  "passed: 线上入口和 manifest 返回 200；对 10 个关键资源抽样确认 .png 全部 404、对应 .webp 返回 200，确认失败来自压缩包扩展名与运行时代码不一致。",
                              "buildaFixedBundleLocal":  "passed: 当前 dist 重新构建；仅保留一份 index-CEDYJxlD.js，PNG 全部转为同名 WebP 并同步 index.html/脚本引用；299 个 WebP、0 个 PNG、0 个目录条目，bundle-check 通过，包体 193121819 字节；未上传或发布。",
-                             "buildaDraftUpload":  "passed: 创游世界草稿同步完成，gameId GD:48356599:1，currentVersionId f8ebf40f-c7e2-5010-92e1-dd6465e412e1，bundleVersion b1f0e49df58f2bb15edbbf215beb42c8；cysjSyncStatus=synced，公开发布待用户操作。"
+                             "buildaDraftUpload":  "passed: 创游世界草稿同步完成，gameId GD:48356599:1，currentVersionId f8ebf40f-c7e2-5010-92e1-dd6465e412e1，bundleVersion b1f0e49df58f2bb15edbbf215beb42c8；cysjSyncStatus=synced，公开发布待用户操作。",
+                             "floorEnemyPreviewRotation":  "passed: addFloorEnemyPreview 按楼层稳定选择同类敌人变体，npm.cmd test 与 npm.cmd run build 通过。",
+                             "investigatorFemaleEdgeCleanup":  "passed: 调查员女正常版静态图和四向行走序列使用 edge_artifact 清理并归一化为 192 像素帧，npm.cmd test 与 npm.cmd run build 通过。"
                      }
 }

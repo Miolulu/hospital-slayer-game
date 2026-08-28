@@ -45,4 +45,11 @@ export const SMALL_ENEMY_ART_VARIANTS: Record<SmallEnemyKind, readonly string[]>
   eye: ['dream-stage5', 'female-tide-stage5'],
 };
 
+/** 为楼层预览稳定选择变体，避免页面每次刷新都随机跳动。 */
+export function smallEnemyArtForFloor(kind: SmallEnemyKind, floor: number): string | undefined {
+  const variants = SMALL_ENEMY_ART_VARIANTS[kind] ?? [];
+  if (variants.length === 0) return undefined;
+  return variants[Math.abs(Math.floor(floor)) % variants.length];
+}
+
 export const SMALL_ENEMY_ART_FRAME_RATE = 6;
