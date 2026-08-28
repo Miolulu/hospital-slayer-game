@@ -93,6 +93,7 @@ import { buildaPlatform } from '../../infrastructure/platform/BuildaPlatformAdap
 import { developerMode } from '../../infrastructure/developer/DeveloperMode';
 import { assetUrl } from '../../infrastructure/assets/assetUrl';
 import { PhaserAssetLoader, type PhaserAssetDefinition, type PhaserAssetLoadResult } from '../assets/PhaserAssetLoader';
+import { isValidSaleId, paymentOrderKey, skinSaleId, weaponSkinSaleId } from '../../payment';
 
 installUiTextTheme();
 
@@ -458,36 +459,36 @@ export class HospitalBattleScene extends Phaser.Scene {
   private skins: SkinDef[] = SKINS;
   private weaponSkins: WeaponSkinDef[] = [
     { id: 'sword-default', name: '基础病院刀', weaponClass: 'sword', color: 0xed716e, cost: 0, textureKey: 'weapon-sword', category: 'basic' },
-    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png', category: 'store' },
-    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png', category: 'store' },
-    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 80, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png', category: 'store' },
-    { id: 'sword-black-tide', name: '黑潮断罪刃', weaponClass: 'sword', color: 0x3b5164, cost: 70, textureKey: 'weapon-skin-sword-black-tide', assetPath: '/assets/art/weapon-select/skin-sword-black-tide-clean.png', category: 'store' },
-    { id: 'sword-old-god-ritual', name: '旧神祭器刃', weaponClass: 'sword', color: 0x9a6bd1, cost: 85, textureKey: 'weapon-skin-sword-old-god-ritual', assetPath: '/assets/art/weapon-select/skin-sword-old-god-ritual-clean.png', category: 'store' },
-    { id: 'sword-abyss-mouth', name: '深渊口器刃', weaponClass: 'sword', color: 0xe78a57, cost: 75, textureKey: 'weapon-skin-sword-abyss-mouth', assetPath: '/assets/art/weapon-select/skin-sword-abyss-mouth-clean.png', category: 'store' },
+    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png', category: 'store' },
+    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png', category: 'store' },
+    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png', category: 'store' },
+    { id: 'sword-black-tide', name: '黑潮断罪刃', weaponClass: 'sword', color: 0x3b5164, cost: 40000, textureKey: 'weapon-skin-sword-black-tide', assetPath: '/assets/art/weapon-select/skin-sword-black-tide-clean.png', category: 'store' },
+    { id: 'sword-old-god-ritual', name: '旧神祭器刃', weaponClass: 'sword', color: 0x9a6bd1, cost: 40000, textureKey: 'weapon-skin-sword-old-god-ritual', assetPath: '/assets/art/weapon-select/skin-sword-old-god-ritual-clean.png', category: 'store' },
+    { id: 'sword-abyss-mouth', name: '深渊口器刃', weaponClass: 'sword', color: 0xe78a57, cost: 40000, textureKey: 'weapon-skin-sword-abyss-mouth', assetPath: '/assets/art/weapon-select/skin-sword-abyss-mouth-clean.png', category: 'store' },
     { id: 'sword-moon-moth', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-sword-moon-moth', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-clean.png', dropOnly: true, category: 'boss' },
-    { id: 'sword-moon-moth-queen', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 100, textureKey: 'weapon-skin-sword-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-clean.png', category: 'store' },
-    { id: 'sword-moon-moth-queen-gala', name: '月蚀蝶刃·华丽版', weaponClass: 'sword', color: 0xe8d4ff, cost: 140, textureKey: 'weapon-skin-sword-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-gala-clean.png', category: 'store' },
+    { id: 'sword-moon-moth-queen', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 45000, textureKey: 'weapon-skin-sword-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-clean.png', category: 'store' },
+    { id: 'sword-moon-moth-queen-gala', name: '月蚀蝶刃·华丽版', weaponClass: 'sword', color: 0xe8d4ff, cost: 50000, textureKey: 'weapon-skin-sword-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-gala-clean.png', category: 'store' },
     { id: 'gun-default', name: '基础灯枪', weaponClass: 'gun', color: 0xf2bf62, cost: 0, textureKey: 'weapon-gun', category: 'basic' },
-    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png', category: 'store' },
-    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png', category: 'store' },
+    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png', category: 'store' },
+    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png', category: 'store' },
     { id: 'gun-moon-moth', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-gun-moon-moth', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-clean.png', dropOnly: true, category: 'boss' },
-    { id: 'gun-ritual-relic', name: '教团遗物枪', weaponClass: 'gun', color: 0xe0c076, cost: 70, textureKey: 'weapon-skin-gun-ritual-relic', assetPath: '/assets/art/weapon-select/skin-gun-ritual-relic-clean.png', category: 'store' },
-    { id: 'gun-cthulhu-eye', name: '克苏鲁眼脉冲器', weaponClass: 'gun', color: 0x6bd3c1, cost: 85, textureKey: 'weapon-skin-gun-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-eye-clean.png', category: 'store' },
-    { id: 'gun-abyss-machinery', name: '深渊机件射器', weaponClass: 'gun', color: 0x7ab9d0, cost: 75, textureKey: 'weapon-skin-gun-abyss-machinery', assetPath: '/assets/art/weapon-select/skin-gun-abyss-machinery-clean.png', category: 'store' },
-    { id: 'gun-moon-moth-queen', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 100, textureKey: 'weapon-skin-gun-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-clean.png', category: 'store' },
-    { id: 'gun-moon-moth-queen-gala', name: '蝶瞳脉冲枪·华丽版', weaponClass: 'gun', color: 0xe8d4ff, cost: 140, textureKey: 'weapon-skin-gun-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-gala-clean.png', category: 'store' },
+    { id: 'gun-ritual-relic', name: '教团遗物枪', weaponClass: 'gun', color: 0xe0c076, cost: 40000, textureKey: 'weapon-skin-gun-ritual-relic', assetPath: '/assets/art/weapon-select/skin-gun-ritual-relic-clean.png', category: 'store' },
+    { id: 'gun-cthulhu-eye', name: '克苏鲁眼脉冲器', weaponClass: 'gun', color: 0x6bd3c1, cost: 40000, textureKey: 'weapon-skin-gun-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-eye-clean.png', category: 'store' },
+    { id: 'gun-abyss-machinery', name: '深渊机件射器', weaponClass: 'gun', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-gun-abyss-machinery', assetPath: '/assets/art/weapon-select/skin-gun-abyss-machinery-clean.png', category: 'store' },
+    { id: 'gun-moon-moth-queen', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 45000, textureKey: 'weapon-skin-gun-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-clean.png', category: 'store' },
+    { id: 'gun-moon-moth-queen-gala', name: '蝶瞳脉冲枪·华丽版', weaponClass: 'gun', color: 0xe8d4ff, cost: 50000, textureKey: 'weapon-skin-gun-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-gala-clean.png', category: 'store' },
     { id: 'whip-default', name: '基础长鞭', weaponClass: 'whip', color: 0x8fd17c, cost: 0, textureKey: 'weapon-whip', category: 'basic' },
-    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 60, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png', category: 'store' },
-    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png', category: 'store' },
-    { id: 'whip-bone-scale', name: '骨鳞祭鞭', weaponClass: 'whip', color: 0xd99263, cost: 70, textureKey: 'weapon-skin-whip-bone-scale', assetPath: '/assets/art/weapon-select/skin-whip-bone-scale-clean.png', category: 'store' },
-    { id: 'whip-living-crown', name: '活体王冠鞭', weaponClass: 'whip', color: 0xb798e2, cost: 85, textureKey: 'weapon-skin-whip-living-crown', assetPath: '/assets/art/weapon-select/skin-whip-living-crown-clean.png', category: 'store' },
-    { id: 'whip-prism-energy', name: '棱晶能量鞭', weaponClass: 'whip', color: 0x7ab9d0, cost: 75, textureKey: 'weapon-skin-whip-prism-energy', assetPath: '/assets/art/weapon-select/skin-whip-prism-energy-clean.png', category: 'store' },
+    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 30000, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png', category: 'store' },
+    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png', category: 'store' },
+    { id: 'whip-bone-scale', name: '骨鳞祭鞭', weaponClass: 'whip', color: 0xd99263, cost: 40000, textureKey: 'weapon-skin-whip-bone-scale', assetPath: '/assets/art/weapon-select/skin-whip-bone-scale-clean.png', category: 'store' },
+    { id: 'whip-living-crown', name: '活体王冠鞭', weaponClass: 'whip', color: 0xb798e2, cost: 40000, textureKey: 'weapon-skin-whip-living-crown', assetPath: '/assets/art/weapon-select/skin-whip-living-crown-clean.png', category: 'store' },
+    { id: 'whip-prism-energy', name: '棱晶能量鞭', weaponClass: 'whip', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-whip-prism-energy', assetPath: '/assets/art/weapon-select/skin-whip-prism-energy-clean.png', category: 'store' },
     { id: 'cannon-default', name: '基础回声炮', weaponClass: 'cannon', color: 0xb798e2, cost: 0, textureKey: 'weapon-cannon', category: 'basic' },
-    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png', category: 'store' },
-    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png', category: 'store' },
-    { id: 'cannon-old-god-ring', name: '旧神骨环炮', weaponClass: 'cannon', color: 0xe5d47a, cost: 70, textureKey: 'weapon-skin-cannon-old-god-ring', assetPath: '/assets/art/weapon-select/skin-cannon-old-god-ring-clean.png', category: 'store' },
-    { id: 'cannon-cthulhu-eye', name: '克苏鲁之眼炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 85, textureKey: 'weapon-skin-cannon-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-eye-clean.png', category: 'store' },
-    { id: 'cannon-abyss-maw', name: '深渊巨口炮', weaponClass: 'cannon', color: 0xe78a57, cost: 75, textureKey: 'weapon-skin-cannon-abyss-maw', assetPath: '/assets/art/weapon-select/skin-cannon-abyss-maw-clean.png', category: 'store' },
+    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png', category: 'store' },
+    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png', category: 'store' },
+    { id: 'cannon-old-god-ring', name: '旧神骨环炮', weaponClass: 'cannon', color: 0xe5d47a, cost: 40000, textureKey: 'weapon-skin-cannon-old-god-ring', assetPath: '/assets/art/weapon-select/skin-cannon-old-god-ring-clean.png', category: 'store' },
+    { id: 'cannon-cthulhu-eye', name: '克苏鲁之眼炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 40000, textureKey: 'weapon-skin-cannon-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-eye-clean.png', category: 'store' },
+    { id: 'cannon-abyss-maw', name: '深渊巨口炮', weaponClass: 'cannon', color: 0xe78a57, cost: 40000, textureKey: 'weapon-skin-cannon-abyss-maw', assetPath: '/assets/art/weapon-select/skin-cannon-abyss-maw-clean.png', category: 'store' },
   ];
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
@@ -2016,10 +2017,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.progressRepository.save(this.progress);
   }
 
-  private recordPaymentOrder(orderId: string) {
+  private async recordPaymentOrder(orderId: string) {
     const normalized = orderId.trim();
-    if (!/^[A-Za-z0-9_-]{1,64}$/.test(normalized) || this.processedPaymentOrderIds.has(normalized)) return false;
-    this.processedPaymentOrderIds.add(normalized);
+    if (!normalized) return false;
+    const key = await paymentOrderKey(normalized);
+    // Keep recognizing legacy raw IDs already present in older saves while
+    // storing only the hashed key for new purchases.
+    if (!key || this.processedPaymentOrderIds.has(key) || this.processedPaymentOrderIds.has(normalized)) return false;
+    this.processedPaymentOrderIds.add(key);
     this.progress.processedPaymentOrderIds = Array.from(this.processedPaymentOrderIds).slice(-200);
     return true;
   }
@@ -3825,30 +3830,30 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.skinPaymentPending) return;
     this.skinPaymentPending = true;
     this.skinAdMessage = '';
-    let paymentOrderId = '';
+    let purchaseGranted = false;
     try {
-      const cost = this.skinPurchaseCost(id);
-      if (buildaPlatform.sdk?.pay?.showPayPanel) {
-        const saleId = this.configuredSkinSaleId(id);
-        if (!saleId) {
-          this.skinAdMessage = '该皮肤暂未配置支付商品';
-          return;
-        }
-        const result = await buildaPlatform.showPayPanel(saleId);
-        paymentOrderId = result?.orderId.trim() ?? '';
-        if (!result?.success || !paymentOrderId) return;
-        if (!this.recordPaymentOrder(paymentOrderId)) {
-          this.skinAdMessage = '该支付订单已使用，本次未重复发放';
-          return;
-        }
+      if (!buildaPlatform.sdk?.pay?.showPayPanel) {
+        this.skinAdMessage = '请在创游世界内完成购买';
       } else {
-        if (this.progress.metaCoins < cost) return;
-        this.progress.metaCoins -= cost;
+        const result = await buildaPlatform.showPayPanel(this.configuredSkinSaleId(id));
+        if (!result) {
+          this.skinAdMessage = '支付服务暂不可用，皮肤未解锁';
+        } else if (!result.success) {
+          this.skinAdMessage = '购买已取消或支付失败，皮肤未解锁';
+        } else if (!result.orderId.trim()) {
+          this.skinAdMessage = '支付未返回订单号，皮肤未解锁';
+        } else if (!(await this.recordPaymentOrder(result.orderId))) {
+          this.skinAdMessage = '该支付订单已使用或无法校验，皮肤未解锁';
+        } else {
+          purchaseGranted = true;
+        }
       }
+    } catch {
+      this.skinAdMessage = '支付暂不可用，皮肤未解锁';
     } finally {
       this.skinPaymentPending = false;
     }
-    if (this.skinAdMessage) {
+    if (!purchaseGranted) {
       this.showProfile();
       return;
     }
@@ -3893,13 +3898,15 @@ export class HospitalBattleScene extends Phaser.Scene {
   private configuredSkinSaleId(id: string) {
     const config = (window as Window & { __BUILDA_SKIN_SALE_IDS__?: Record<string, unknown> }).__BUILDA_SKIN_SALE_IDS__;
     const saleId = config?.[id];
-    return typeof saleId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(saleId) ? saleId : '';
+    if (typeof saleId === 'string' && isValidSaleId(saleId)) return saleId;
+    return skinSaleId(id);
   }
 
   private configuredWeaponSkinSaleId(id: string) {
     const config = (window as Window & { __BUILDA_WEAPON_SKIN_SALE_IDS__?: Record<string, unknown> }).__BUILDA_WEAPON_SKIN_SALE_IDS__;
     const saleId = config?.[id];
-    return typeof saleId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(saleId) ? saleId : '';
+    if (typeof saleId === 'string' && isValidSaleId(saleId)) return saleId;
+    return weaponSkinSaleId(id);
   }
 
   private weaponAppearanceLabel(weapon: Weapon) {
@@ -3918,29 +3925,30 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (!skin || skin.category !== 'store' || this.isWeaponSkinAvailable(id) || this.weaponSkinPaymentPending) return;
     this.weaponSkinPaymentPending = true;
     this.weaponSkinAdMessage = '';
-    let paymentOrderId = '';
+    let purchaseGranted = false;
     try {
-      if (buildaPlatform.sdk?.pay?.showPayPanel) {
-        const saleId = this.configuredWeaponSkinSaleId(id);
-        if (!saleId) {
-          this.weaponSkinAdMessage = '该武器皮肤暂未配置支付商品';
-          return;
-        }
-        const result = await buildaPlatform.showPayPanel(saleId);
-        paymentOrderId = result?.orderId.trim() ?? '';
-        if (!result?.success || !paymentOrderId) return;
-        if (!this.recordPaymentOrder(paymentOrderId)) {
-          this.weaponSkinAdMessage = '该支付订单已使用，本次未重复发放';
-          return;
-        }
+      if (!buildaPlatform.sdk?.pay?.showPayPanel) {
+        this.weaponSkinAdMessage = '请在创游世界内完成购买';
       } else {
-        if (this.progress.metaCoins < skin.cost) return;
-        this.progress.metaCoins -= skin.cost;
+        const result = await buildaPlatform.showPayPanel(this.configuredWeaponSkinSaleId(id));
+        if (!result) {
+          this.weaponSkinAdMessage = '支付服务暂不可用，武器皮肤未解锁';
+        } else if (!result.success) {
+          this.weaponSkinAdMessage = '购买已取消或支付失败，武器皮肤未解锁';
+        } else if (!result.orderId.trim()) {
+          this.weaponSkinAdMessage = '支付未返回订单号，武器皮肤未解锁';
+        } else if (!(await this.recordPaymentOrder(result.orderId))) {
+          this.weaponSkinAdMessage = '该支付订单已使用或无法校验，武器皮肤未解锁';
+        } else {
+          purchaseGranted = true;
+        }
       }
+    } catch {
+      this.weaponSkinAdMessage = '支付暂不可用，武器皮肤未解锁';
     } finally {
       this.weaponSkinPaymentPending = false;
     }
-    if (this.weaponSkinAdMessage) {
+    if (!purchaseGranted) {
       this.showWeaponSelect(mode, this.selectedStartFloor);
       return;
     }
@@ -6241,15 +6249,13 @@ export class HospitalBattleScene extends Phaser.Scene {
         const orderId = result.orderId.trim();
         if (!orderId) {
           resultMessage = '平台未返回订单号，卡牌未刷新';
-        } else if (this.processedPaymentOrderIds.has(orderId)) {
+        } else if (this.processedPaymentOrderIds.has(await paymentOrderKey(orderId)) || this.processedPaymentOrderIds.has(orderId)) {
           resultMessage = '该支付订单已使用，卡牌未重复刷新';
+        } else if (await this.recordPaymentOrder(orderId)) {
+          this.upgradeRefreshCount += 1;
+          this.saveProgress();
         } else {
-          if (this.recordPaymentOrder(orderId)) {
-            this.upgradeRefreshCount += 1;
-            this.saveProgress();
-          } else {
-            resultMessage = '该支付订单无效，卡牌未刷新';
-          }
+          resultMessage = '该支付订单无效，卡牌未刷新';
         }
       }
     } catch {

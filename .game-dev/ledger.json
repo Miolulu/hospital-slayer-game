@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3624,
-                     "lastCheckedAt":  "2026-08-29T03:23:00+08:00",
+                     "lastCheckedAt":  "2026-08-29T04:53:00+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -315,7 +315,7 @@
                               "summary":  "接入广告和付费接口并先整理皮肤、武器清单与规则",
                               "status":  "blocked",
                               "implementedIn":  "src/main.ts",
-                              "reason":  "广告规则已确认：每月挑战前三次免费，之后调用 Builda SDK 激励广告，每次广告增加一次挑战次数；代码已接入，平台实际广告与付费验收仍待完成。"
+                              "reason":  "广告规则已确认：每月挑战前三次免费，之后调用 Builda SDK 激励广告，每次广告增加一次挑战次数；6 个玩家皮肤、25 个武器皮肤和升级卡牌刷新商品已写入 builda.publish.json，平台真实 G 币扣款仍待创游世界草稿真机验收。"
                           },
                           {
                               "summary":  "每日挑战真实平台排行榜验收",
@@ -331,7 +331,7 @@
                          "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:54）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                            "documentFetch":  "passed: revision 3624；54 项已完成，5 项待处理（2026-08-29 03:23）",
+                             "documentFetch":  "passed: revision 3624；54 项已完成，5 项待处理（2026-08-29 04:53）",
                             "documentCheckboxUpdate":  "passed: revision 3624；已勾选全页面排行榜与字体位置验收项，文档剩余 5 项待处理",
                            "buildaBundleCheck":  "passed: PNG-only H5 包根目录含 index.html，bundle-check --webview-compatible 通过；包内无 WebP，bundleVersion 27575d4ad444e2b71811d5e17e5d522b，bundleSize 78642248 字节。",
                            "buildaUpload":  "passed: PNG-only 优化包已上传并更新现有创游世界草稿；Builda 构建 27575d4ad444e2b71811d5e17e5d522b，currentVersionId fb8ececb-7288-5f0b-8e84-04db942d83f9，未执行公开发布。",
@@ -379,7 +379,9 @@
                          "floorEnemyPreviewPortraitAlignment":  "passed: 主线楼层敌人预览按首领与普通敌人分别设置立绘垂直中心，避免立绘覆盖名称栏并保持缺图兜底一致；npm.cmd test 与 npm.cmd run build 通过。",
                          "mobileUiAcceptanceFinal":  "passed: 844x390 与 667x375 手机视口检查主菜单、病历档案、主线楼层、武器选择、每日挑战、战斗 HUD、对白、升级、胜利、失败和首领预览；素材按比例居中，按钮热区可触达，文字清晰无越界；控制台无错误。",
                          "resultFailTitleAsset":  "passed: 失败结算标题贴图加入 battle 延迟资源组，按原始比例适配安全区；两种手机视口显示正常。",
-                         "testsFinal":  "passed: npm.cmd test，8 个测试文件、42 项全部通过（2026-08-29 03:19）",
-                         "buildFinal":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 03:20）；仅有既有大 chunk 提示。"
+                          "testsFinal":  "passed: npm.cmd test，9 个测试文件、45 项全部通过（2026-08-29 04:51）",
+                          "buildFinal":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（本轮支付商品配置复核后重新执行）；仅有既有大 chunk 提示。",
+                          "paymentCatalog":  "passed: builda.publish.json 声明 32 个商品，包含 6 个玩家皮肤、25 个武器皮肤和 1 个升级卡牌刷新；价格为 30000～50000 G 币（皮肤 3～5 元）或 10000 G 币（刷新），payId 全部符合平台 ASCII 规则且无重复。",
+                          "paymentFlowMock":  "passed: 本地 Builda mock 支付链路覆盖成功、取消/失败、空订单号和重复订单；成功订单才解锁皮肤或刷新卡牌，取消/失败/重复订单均不发放。真实 G 币扣款仍需在创游世界草稿或手机端宿主环境验证。"
                      }
 }

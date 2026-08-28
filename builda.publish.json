@@ -11,18 +11,180 @@
     "tags":  [
                  "h5"
              ],
+    "payPoints":  [
+                      {
+                          "payId":  "skin_investigator-normal",
+                          "payName":  "玩家皮肤：调查员男·正常版",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "skin_investigator-female-normal",
+                          "payName":  "玩家皮肤：调查员女·正常版",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "skin_investigator-mutated",
+                          "payName":  "玩家皮肤：调查员男·异化版",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "skin_fairytale-stitch-prince",
+                          "payName":  "玩家皮肤：缝线王子",
+                          "price":  35000
+                      },
+                      {
+                          "payId":  "skin_obsidian-knight",
+                          "payName":  "玩家皮肤：黑曜夜巡",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "skin_abyssal-oracle",
+                          "payName":  "玩家皮肤：深渊祷告",
+                          "price":  50000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-cthulhu",
+                          "payName":  "武器皮肤：深渊裂刃",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-fairytale",
+                          "payName":  "武器皮肤：怪诞童话",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-hero-tech",
+                          "payName":  "武器皮肤：英雄科技",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-black-tide",
+                          "payName":  "武器皮肤：黑潮断罪刃",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-old-god-ritual",
+                          "payName":  "武器皮肤：旧神祭器刃",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-abyss-mouth",
+                          "payName":  "武器皮肤：深渊口器刃",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-moon-moth-queen",
+                          "payName":  "武器皮肤：月蚀蝶刃",
+                          "price":  45000
+                      },
+                      {
+                          "payId":  "weapon_skin_sword-moon-moth-queen-gala",
+                          "payName":  "武器皮肤：月蚀蝶刃·华丽版",
+                          "price":  50000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-cthulhu",
+                          "payName":  "武器皮肤：深渊灯枪",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-fairytale",
+                          "payName":  "武器皮肤：童话脉冲枪",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-ritual-relic",
+                          "payName":  "武器皮肤：教团遗物枪",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-cthulhu-eye",
+                          "payName":  "武器皮肤：克苏鲁眼脉冲器",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-abyss-machinery",
+                          "payName":  "武器皮肤：深渊机件射器",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-moon-moth-queen",
+                          "payName":  "武器皮肤：蝶瞳脉冲枪",
+                          "price":  45000
+                      },
+                      {
+                          "payId":  "weapon_skin_gun-moon-moth-queen-gala",
+                          "payName":  "武器皮肤：蝶瞳脉冲枪·华丽版",
+                          "price":  50000
+                      },
+                      {
+                          "payId":  "weapon_skin_whip-cthulhu",
+                          "payName":  "武器皮肤：古神触须鞭",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_whip-fairytale",
+                          "payName":  "武器皮肤：梦魇童话鞭",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_whip-bone-scale",
+                          "payName":  "武器皮肤：骨鳞祭鞭",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_whip-living-crown",
+                          "payName":  "武器皮肤：活体王冠鞭",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_whip-prism-energy",
+                          "payName":  "武器皮肤：棱晶能量鞭",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_cannon-cthulhu",
+                          "payName":  "武器皮肤：深渊回声炮",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_cannon-fairytale",
+                          "payName":  "武器皮肤：童话星陨炮",
+                          "price":  30000
+                      },
+                      {
+                          "payId":  "weapon_skin_cannon-old-god-ring",
+                          "payName":  "武器皮肤：旧神骨环炮",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_cannon-cthulhu-eye",
+                          "payName":  "武器皮肤：克苏鲁之眼炮",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "weapon_skin_cannon-abyss-maw",
+                          "payName":  "武器皮肤：深渊巨口炮",
+                          "price":  40000
+                      },
+                      {
+                          "payId":  "upgrade_refresh",
+                          "payName":  "升级卡牌刷新",
+                          "price":  10000
+                      }
+                  ],
     "category":  "survival",
     "engine":  "h5",
     "coverPalette":  "ember",
     "minIOSMajor":  15,
     "assetsManifestUrl":  "https://builda-godot-play.poni.fun/cysj2/release/assets/GD_48356599_1/ast_24d922f83e43e3c96f3c88764be74552/assets.json",
     "buildEntry":  "index.html",
-    "bundleSize":  78642248,
-    "buildSize":  81196810,
-    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/27575d4ad444e2b71811d5e17e5d522b.zip",
+    "bundleSize":  86926319,
+    "buildSize":  89477039,
+    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/071081616319e17339c616e36373b539.zip",
     "bundleEntry":  "index.html",
-    "buildPrefix":  "builds/27575d4ad444e2b71811d5e17e5d522b",
-    "bundleVersion":  "27575d4ad444e2b71811d5e17e5d522b",
-    "bundleMd5":  "bbd99cd0f1811cea20fa999b0beefb7c",
+    "buildPrefix":  "builds/071081616319e17339c616e36373b539",
+    "bundleVersion":  "071081616319e17339c616e36373b539",
+    "bundleMd5":  "cff032facc1aaa430114238776f3a31f",
     "sdkVersion":  "0.4.37"
 }
