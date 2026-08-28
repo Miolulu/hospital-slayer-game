@@ -1,4 +1,5 @@
 import type { CombatEnemyKind } from './combatBalance';
+import { assetUrl } from './assetUrl';
 
 export type SmallEnemyKind = Exclude<CombatEnemyKind, 'miniBoss' | 'boss'>;
 
@@ -11,7 +12,7 @@ export interface SmallEnemyArtSheet {
 
 const sheet = (key: string, file: string, frameWidth: number, frameHeight: number): SmallEnemyArtSheet => ({
   key,
-  path: `/assets/art/enemies/patients/${file}`,
+  path: assetUrl(`/assets/art/enemies/patients/${file}`),
   frameWidth,
   frameHeight,
 });

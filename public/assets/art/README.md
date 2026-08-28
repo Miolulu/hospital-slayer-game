@@ -77,3 +77,16 @@ The main menu uses the supplied hospital background and title artwork. The no-te
 - `menu/menu-button-archive-v1.png` - patient records entry
 - `menu/menu-button-mainline-v1.png` - mainline entry
 - `menu/menu-button-daily-v1.png` - daily challenge entry
+
+## Mainline floor slots
+
+The mainline tower is assembled from one reusable exterior module per floor.
+The module and all four window states share a fixed display box so new floors
+can be appended without redrawing the building:
+
+- `mainline-building-floor-shell-v1.png` - one modern hospital facade floor shell.
+- `mainline-floor-select-background-v1.png` - level-selection backdrop with a left-aligned tower and quiet right side.
+- `mainline-floor-locked-v1.png` - locked, unselected window.
+- `mainline-floor-locked-selected-v1.png` - locked, selected window.
+- `mainline-floor-unlocked-v1.png` - unlocked, unselected room perspective.
+- `mainline-floor-selected-v1.png` - unlocked, selected room perspective with lights on.
