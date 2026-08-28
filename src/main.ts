@@ -4485,9 +4485,13 @@ export class HospitalBattleScene extends Phaser.Scene {
         card.add(this.add.rectangle(0, 0, cardWidth, cardHeight, palette.panel, 1).setStrokeStyle(2, rarityColor, 0.95));
       }
       const selectionFrame = this.upgradeCardSelectionFrame(card, cardWidth, cardHeight, rarityColor);
-      const iconHalo = this.add.circle(0, -22, 64, choice.color, 0.08).setStrokeStyle(2, choice.color, 0.72);
+      // The source card opening sits above the card midpoint. Keep the halo
+      // and raster icon on the same measured center so every type lands in
+      // the circular opening instead of drifting into the text panel.
+      const iconCenterY = -58;
+      const iconHalo = this.add.circle(0, iconCenterY, 66, choice.color, 0.08).setStrokeStyle(2, choice.color, 0.72);
       card.add(iconHalo);
-      this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, -22, choice.color);
+      this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, iconCenterY, choice.color);
       const titleSize = choice.title.length > 11 ? 14 : 16;
       const detailSize = choice.detail.length > 42 ? 9 : 10;
       card.add(this.add.text(0, 78, choice.title, {
