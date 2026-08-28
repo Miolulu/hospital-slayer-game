@@ -35,10 +35,31 @@ import {
   type SmallEnemyKind,
 } from './patientEnemyArt';
 import {
+  MOON_MOTH_QUEEN_ART,
+  MOON_MOTH_QUEEN_ART_IMAGES,
+  MOON_MOTH_QUEEN_ART_SHEETS,
+  MOON_MOTH_QUEEN_ATTACK_FRAME_RATE,
+  MOON_MOTH_QUEEN_TRANSFORM_FRAME_RATE,
+  MOON_MOTH_QUEEN_WALK_FRAME_RATE,
+} from './moonMothQueenArt';
+import {
+  MAINLINE_BOSS_ART_VARIANT_BY_ID,
+  MAINLINE_BOSS_ART_VARIANT_LIST,
+  MAINLINE_BOSS_ART_VARIANTS,
+  type MainlineBossVariantId,
+} from './mainlineBossArt';
+import {
   PLAYER_SKIN_ART_IMAGES,
   PLAYER_SKIN_ART_SHEETS,
   playerSkinArtForId,
 } from './playerSkinArt';
+import {
+  DEFAULT_UNLOCKED_SKIN_IDS,
+  SKINS,
+  skinDefForId,
+  type ProfileSkinCategory,
+  type SkinDef,
+} from './skinCatalog';
 import { installUiTextTheme, UI_FONT_STACK } from './uiTheme';
 import {
   UPGRADE_CARD_CONFIGS,
@@ -63,7 +84,7 @@ const FULL_TURN = Math.PI * 2;
 const ARENA = { left: 160, right: 1120, top: 116, bottom: 642 };
 const WORLD_BOUNDS = { left: -720, right: 2000, top: -520, bottom: 1700 };
 
-type Phase = 'start' | 'mainline-intro' | 'mainline-select' | 'weapon-select' | 'dialogue' | 'battle' | 'wave-cleanup' | 'wave-break' | 'upgrade' | 'result';
+type Phase = 'start' | 'mainline-intro' | 'mainline-select' | 'weapon-select' | 'dialogue' | 'battle' | 'wave-cleanup' | 'wave-break' | 'upgrade' | 'boss-intro' | 'boss-death' | 'result';
 type EnemyKind = CombatEnemyKind;
 type DropKind = 'xp';
 type WeaponType = 'melee' | 'ranged';
@@ -74,19 +95,7 @@ type WeaponClass = 'sword' | 'whip' | 'gun' | 'cannon';
 type AttackStatus = UpgradeAttackStatus;
 type PlayerDirection = 'left' | 'right' | 'up' | 'down';
 type PlayerAnimation = 'idle' | 'walk-left' | 'walk-right' | 'walk-up' | 'walk-down' | 'hit' | 'death';
-type ProfileSkinCategory = 'all' | 'basic' | 'store' | 'boss';
-
-interface SkinDef {
-  id: string;
-  name: string;
-  color: number;
-  assetPrefix?: string;
-  artId?: string;
-  weaponId?: string;
-  setName?: string;
-  setBuff?: string;
-}
-
+type BossVisualState = 'transform' | 'walk' | 'attack' | 'death';
 interface ProgressSave {
   maxFloor: number;
   mainlineIntroSeen?: boolean;
@@ -114,6 +123,25 @@ interface Enemy {
   kind: EnemyKind;
   node: Phaser.GameObjects.Container;
   body?: Phaser.GameObjects.Container;
+  bossVisual?: {
+    artId: string;
+    introText: string;
+    deathText: string;
+    introDuration: number;
+    state: BossVisualState;
+    stateTimer: number;
+    introComplete: boolean;
+    shadow: Phaser.GameObjects.Ellipse;
+    walkKey: string;
+    attackKey: string;
+    transformKey?: string;
+    transform?: Phaser.GameObjects.Sprite;
+    walk: Phaser.GameObjects.Sprite;
+    attack: Phaser.GameObjects.Sprite;
+    portrait: Phaser.GameObjects.Image;
+    death: Phaser.GameObjects.Image;
+    aura: Phaser.GameObjects.Ellipse;
+  };
   baseHp: number;
   hpScale: number;
   hp: number;
@@ -251,6 +279,10 @@ export class HospitalBattleScene extends Phaser.Scene {
   private playerSpriteScale = 2;
   private readonly smallEnemyScale = 1.2;
   private enemyVisualHeight = Math.round(164 * 1.2);
+  private readonly gameplayCameraZoom = 2 / 3;
+  private readonly joystickMaxDistance = 68;
+  private readonly joystickRingRadius = 66;
+  private readonly joystickKnobRadius = 22;
   private playerAnimation: PlayerAnimation = 'idle';
   private playerDirection: PlayerDirection = 'down';
   private playerHitTimer = 0;
@@ -300,15 +332,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     { rank: 5, name: '月影观察者', score: 8760 },
   ];
   private dailyBoardLoaded = false;
-  private skins: SkinDef[] = [
-    { id: 'patient-default', name: '初始病号服', color: 0xe7c28b },
-    { id: 'investigator-normal', name: '调查员男·正常版', color: 0x8b6a49, artId: 'investigator-normal', setName: '调查员常服', setBuff: '纯外观' },
-    { id: 'scarlet-night', name: '猩红夜班', color: 0xed716e, setName: '猩红套装', setBuff: '伤害 +6' },
-    { id: 'cyan-ward', name: '青蓝病区', color: 0x7ab9d0, setName: '青蓝套装', setBuff: '护盾 +18' },
-    { id: 'violet-dream', name: '紫雾梦魇', color: 0xb798e2, setName: '紫雾套装', setBuff: '移速 +8%' },
-    { id: 'street-runner', name: '夜行校服', color: 0x2b7880, assetPrefix: 'street-runner', setName: '街区夜行套装', setBuff: '移速 +5%' },
-    { id: 'cthulhu-dark', name: '深潜祭服', color: 0x573a6b, assetPrefix: 'cthulhu-dark', setName: '深潜祭服套装', setBuff: '伤害 +8' },
-  ];
+  private skins: SkinDef[] = SKINS;
   private weaponSkins: WeaponSkinDef[] = [
     { id: 'sword-default', name: '基础病院刀', weaponClass: 'sword', color: 0xed716e, cost: 0, textureKey: 'weapon-sword' },
     { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png' },
@@ -326,6 +350,9 @@ export class HospitalBattleScene extends Phaser.Scene {
   ];
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
+  private bossIntroActive = false;
+  private bossDeathActive = false;
+  private bossPreviewActive = false;
   private activeAttackStatus?: AttackStatus;
   private attackStatusLevel = 0;
   private attackStatusDuration = 0;
@@ -364,7 +391,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private kills = 0;
   private sanPulse = 0;
   private mutated = false;
-  private runSpeed = 190;
+  private runSpeed = 380;
   private damageBonus = 0;
   private roundDamageBonus = 0;
   private rotationSpeedMultiplier = 1;
@@ -385,12 +412,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private dailySlowField = 0;
   private waveLength = 24;
   private playerRadius = 34;
-  private readonly walls = [
-    { x: 260, y: 180, width: 170, height: 34 },
-    { x: 860, y: 180, width: 170, height: 34 },
-    { x: 260, y: 520, width: 170, height: 34 },
-    { x: 860, y: 520, width: 170, height: 34 },
-  ];
+  private readonly walls: Array<{ x: number; y: number; width: number; height: number }> = [];
   private dialogueIndex = 0;
   private dialogueTransitioning = false;
   private tutorialRun = false;
@@ -488,6 +510,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
     this.load.image('patient-boy', '/assets/art/patient-boy.png');
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
+    PLAYER_SKIN_ART_IMAGES.forEach(({ key, path }) => {
+      this.load.image(key, path);
+    });
+    PLAYER_SKIN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => {
+      this.load.spritesheet(key, path, { frameWidth, frameHeight });
+    });
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.png');
     this.load.image('profile-case-sheet-v1', '/assets/art/profile-case-sheet-v1.png');
@@ -545,7 +573,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ward-day-v1', '/assets/art/ward-day-v1.png');
     this.load.image('ward-night-v1', '/assets/art/ward-night-v1.png');
     this.load.image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
-    this.load.image('boss-moon-wolf', '/assets/art/boss-moon-wolf.webp');
+    MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => {
+      this.load.image(key, path);
+    });
+    MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => {
+      this.load.spritesheet(key, path, { frameWidth, frameHeight });
+    });
     (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => {
       this.load.image(relic, `/assets/art/${relic}.webp`);
     });
@@ -622,6 +655,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.loadProgress();
     this.createPlayerAnimations();
     this.createEnemyAnimations();
+    this.applySkinTextureFilters();
     this.floor = this.progress.tutorialCompleted ? clamp(this.progress.maxFloor, 1, TOTAL_FLOORS) : 0;
     this.weapons = this.createWeaponRoster();
     this.requestLandscapeLock();
@@ -641,6 +675,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     };
     this.input.keyboard!.on('keydown-ENTER', () => { if (this.phase === 'start') this.showMainline(this.floor); });
     this.input.keyboard!.on('keydown-SPACE', () => { if (this.phase === 'start') this.showMainline(this.floor); });
+    this.input.keyboard!.on('keydown-F8', () => window.__BOSS_PREVIEW__?.());
     this.input.on('pointerdown', this.handlePointerDown, this);
     this.input.on('pointermove', this.handlePointerMove, this);
     this.input.on('pointerup', this.handlePointerUp, this);
@@ -667,6 +702,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     void this.ensurePlayerIdentity();
     void this.notifyBuildaReady();
     window.__GAME_TEST_API__ = {
+      ...(window.__GAME_TEST_API__ ?? {}),
       snapshot: () => ({
         phase: this.phase,
         floor: this.floor,
@@ -715,6 +751,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         enemies: this.enemies.filter((enemy) => !enemy.dead).map((enemy) => ({ kind: enemy.kind, hp: enemy.hp, maxHp: enemy.maxHp })),
         weapon: this.currentWeapon() ? { id: this.currentWeapon()!.id, name: this.currentWeapon()!.name, type: this.currentWeapon()!.type, ammo: this.currentWeapon()!.ammo, copies: this.currentWeapon()!.copies, level: this.currentWeapon()!.level, damage: this.currentWeaponDamage(this.currentWeapon()!), skinId: this.equippedWeaponSkin(this.currentWeapon()!.weaponClass).id, rotationsPerSecond: rotationsPerSecond(this.currentRotationSpeed(this.currentWeapon()!)) } : undefined,
       }),
+      bossPreview: () => window.__BOSS_PREVIEW__?.(),
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (this.canvasUiPointerDownHandler) this.game.canvas.removeEventListener('pointerdown', this.canvasUiPointerDownHandler, true);
@@ -740,6 +777,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
         definitions.push({ key: this.skinWalkAnimationKey(skin, direction), end: 3, frameRate: 9, repeat: -1 });
       });
+    });
+    PLAYER_SKIN_ART_SHEETS.forEach(({ key }) => {
+      definitions.push({ key, end: 3, frameRate: 9, repeat: -1 });
     });
     definitions.forEach(({ key, end, frameRate, repeat }) => {
       if (!this.anims.exists(key) && this.textures.exists(key)) {
@@ -790,6 +830,48 @@ export class HospitalBattleScene extends Phaser.Scene {
         });
       }
     });
+    MAINLINE_BOSS_ART_VARIANT_LIST.forEach((variant) => {
+      if (!this.anims.exists(variant.walkKey) && this.textures.exists(variant.walkKey)) {
+        this.anims.create({
+          key: variant.walkKey,
+          frames: this.anims.generateFrameNumbers(variant.walkKey, { start: 0, end: 3 }),
+          frameRate: variant.walkFrameRate,
+          repeat: -1,
+        });
+      }
+      if (!this.anims.exists(variant.attackKey) && this.textures.exists(variant.attackKey)) {
+        this.anims.create({
+          key: variant.attackKey,
+          frames: this.anims.generateFrameNumbers(variant.attackKey, { start: 0, end: 3 }),
+          frameRate: variant.attackFrameRate,
+          repeat: 0,
+        });
+      }
+    });
+    if (!this.anims.exists(MOON_MOTH_QUEEN_ART.walkKey) && this.textures.exists(MOON_MOTH_QUEEN_ART.walkKey)) {
+      this.anims.create({
+        key: MOON_MOTH_QUEEN_ART.walkKey,
+        frames: this.anims.generateFrameNumbers(MOON_MOTH_QUEEN_ART.walkKey, { start: 0, end: 3 }),
+        frameRate: MOON_MOTH_QUEEN_WALK_FRAME_RATE,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists(MOON_MOTH_QUEEN_ART.attackKey) && this.textures.exists(MOON_MOTH_QUEEN_ART.attackKey)) {
+      this.anims.create({
+        key: MOON_MOTH_QUEEN_ART.attackKey,
+        frames: this.anims.generateFrameNumbers(MOON_MOTH_QUEEN_ART.attackKey, { start: 0, end: 3 }),
+        frameRate: MOON_MOTH_QUEEN_ATTACK_FRAME_RATE,
+        repeat: 0,
+      });
+    }
+    if (!this.anims.exists('moon-moth-queen-transform') && MOON_MOTH_QUEEN_ART.transformKeys.every((key) => this.textures.exists(key))) {
+      this.anims.create({
+        key: 'moon-moth-queen-transform',
+        frames: MOON_MOTH_QUEEN_ART.transformKeys.map((key) => ({ key, frame: 0 })),
+        frameRate: MOON_MOTH_QUEEN_TRANSFORM_FRAME_RATE,
+        repeat: 0,
+      });
+    }
   }
 
   private pickSmallEnemyArt(kind: SmallEnemyKind) {
@@ -824,6 +906,298 @@ export class HospitalBattleScene extends Phaser.Scene {
     return { body, visualWidth, visualHeight };
   }
 
+  private createMiniBossBody(variantId: MainlineBossVariantId, radius: number, color: number) {
+    const variant = MAINLINE_BOSS_ART_VARIANT_BY_ID[variantId];
+    const bossVisualScale = 0.26;
+    const visualHeight = Math.round(this.playerVisualHeight() * 2 * bossVisualScale);
+    const visualWidth = Math.round(visualHeight * variant.walkFrameWidth / variant.walkFrameHeight);
+    const body = this.add.container(0, 0);
+    const shadow = this.add.ellipse(0, visualHeight * 0.36, visualWidth * 0.54, Math.max(14, visualHeight * 0.08), 0x000000, 0.28);
+    const aura = this.add.ellipse(0, -visualHeight * 0.02, visualWidth * 0.72, visualHeight * 0.68, color, 0.1).setStrokeStyle(2, color, 0.32);
+    const sprite = this.add.sprite(0, 0, variant.walkKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    sprite.anims.play(variant.walkKey, true);
+    body.add([shadow, aura, sprite]);
+    return { body, visualWidth, visualHeight };
+  }
+
+  private createMoonMothQueenBody(radius: number, color: number) {
+    const bossVisualScale = 0.26;
+    const visualHeight = Math.round(this.playerVisualHeight() * 2 * bossVisualScale);
+    const visualWidth = Math.round(visualHeight * 0.66);
+    const body = this.add.container(0, 0);
+    const shadow = this.add.ellipse(0, visualHeight * 0.36, visualWidth * 0.54, Math.max(14, visualHeight * 0.08), 0x000000, 0.28);
+    const aura = this.add.ellipse(0, -visualHeight * 0.02, visualWidth * 0.74, visualHeight * 0.72, color, 0.12).setStrokeStyle(2, color, 0.45);
+    const transform = this.add.sprite(0, 0, MOON_MOTH_QUEEN_ART.transformKeys[0]).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    const walk = this.add.sprite(0, 0, MOON_MOTH_QUEEN_ART.walkKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    const attack = this.add.sprite(0, 0, MOON_MOTH_QUEEN_ART.attackKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    const portrait = this.add.image(0, 0, MOON_MOTH_QUEEN_ART.portraitKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    const death = this.add.image(0, 0, MOON_MOTH_QUEEN_ART.deathKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    [walk, attack, portrait, death].forEach((spriteNode) => spriteNode.setVisible(false));
+    body.add([shadow, aura, transform, walk, attack, portrait, death]);
+    return {
+      body,
+      visualWidth,
+      visualHeight,
+      bossVisual: {
+        artId: 'moon-moth-queen',
+        introText: '月蚀蝶后苏醒',
+        deathText: '月蚀蝶后坠落',
+        introDuration: 2.6,
+        state: 'transform' as BossVisualState,
+        stateTimer: 2.6,
+        introComplete: false,
+        shadow,
+        walkKey: MOON_MOTH_QUEEN_ART.walkKey,
+        attackKey: MOON_MOTH_QUEEN_ART.attackKey,
+        transformKey: 'moon-moth-queen-transform',
+        transform,
+        walk,
+        attack,
+        portrait,
+        death,
+        aura,
+      },
+    };
+  }
+
+  private setBossVisualState(enemy: Enemy, state: BossVisualState) {
+    const boss = enemy.bossVisual;
+    if (!boss) return;
+    if (boss.state === state && state !== 'transform') return;
+    boss.state = state;
+    boss.transform?.setVisible(state === 'transform');
+    boss.walk.setVisible(state === 'walk');
+    boss.attack.setVisible(state === 'attack');
+    boss.portrait.setVisible(state === 'death');
+    boss.death.setVisible(state === 'death');
+    boss.aura.setVisible(state !== 'death');
+    boss.shadow.setVisible(true);
+    if (state === 'transform') {
+      if (boss.transform && boss.transformKey && this.anims.exists(boss.transformKey)) {
+        boss.transform.anims.play(boss.transformKey, true);
+      } else {
+        boss.portrait.setVisible(true);
+      }
+    }
+    if (state === 'walk' && this.anims.exists(boss.walkKey)) {
+      boss.walk.anims.play(boss.walkKey, true);
+    }
+    if (state === 'attack' && this.anims.exists(boss.attackKey)) {
+      boss.attack.anims.play(boss.attackKey, true);
+    }
+  }
+
+  private updateBossFacing(enemy: Enemy, movingRight: boolean) {
+    const boss = enemy.bossVisual;
+    if (!boss) return;
+    const scaleX = movingRight ? -1 : 1;
+    boss.shadow.setScale(Math.abs(scaleX), 1);
+    boss.transform?.setScale(scaleX, 1);
+    boss.walk.setScale(scaleX, 1);
+    boss.attack.setScale(scaleX, 1);
+    boss.portrait.setScale(scaleX, 1);
+    boss.death.setScale(scaleX, 1);
+  }
+
+  private startBossEntrance(enemy: Enemy) {
+    if (!enemy.bossVisual) return;
+    this.bossIntroActive = true;
+    this.phase = 'boss-intro';
+    this.ui?.setVisible(true);
+    enemy.bossVisual.stateTimer = enemy.bossVisual.introDuration;
+    enemy.bossVisual.introComplete = false;
+    enemy.node.setAlpha(1);
+    enemy.node.setScale(1);
+    enemy.node.setPosition(enemy.node.x, enemy.node.y);
+    this.setBossVisualState(enemy, 'transform');
+    this.updateBossFacing(enemy, false);
+    this.cameras.main.flash(240, 182, 127, 198, false);
+    this.tweens.add({ targets: enemy.bossVisual.aura, scale: { from: 0.74, to: 1.08 }, alpha: { from: 0.2, to: 0.6 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.floatText(enemy.node.x, enemy.node.y - enemy.visualHeight / 2 - 18, enemy.bossVisual.introText, palette.violet, 16, 22, 1000);
+  }
+
+  private updateBossIntro(dt: number) {
+    const boss = this.enemies.find((enemy) => enemy.kind === 'boss' && !enemy.dead && enemy.bossVisual);
+    if (!boss || !boss.bossVisual) {
+      this.bossIntroActive = false;
+      this.phase = 'battle';
+      return;
+    }
+    boss.bossVisual.stateTimer = Math.max(0, boss.bossVisual.stateTimer - dt);
+    const introDuration = Math.max(0.1, boss.bossVisual.introDuration);
+    const progress = 1 - clamp(boss.bossVisual.stateTimer / introDuration, 0, 1);
+    boss.bossVisual.aura.setAlpha(0.15 + progress * 0.55);
+    boss.bossVisual.aura.setScale(0.95 + progress * 0.18);
+    if (boss.bossVisual.stateTimer <= 0 && !boss.bossVisual.introComplete) {
+      boss.bossVisual.introComplete = true;
+      this.setBossVisualState(boss, 'walk');
+      boss.bossVisual.walk.setAlpha(1);
+      boss.bossVisual.walk.anims.play(boss.bossVisual.walkKey, true);
+      boss.bossVisual.transform?.anims.stop();
+      boss.bossVisual.transform?.setVisible(false);
+      this.bossIntroActive = false;
+      this.phase = 'battle';
+      this.ui?.setVisible(true);
+      this.floatText(boss.node.x, boss.node.y - boss.visualHeight / 2 - 8, boss.bossVisual.artId === 'moon-moth-queen' ? '变身完成' : '首领就位', palette.green, 14, 20, 800);
+    }
+  }
+
+  private startBossDeath(enemy: Enemy) {
+    if (!enemy.bossVisual) return;
+    this.bossDeathActive = true;
+    this.phase = 'boss-death';
+    this.ui?.setVisible(true);
+    enemy.dead = true;
+    enemy.deathTimer = 3.4;
+    this.projectiles.forEach((shot) => shot.node.destroy());
+    this.projectiles = [];
+    this.tweens.killTweensOf(enemy.bossVisual.aura);
+    this.setBossVisualState(enemy, 'death');
+    enemy.bossVisual.portrait.setVisible(true);
+    enemy.bossVisual.death.setVisible(false);
+    enemy.bossVisual.aura.setVisible(true);
+    enemy.bossVisual.aura.setAlpha(0.2);
+    enemy.bossVisual.aura.setScale(0.86);
+    this.cameras.main.flash(180, 243, 214, 244, false);
+    this.tweens.add({ targets: enemy.bossVisual.portrait, scale: { from: 0.94, to: 1.08 }, duration: 520, yoyo: true, repeat: 1, ease: 'Sine.InOut' });
+    this.time.delayedCall(760, () => {
+      if (!enemy.bossVisual || !enemy.node.active) return;
+      enemy.bossVisual.portrait.setVisible(false);
+      enemy.bossVisual.death.setVisible(true);
+      this.tweens.add({ targets: enemy.bossVisual.death, alpha: { from: 0, to: 1 }, duration: 220, yoyo: true, repeat: 1 });
+    });
+    this.time.delayedCall(1320, () => {
+      if (!enemy.bossVisual || !enemy.node.active) return;
+      this.tweens.add({ targets: enemy.bossVisual.aura, alpha: 0, scale: 1.18, duration: 760, ease: 'Sine.Out' });
+    });
+    this.floatText(enemy.node.x, enemy.node.y - enemy.visualHeight / 2 - 16, enemy.bossVisual.deathText, palette.amber, 16, 28, 1100);
+  }
+
+  private startBossPreviewShowcase() {
+    this.bossPreviewActive = true;
+    this.bossIntroActive = false;
+    this.bossDeathActive = false;
+    this.releaseJoystick();
+    this.releaseUiPointer();
+    this.releaseFloorScroll();
+    this.clearOverlay();
+    this.clearRunObjects();
+    this.phase = 'battle';
+    this.runMode = 'mainline';
+    this.floor = 1;
+    this.selectedWeaponId = 'knife';
+    this.weapons = this.createWeaponRoster();
+    this.weapons.forEach((weapon) => { weapon.owned = weapon.id === 'knife'; });
+    this.createPlayer();
+    this.cameras.main.setBounds(WORLD_BOUNDS.left, WORLD_BOUNDS.top, WORLD_BOUNDS.right - WORLD_BOUNDS.left, WORLD_BOUNDS.bottom - WORLD_BOUNDS.top);
+    this.cameras.main.setZoom(this.gameplayCameraZoom);
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.wave = this.wavesPerFloor();
+    this.waveLength = this.durationForWave();
+    this.waveTimer = this.waveLength;
+    this.waveSpawned = this.spawnBudgetForWave();
+    this.waveBossSpawned = true;
+    this.spawnTimer = Number.POSITIVE_INFINITY;
+    this.elapsed = 0;
+    this.xp = 0;
+    this.level = 1;
+    this.xpNeed = experienceRequiredForLevel(this.level);
+    this.updateHud();
+    const stats = enemyCombatStats('boss', this.wave);
+    const radius = stats.radius;
+    const x = (WORLD_BOUNDS.left + WORLD_BOUNDS.right) / 2;
+    const y = (WORLD_BOUNDS.top + WORLD_BOUNDS.bottom) / 2;
+    const node = this.add.container(x, y).setDepth(7);
+    const boss = this.createMoonMothQueenBody(radius, this.enemyColor('boss'));
+    node.add(boss.body);
+    this.world.add(node);
+    const enemy: Enemy = {
+      kind: 'boss',
+      node,
+      body: boss.body,
+      baseHp: 999999,
+      hpScale: 1,
+      hp: 999999,
+      maxHp: 999999,
+      speed: stats.speed,
+      damage: stats.damage,
+      radius,
+      visualWidth: boss.visualWidth,
+      visualHeight: boss.visualHeight,
+      facingRight: false,
+      attackCd: 0.2,
+      shootCd: 1.8,
+      areaCd: 2.5,
+      flash: 0,
+      meleeHitCd: 0,
+      deathTimer: 0,
+      statusTimer: 0,
+      statusTick: 0,
+      bossVisual: boss.bossVisual,
+    };
+    (node as Phaser.GameObjects.Container & { hpBar?: Phaser.GameObjects.Graphics }).hpBar = this.add.graphics();
+    this.enemies = [enemy];
+    this.startBossEntrance(enemy);
+    this.time.delayedCall(5200, () => {
+      if (!this.bossPreviewActive) return;
+      const previewBoss = this.enemies.find((candidate) => candidate.kind === 'boss' && candidate.bossVisual && !candidate.dead);
+      if (previewBoss) this.startBossDeath(previewBoss);
+    });
+    this.time.delayedCall(9000, () => {
+      if (!this.bossPreviewActive) return;
+      this.bossPreviewActive = false;
+      const previewBoss = this.enemies.find((candidate) => candidate.kind === 'boss' && candidate.bossVisual);
+      previewBoss?.node.destroy();
+      this.enemies = this.enemies.filter((candidate) => candidate !== previewBoss);
+      this.bossDeathActive = false;
+      this.showStart();
+    });
+  }
+
+  private applySkinTextureFilters() {
+    const textureKeys = new Set<string>([
+      'patient-boy',
+      'patient-idle-front',
+      'patient-hit',
+      'patient-death',
+      ...(['left', 'right', 'up', 'down'] as PlayerDirection[]).flatMap((direction) => [`patient-walk-${direction}`]),
+      ...PLAYER_SKIN_ART_IMAGES.map(({ key }) => key),
+      ...PLAYER_SKIN_ART_SHEETS.map(({ key }) => key),
+      ...this.skins.flatMap((skin) => skin.assetPrefix
+        ? [
+            this.skinFrontTextureKey(skin),
+            ...(['left', 'right', 'up', 'down'] as PlayerDirection[]).map((direction) => this.skinWalkTextureKey(skin, direction)),
+          ]
+        : []),
+    ]);
+    textureKeys.forEach((key) => {
+      if (this.textures.exists(key)) this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    });
+  }
+
+  private updateBossDeath(dt: number) {
+    const boss = this.enemies.find((enemy) => enemy.kind === 'boss' && enemy.dead && enemy.bossVisual);
+    if (!boss || !boss.bossVisual) {
+      this.bossDeathActive = false;
+      this.phase = 'result';
+      return;
+    }
+    boss.deathTimer = Math.max(0, boss.deathTimer - dt);
+    const progress = 1 - clamp(boss.deathTimer / 3.4, 0, 1);
+    boss.node.setAlpha(1);
+    boss.bossVisual.aura.setAlpha(Math.max(0, 0.22 - progress * 0.22));
+    boss.bossVisual.portrait.setAlpha(Math.max(0, 1 - progress * 1.1));
+    boss.bossVisual.death.setAlpha(Math.min(1, progress * 1.4));
+    boss.node.setScale(1 + progress * 0.02);
+    if (boss.deathTimer <= 0) {
+      if (this.bossPreviewActive) return;
+      boss.node.destroy();
+      this.enemies = this.enemies.filter((enemy) => enemy !== boss);
+      this.bossDeathActive = false;
+      this.showResult(true);
+    }
+  }
+
   private playerLabelY(extra = 0) {
     return this.player.y - this.playerVisualHeight() / 2 - extra;
   }
@@ -839,6 +1213,16 @@ export class HospitalBattleScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     const dt = Math.min(delta / 1000, 0.05) * this.gameSpeed;
     this.updateTutorialGuide(dt);
+    if (this.phase === 'boss-intro') {
+      this.updateBossIntro(dt);
+      this.updateHud();
+      return;
+    }
+    if (this.phase === 'boss-death') {
+      this.updateBossDeath(dt);
+      this.updateHud();
+      return;
+    }
     if (this.phase === 'wave-break') {
       this.elapsed += dt;
       this.waveBreakTimer = Math.max(0, this.waveBreakTimer - dt);
@@ -917,8 +1301,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     for (let x = WORLD_BOUNDS.left + 20; x <= WORLD_BOUNDS.right - 20; x += 35) bg.lineBetween(x, WORLD_BOUNDS.top + 20, x, WORLD_BOUNDS.bottom - 20);
     for (let y = WORLD_BOUNDS.top + 20; y <= WORLD_BOUNDS.bottom - 20; y += 35) bg.lineBetween(WORLD_BOUNDS.left + 20, y, WORLD_BOUNDS.right - 20, y);
     bg.lineStyle(2, 0x3b5b62, 0.55).strokeRect(WORLD_BOUNDS.left + 20, WORLD_BOUNDS.top + 20, WORLD_BOUNDS.right - WORLD_BOUNDS.left - 40, WORLD_BOUNDS.bottom - WORLD_BOUNDS.top - 40);
-    bg.lineStyle(3, 0x6bd3c1, 0.12);
-    this.walls.forEach((wall) => bg.strokeRect(wall.x, wall.y, wall.width, wall.height));
     this.world.add(bg);
   }
 
@@ -992,10 +1374,10 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private weaponVisualSpec(weapon: Weapon) {
     const specs: Record<WeaponClass, { width: number; height: number; originX: number; originY: number; rotation: number }> = {
-      sword: { width: 92, height: 92, originX: 0.15, originY: 0.75, rotation: -Math.PI / 4 },
+      sword: { width: 92, height: 92, originX: 0.15, originY: 0.75, rotation: Math.PI / 4 },
       gun: { width: 106, height: 106, originX: 0.16, originY: 0.72, rotation: 0 },
       whip: { width: 100, height: 100, originX: 0.14, originY: 0.75, rotation: 0 },
-      cannon: { width: 96, height: 96, originX: 0.15, originY: 0.74, rotation: -Math.PI / 4 },
+      cannon: { width: 96, height: 96, originX: 0.15, originY: 0.74, rotation: Math.PI / 4 },
     };
     return specs[weapon.weaponClass];
   }
@@ -1222,7 +1604,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
-        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string') : ['patient-default', 'investigator-normal'],
+        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string') : DEFAULT_UNLOCKED_SKIN_IDS,
         equippedSkinId: typeof parsed.equippedSkinId === 'string' ? parsed.equippedSkinId : 'patient-default',
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
         dailyCompletedDate: typeof parsed.dailyCompletedDate === 'string' ? parsed.dailyCompletedDate : undefined,
@@ -1244,10 +1626,9 @@ export class HospitalBattleScene extends Phaser.Scene {
         }
       });
       if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
-      if (!this.progress.unlockedSkinIds.includes('investigator-normal')) this.progress.unlockedSkinIds.splice(1, 0, 'investigator-normal');
       if (!this.progress.unlockedSkinIds.includes(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
     } catch {
-      this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default', 'investigator-normal'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
+      this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: DEFAULT_UNLOCKED_SKIN_IDS.slice(), equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
     }
   }
 
@@ -1533,6 +1914,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private showStart() {
     this.phase = 'start';
+    this.bossPreviewActive = false;
     this.ui?.setVisible(false);
     this.clearOverlay();
     document.getElementById('game-shell')?.classList.add('menu-shell');
@@ -1715,7 +2097,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       bomber: '裂口爆体',
       eye: '异化眼球',
       miniBoss: '巡夜首领',
-      boss: '月蚀狼王',
+      boss: '楼层首领',
     };
     return labels[kind];
   }
@@ -1730,7 +2112,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     let sprite: Phaser.GameObjects.Sprite | undefined;
     if (kind === 'boss' || kind === 'miniBoss') {
-      const key = kind === 'boss' ? 'floor-boss-01' : 'mini-boss-01';
+      const key = kind === 'boss'
+        ? MOON_MOTH_QUEEN_ART.portraitKey
+        : Phaser.Utils.Array.GetRandom(MAINLINE_BOSS_ART_VARIANT_LIST).portraitKey;
       if (this.textures.exists(key)) sprite = this.add.sprite(0, -10, key, 0).setOrigin(0.5).setDisplaySize(68, 68);
     } else {
       const artKey = SMALL_ENEMY_ART_VARIANTS[kind as SmallEnemyKind]?.[0];
@@ -1940,9 +2324,17 @@ export class HospitalBattleScene extends Phaser.Scene {
     void height;
     void fill;
     void accent;
-    // Legacy vector panels are intentionally blank. Pages now use authored
-    // raster frames where one exists, otherwise content sits directly on the scene.
     const frame = this.add.container(x, y);
+    frame.add(this.add.rectangle(4, 4, width, height, 0x03060a, 0.96));
+    frame.add(this.add.rectangle(0, 0, width, height, fill, 0.98).setStrokeStyle(2, 0x080d13, 1));
+    frame.add(this.add.rectangle(0, 0, width - 10, height - 10, fill, 0).setStrokeStyle(1, accent, 0.45));
+    const corners = this.add.graphics();
+    corners.lineStyle(3, accent, 0.9);
+    corners.lineBetween(-width / 2 + 6, -height / 2 + 14, -width / 2 + 6, -height / 2 + 6);
+    corners.lineBetween(-width / 2 + 6, -height / 2 + 6, -width / 2 + 14, -height / 2 + 6);
+    corners.lineBetween(width / 2 - 14, height / 2 - 6, width / 2 - 6, height / 2 - 6);
+    corners.lineBetween(width / 2 - 6, height / 2 - 6, width / 2 - 6, height / 2 - 14);
+    frame.add(corners);
     parent.add(frame);
     return frame;
   }
@@ -2358,9 +2750,11 @@ export class HospitalBattleScene extends Phaser.Scene {
       layer.add(this.add.text(525 + layoutShift, y, unlocked ? `${skin.name}${setText}` : '??? 未解锁', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: unlocked ? (skin.id === this.progress.equippedSkinId ? palette.amber : palette.cream) : palette.muted }).setFixedSize(245, 20));
       if (unlocked) {
         this.addButton(layer, 780 + layoutShift, y + 2, 96, 24, skin.id === this.progress.equippedSkinId ? '已装备' : '装备', () => this.equipSkin(skin.id), skin.id === this.progress.equippedSkinId ? 'muted' : 'primary', 10);
-      } else if (skin.id !== 'scarlet-night') {
+      } else if (skin.category === 'boss') {
+        this.addButton(layer, 780 + layoutShift, y + 2, 96, 24, '去挑战', () => this.showDailyChallenge(), 'muted', 10);
+      } else {
         const cost = this.skinPurchaseCost(skin.id);
-        this.addButton(layer, 780 + layoutShift, y + 2, 96, 24, `购买 ${cost}`, () => this.buySkin(skin.id), 'primary', 10);
+        this.addButton(layer, 780 + layoutShift, y + 2, 96, 24, cost <= 0 ? '领取' : `购买 ${cost}`, () => this.buySkin(skin.id), 'primary', 10);
       }
     });
     layer.add(this.add.text(525 + layoutShift, this.safeBottomY(652, 18), `病例残页 ${this.progress.metaCoins} · 套装加成在进入战斗时生效`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setFixedSize(390, 14));
@@ -2417,17 +2811,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     const previewEquipped = previewSkin.id === this.progress.equippedSkinId;
     const previewStatus = previewUnlocked
       ? (previewEquipped ? '当前已装备' : '已解锁，可装备')
-      : previewSkin.id === 'scarlet-night'
+      : previewSkin.category === 'boss'
         ? 'BOSS 掉落 · 完成每日挑战解锁'
-        : `购买价格 · ${this.skinPurchaseCost(previewSkin.id)} 创游货币`;
+        : this.skinPurchaseCost(previewSkin.id) <= 0
+          ? '免费领取'
+          : `购买价格 · ${this.skinPurchaseCost(previewSkin.id)} 创游货币`;
     detail.add(this.add.text(-218, 8, previewStatus, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: previewUnlocked ? palette.green : palette.amber, wordWrap: { width: 265 } }));
     layer.add(detail);
     if (previewUnlocked) {
         this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, previewEquipped ? '已装备' : '装备', () => this.equipSkin(previewSkin.id), previewEquipped ? 'muted' : 'primary', 8);
-    } else if (previewSkin.id === 'scarlet-night') {
+    } else if (previewSkin.category === 'boss') {
       this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, '前往挑战', () => this.showDailyChallenge(), 'muted', 8);
     } else {
-      this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, `购买 ${this.skinPurchaseCost(previewSkin.id)}`, () => this.buySkin(previewSkin.id), 'primary', 8);
+      const cost = this.skinPurchaseCost(previewSkin.id);
+      this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, cost <= 0 ? '领取' : `购买 ${cost}`, () => this.buySkin(previewSkin.id), 'primary', 8);
     }
 
     const visibleSkins = this.skins.filter((skin) => this.profileSkinCategory === 'all' || this.profileSkinCategoryFor(skin) === this.profileSkinCategory);
@@ -2485,7 +2882,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const caseMuted = '#5c675f';
     const boardX = 340 + layoutShift;
     const boardY = 408;
-    const board = this.add.container(boardX, boardY);
+    // Keep the case sheet close to the skin panel width and scale every
+    // child with it so text, barcode, and portrait retain their proportions.
+    const caseSheetScale = 574 / 650;
+    const board = this.add.container(boardX, boardY).setScale(caseSheetScale);
     if (this.textures.exists('profile-case-sheet-v2')) {
       board.add(this.add.image(0, 0, 'profile-case-sheet-v2').setOrigin(0.5).setDisplaySize(650, 406).setAlpha(0.98));
     } else {
@@ -2512,7 +2912,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       : previewSkin.id === 'scarlet-night'
         ? '去挑战'
         : `购买 ${this.skinPurchaseCost(previewSkin.id)}`;
-    this.addButton(layer, boardX + 164, boardY + 136, 88, 26, previewAction, () => {
+    this.addButton(layer, boardX + 164 * caseSheetScale, boardY + 136 * caseSheetScale, 88 * caseSheetScale, 26 * caseSheetScale, previewAction, () => {
       if (previewUnlocked) this.equipSkin(previewSkin.id);
       else if (previewSkin.id === 'scarlet-night') this.showDailyChallenge();
       else void this.buySkin(previewSkin.id);
@@ -2567,14 +2967,15 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.profileSkinPage = clamp(this.profileSkinPage, 0, profileSkinPageCount - 1);
     const pageSkins = visibleSkins.slice(this.profileSkinPage * 6, this.profileSkinPage * 6 + 6);
     const skinGridTop = 314;
-    const skinGridGapY = 184;
-    this.profileSkinViewport = { left: skinPanelX - 280, right: skinPanelX + 280, top: 232, bottom: 642 };
+    const skinGridColumnGap = 146;
+    const skinGridGapY = 172;
+    this.profileSkinViewport = { left: skinPanelX - 280, right: skinPanelX + 280, top: 232, bottom: 606 };
     pageSkins.forEach((skin, index) => {
       const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
       const selected = skin.id === this.profilePreviewSkinId;
       const column = index % 3;
       const row = Math.floor(index / 3);
-      const x = skinPanelX - 172 + column * 172;
+      const x = skinPanelX - skinGridColumnGap + column * skinGridColumnGap;
       const y = skinGridTop + row * skinGridGapY;
       const card = this.add.container(x, y);
       const frameIndex = unlocked ? (selected ? 1 : 0) : 2;
@@ -2615,10 +3016,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (profileSkinPageCount > 1) {
       const pageY = this.safeTopY(252, 8);
       if (this.profileSkinPage > 0) {
-        this.addImageAction(layer, skinPanelX - 274, pageY, 56, 56, 'profile-arrow-left-v1', () => this.setProfileSkinPage(this.profileSkinPage - 1, profileSkinPageCount));
+        this.addImageAction(layer, skinPanelX - 266, pageY, 64, 64, 'profile-arrow-left-v1', () => this.setProfileSkinPage(this.profileSkinPage - 1, profileSkinPageCount));
       }
       if (this.profileSkinPage < profileSkinPageCount - 1) {
-        this.addImageAction(layer, skinPanelX + 274, pageY, 56, 56, 'profile-arrow-right-v1', () => this.setProfileSkinPage(this.profileSkinPage + 1, profileSkinPageCount));
+        this.addImageAction(layer, skinPanelX + 266, pageY, 64, 64, 'profile-arrow-right-v1', () => this.setProfileSkinPage(this.profileSkinPage + 1, profileSkinPageCount));
       }
       layer.add(this.add.text(skinPanelX, pageY, `${this.profileSkinPage + 1} / ${profileSkinPageCount}`, { fontFamily: 'Courier New', fontSize: '10px', color: palette.muted }).setOrigin(0.5));
     }
@@ -2630,10 +3031,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private profileSkinCategoryFor(skin: SkinDef): ProfileSkinCategory {
-    if (skin.id === 'patient-default') return 'basic';
-    if (skin.id === 'investigator-normal') return 'basic';
-    if (skin.id === 'scarlet-night') return 'boss';
-    return 'store';
+    return skin.category;
   }
 
   private previewSkin(id: string) {
@@ -2655,7 +3053,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private skinPurchaseCost(id: string) {
-    return id === 'investigator-normal' ? 0 : id === 'cyan-ward' ? 20 : id === 'violet-dream' ? 15 : id === 'street-runner' ? 25 : id === 'cthulhu-dark' ? 40 : 999;
+    return skinDefForId(id)?.cost ?? 999;
   }
 
   private async buySkin(id: string) {
@@ -2663,10 +3061,19 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.equipSkin(id);
       return;
     }
-    if (id === 'scarlet-night') return;
+    if (skinDefForId(id)?.category === 'boss') return;
     if (this.skinPaymentPending) return;
     this.skinPaymentPending = true;
     try {
+      const cost = this.skinPurchaseCost(id);
+      if (cost <= 0) {
+        this.progress.unlockedSkinIds.push(id);
+        this.progress.equippedSkinId = id;
+        this.profilePreviewSkinId = id;
+        this.saveProgress();
+        this.showProfile();
+        return;
+      }
       const sdk = window.Builda;
       if (sdk?.pay?.showPayPanel) {
         const saleId = this.configuredSkinSaleId(id);
@@ -2674,7 +3081,6 @@ export class HospitalBattleScene extends Phaser.Scene {
         const result = await sdk.pay.showPayPanel(saleId, { timeoutMs: 15000 });
         if (!result.ok || !result.data.success) return;
       } else {
-        const cost = this.skinPurchaseCost(id);
         if (this.progress.metaCoins < cost) return;
         this.progress.metaCoins -= cost;
       }
@@ -2761,16 +3167,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.addUiTextTexture(layer, centerX, this.safeTopY(72, 8), 230, 88, 'ui-text-daily-v1', '每日挑战', 29);
 
     const bossX = clamp(205 + layoutShift, safe.left + 165, safe.right - 165);
-    const bossPanel = this.add.container(bossX, 220);
-    layer.add(bossPanel);
-    this.addUiTextTexture(layer, bossX, 112, 150, 52, 'ui-text-boss-month-v1', '本月首领', 16, palette.violet);
-    if (this.textures.exists('boss-moon-wolf')) {
-      bossPanel.add(this.add.image(0, -2, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(250, 180));
+    const bossPanel = this.addDailyPanelFrame(layer, bossX, 220, 330, 250);
+    layer.add(cthulhuText(bossX, 79, '本月首领', 15, palette.violet));
+    if (this.textures.exists(MOON_MOTH_QUEEN_ART.portraitKey)) {
+      bossPanel.add(this.add.image(0, -2, MOON_MOTH_QUEEN_ART.portraitKey).setOrigin(0.5).setDisplaySize(250, 180));
     } else {
       bossPanel.add(this.add.circle(0, -2, 64, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
       bossPanel.add(this.add.text(0, -2, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
     }
-    this.addUiTextTexture(layer, bossX, 407, 154, 48, 'ui-text-boss-drop-v1', 'BOSS 掉落', 14, palette.violet);
+    layer.add(cthulhuText(bossX, 355, '月蚀蝶后', 20));
+    layer.add(cthulhuText(bossX, 407, '变身 · 追踪攻击 · 范围冲击', 14, palette.violet));
     const dropItems = [
       { texture: 'relic-crown', label: '月蚀王冠' },
       { texture: 'relic-fang', label: '狼王牙' },
@@ -2886,14 +3292,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const bossX = clamp(205 + layoutShift, safe.left + 155, safe.right - 155);
     const bossPanel = this.addDailyPanelFrame(layer, bossX, 215, 310, 255);
     bossPanel.add(this.add.text(-116, -101, '本月首领', { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.violet }).setFontStyle('bold'));
-    if (this.textures.exists('boss-moon-wolf')) {
-      bossPanel.add(this.add.image(0, -8, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(210, 142));
+    if (this.textures.exists(MOON_MOTH_QUEEN_ART.portraitKey)) {
+      bossPanel.add(this.add.image(0, -8, MOON_MOTH_QUEEN_ART.portraitKey).setOrigin(0.5).setDisplaySize(210, 142));
     } else {
       bossPanel.add(this.add.circle(0, -8, 56, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
       bossPanel.add(this.add.text(0, -8, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
     }
-    bossPanel.add(this.add.text(0, 79, '月蚀狼王', { fontFamily: 'Microsoft YaHei', fontSize: '19px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    bossPanel.add(this.add.text(0, 105, '范围攻击  /  追踪爆裂', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    bossPanel.add(this.add.text(0, 79, '月蚀蝶后', { fontFamily: 'Microsoft YaHei', fontSize: '19px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    bossPanel.add(this.add.text(0, 105, '变身过场  /  追踪攻击  /  范围冲击', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
     layer.add(bossPanel);
 
     const dropPanel = this.addDailyPanelFrame(layer, bossX, 492, 310, 175);
@@ -3013,7 +3419,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
 
     const bossEntries: Array<{ kind: EnemyKind; name: string; skill: string }> = [
-      { kind: 'miniBoss', name: '第 7 波 · 小首领', skill: '冲击领域 + 追踪爆弹' },
+      { kind: 'miniBoss', name: '第 10 波 · 小首领', skill: '冲击领域 + 追踪爆弹' },
       { kind: 'boss', name: '楼层首领', skill: '领域攻击 + 激光锁定 + 爆炸冲击' },
     ];
     layer.add(this.add.text(centerX, 382, '首领图鉴', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
@@ -3021,7 +3427,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       const unlocked = this.archiveKindUnlocked(entry.kind);
       const x = 490 + layoutShift + index * 300;
       const color = unlocked ? this.enemyColor(entry.kind) : 0x46545a;
-      const stats = enemyCombatStats(entry.kind, entry.kind === 'boss' ? this.wavesPerFloor() : 7);
+      const stats = enemyCombatStats(entry.kind, entry.kind === 'boss' ? this.wavesPerFloor() : 10);
       const card = this.add.container(x, 430);
       card.add(this.add.rectangle(0, 0, 270, 72, 0x1d2930, 1).setStrokeStyle(2, color, 0.9));
       card.add(this.add.circle(-104, 0, 23, color, unlocked ? 0.28 : 0.08).setStrokeStyle(1, color, 1));
@@ -3130,7 +3536,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.rotationUpgradeStacks = 0;
     this.rotationStacksConvertedToAmmo = 0;
     this.waveBossSpawned = false;
-    this.runSpeed = 190;
+    this.runSpeed = 380;
     this.pickupRadius = DEFAULT_PICKUP_RADIUS;
     this.magnet = 0;
     this.gameSpeed = 1;
@@ -3172,6 +3578,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.playerDeathPending = false;
     this.createPlayer();
     this.cameras.main.setBounds(WORLD_BOUNDS.left, WORLD_BOUNDS.top, WORLD_BOUNDS.right - WORLD_BOUNDS.left, WORLD_BOUNDS.bottom - WORLD_BOUNDS.top);
+    this.cameras.main.setZoom(this.gameplayCameraZoom);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.updateHud();
     if (this.tutorialRun) this.showDialogue();
@@ -3360,25 +3767,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     let body: Phaser.GameObjects.Container;
     let visualWidth = radius * 2;
     let visualHeight = radius * 2;
+    let bossVisual: Enemy['bossVisual'] | undefined;
     if (isBoss) {
-      const bossTextureKey = kind === 'boss' ? 'floor-boss-01' : 'mini-boss-01';
-      if (this.textures.exists(bossTextureKey)) {
-        const displaySize = kind === 'boss' ? 216 : 164;
-        const shadow = this.add.ellipse(0, displaySize * 0.36, displaySize * 0.62, displaySize * 0.18, 0x000000, 0.42);
-        const sprite = this.add.image(0, 0, bossTextureKey).setOrigin(0.5).setDisplaySize(displaySize, displaySize);
-        body = this.add.container(0, 0, [shadow, sprite]);
-        visualWidth = displaySize;
-        visualHeight = displaySize;
+      if (kind === 'boss') {
+        const boss = this.createMoonMothQueenBody(radius, color);
+        body = boss.body;
+        visualWidth = boss.visualWidth;
+        visualHeight = boss.visualHeight;
+        bossVisual = boss.bossVisual;
       } else {
-        const s = kind === 'boss' ? 1.45 : 1;
-        const g = this.add.graphics();
-        g.fillStyle(0x000000, .45); g.fillEllipse(0, 75 * s, 145 * s, 25 * s);
-        g.fillStyle(0x15161b); g.fillEllipse(0, 5 * s, 100 * s, 150 * s); g.fillCircle(0, -58 * s, 48 * s);
-        g.fillStyle(color, .55); g.fillCircle(-45 * s, 0, 42 * s); g.fillCircle(45 * s, 0, 42 * s);
-        const enemyGlyph = this.add.text(0, 0, this.enemyGlyph(kind), { fontFamily: 'Microsoft YaHei', fontSize: `${kind === 'boss' ? 20 : 12}px`, color: '#101820' }).setOrigin(0.5);
-        body = this.add.container(0, 0, [g, enemyGlyph]);
-        visualWidth = Math.round(radius * (kind === 'boss' ? 4.8 : 4.2));
-        visualHeight = Math.round(radius * (kind === 'boss' ? 5.1 : 4.4));
+        const variant = Phaser.Utils.Array.GetRandom(MAINLINE_BOSS_ART_VARIANT_LIST);
+        const miniBoss = this.createMiniBossBody(variant.id, radius, color);
+        body = miniBoss.body;
+        visualWidth = miniBoss.visualWidth;
+        visualHeight = miniBoss.visualHeight;
       }
     } else {
       const small = this.createSmallEnemyBody(kind as SmallEnemyKind, radius, color);
@@ -3393,9 +3795,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     node.add(hpBar);
     this.world.add(node);
     const enemy: Enemy = { kind, node, body, baseHp, hpScale, hp, maxHp: hp, speed: stats.speed, damage: stats.damage, radius, visualWidth, visualHeight, facingRight: false, attackCd: 0.2, shootCd: 1.8, areaCd: 2.5, flash: 0, meleeHitCd: 0, deathTimer: 0, statusTimer: 0, statusTick: 0 };
+    if (bossVisual) enemy.bossVisual = bossVisual;
     (node as Phaser.GameObjects.Container & { hpBar?: Phaser.GameObjects.Graphics }).hpBar = hpBar;
     this.enemies.push(enemy);
     this.waveSpawned += 1;
+    if (enemy.bossVisual) this.startBossEntrance(enemy);
   }
 
   private findSpawnPoint(radius: number) {
@@ -3452,7 +3856,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private isMiniBossWave() {
-    return this.runMode === 'mainline' && !this.tutorialRun && this.wave === 7;
+    return this.runMode === 'mainline' && !this.tutorialRun && this.wave === 10;
   }
 
   private isTutorialBossWave() {
@@ -3541,22 +3945,50 @@ export class HospitalBattleScene extends Phaser.Scene {
       }
       if (enemy.dead) continue;
       const dist = distance(enemy.node, this.player);
-      if (enemy.kind === 'boss' || enemy.kind === 'miniBoss') {
-        if (dist > 220) this.moveEnemy(enemy, dt, 0.55);
-        if (enemy.shootCd <= 0 && dist < 720) {
-          enemy.shootCd = enemy.kind === 'boss' ? 4.2 : 5.2;
-          if (enemy.kind === 'boss') this.enemyBeam(enemy);
-          else this.enemyBomb(enemy);
+      if (enemy.kind === 'boss' && enemy.bossVisual) {
+        const moving = dist > 260;
+        if (moving) {
+          this.setBossVisualState(enemy, 'walk');
+          this.moveEnemy(enemy, dt, 0.58);
+        } else {
+          this.setBossVisualState(enemy, 'attack');
+          enemy.node.setPosition(enemy.node.x, enemy.node.y);
+        }
+        this.updateBossFacing(enemy, this.player.x > enemy.node.x);
+        if (enemy.shootCd <= 0 && dist < 760) {
+          enemy.shootCd = 3.9;
+          this.setBossVisualState(enemy, 'attack');
+          this.enemyBeam(enemy);
+          this.time.delayedCall(260, () => {
+            if (!enemy.dead && enemy.bossVisual && this.phase === 'battle') this.setBossVisualState(enemy, distance(enemy.node, this.player) > 260 ? 'walk' : 'attack');
+          });
         }
         if (enemy.areaCd <= 0) {
-          enemy.areaCd = enemy.kind === 'boss' ? 5.6 : 6.4;
-          const warningRadius = enemy.kind === 'boss' ? 145 : 116;
-          this.createAreaWarning(this.player.x, this.player.y, warningRadius, enemy.kind === 'boss' ? 0xed716e : 0xf2bf62);
-          if (dist < warningRadius) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 0.9), enemy.kind === 'boss' ? '楼层 Boss 领域' : '小首领冲击');
+          enemy.areaCd = 5.4;
+          const warningRadius = 150;
+          this.createAreaWarning(this.player.x, this.player.y, warningRadius, 0xed716e);
+          if (dist < warningRadius) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 0.9), '楼层 Boss 领域');
+        }
+        if (dist < enemy.radius + 34 && enemy.attackCd <= 0) {
+          enemy.attackCd = 1.2;
+          this.setBossVisualState(enemy, 'attack');
+          this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), '楼层 Boss');
+        }
+      } else if (enemy.kind === 'miniBoss') {
+        if (dist > 220) this.moveEnemy(enemy, dt, 0.55);
+        if (enemy.shootCd <= 0 && dist < 720) {
+          enemy.shootCd = 5.2;
+          this.enemyBomb(enemy);
+        }
+        if (enemy.areaCd <= 0) {
+          enemy.areaCd = 6.4;
+          const warningRadius = 116;
+          this.createAreaWarning(this.player.x, this.player.y, warningRadius, 0xf2bf62);
+          if (dist < warningRadius) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 0.9), '小首领冲击');
         }
         if (dist < enemy.radius + 30 && enemy.attackCd <= 0) {
           enemy.attackCd = 1.15;
-          this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), enemy.kind === 'boss' ? '楼层 Boss' : '小首领');
+          this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), '小首领');
         }
       } else if (enemy.kind === 'bomber') {
         if (dist < this.smallEnemyDistance(290)) this.moveEnemy(enemy, dt, -0.7);
@@ -3646,8 +4078,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const resolved = this.resolveBlockedPosition(nextX, nextY, enemy.radius);
     enemy.node.x = resolved.x;
     enemy.node.y = resolved.y;
-    if (enemy.kind !== 'boss' && enemy.kind !== 'miniBoss' && enemy.body && Math.abs(nextX - enemy.node.x) > 0.01) {
-      enemy.facingRight = nextX > enemy.node.x;
+    if (enemy.bossVisual) {
+      this.updateBossFacing(enemy, nextX > enemy.node.x);
+    } else if (enemy.kind !== 'miniBoss' && enemy.body) {
+      enemy.facingRight = dx > 0;
       enemy.body.setScale(enemy.facingRight ? -1 : 1, 1);
     }
   }
@@ -4148,22 +4582,28 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private killEnemy(enemy: Enemy) {
     if (enemy.dead) return;
-    enemy.dead = true;
-    enemy.deathTimer = 0.8;
-    const marker = this.add.text(0, -enemy.visualHeight / 2 - 8, 'X', { fontFamily: 'Arial', fontSize: '18px', color: '#f4e8c9', stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5);
-    enemy.node.add(marker);
-    this.tweens.add({ targets: marker, y: -enemy.visualHeight / 2 - 30, alpha: 0, duration: 800, onComplete: () => marker.destroy() });
-    this.tweens.add({ targets: enemy.node, alpha: 0, duration: 800 });
     this.spreadAttackStatus(enemy);
     this.kills += 1;
     if (this.runMode === 'daily' && this.dailyKillNova > 0) {
       const cadence = Math.max(6, 12 - this.dailyKillNova * 2);
       if (this.kills % cadence === 0) this.triggerKillNova(enemy.node.x, enemy.node.y);
     }
-    if (enemy.kind === 'boss') this.unlockArchiveKind('boss');
     const balanceWave = this.runMode === 'daily' ? Math.ceil(this.wave / 10) : this.wave;
     const stats = enemyCombatStats(enemy.kind, balanceWave);
     this.drop(enemy.node.x, enemy.node.y, 'xp', stats.xp);
+    if (enemy.kind === 'boss' && enemy.bossVisual) {
+      enemy.deathTimer = 3.4;
+      this.unlockArchiveKind('boss');
+      this.startBossDeath(enemy);
+      return;
+    }
+    enemy.dead = true;
+    enemy.deathTimer = 0.8;
+    const marker = this.add.text(0, -enemy.visualHeight / 2 - 8, 'X', { fontFamily: 'Arial', fontSize: '18px', color: '#f4e8c9', stroke: '#0b1117', strokeThickness: 3 }).setOrigin(0.5);
+    enemy.node.add(marker);
+    this.tweens.add({ targets: marker, y: -enemy.visualHeight / 2 - 30, alpha: 0, duration: 800, onComplete: () => marker.destroy() });
+    this.tweens.add({ targets: enemy.node, alpha: 0, duration: 800 });
+    if (enemy.kind === 'boss') this.unlockArchiveKind('boss');
   }
 
   private drop(x: number, y: number, kind: DropKind, value: number) {
@@ -4625,10 +5065,15 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     const safe = this.pageSafeBounds(12);
     const centerX = safe.centerX;
-    const layoutShift = centerX - W / 2;
+    const frameWidth = Math.min(1040, safe.width - 48);
+    const frameHeight = Math.min(600, safe.height - 48);
+    const frameY = clamp(safe.centerY + 4, safe.top + frameHeight / 2 + 8, safe.bottom - frameHeight / 2 - 8);
+    const frameTop = frameY - frameHeight / 2;
+    const frameBottom = frameY + frameHeight / 2;
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
-    layer.add(this.add.text(centerX, this.safeTopY(84, 8), `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(centerX, this.safeTopY(122, 8), '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
+    this.addPixelFrame(layer, centerX, frameY, frameWidth, frameHeight, 0x101b24, 0xb798e2);
+    layer.add(this.add.text(centerX, frameTop + 14, `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, frameTop + 52, '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
     const statusOptions: AttackStatus[] = ['poison', 'burn', 'weaken'];
     const status = this.activeAttackStatus ?? statusOptions[(this.level - 1) % statusOptions.length];
@@ -4640,11 +5085,14 @@ export class HospitalBattleScene extends Phaser.Scene {
         return this.upgradeDefinitionFromConfig(config, rarity, status, weapon);
       });
     const choices = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
+    const cardHeight = Math.min(356, Math.max(336, Math.round(frameHeight * 0.57)));
+    const cardWidth = Math.max(180, Math.min(240, Math.min(Math.round(cardHeight * 0.67), Math.floor((frameWidth - 88) / 3))));
+    const cardSpacing = Math.min(Math.round(frameWidth / 4), cardWidth + 22);
+    const cardXBase = centerX - cardSpacing;
+    const cardY = clamp(frameY - 35, frameTop + 244, frameBottom - cardHeight / 2 - 92);
     choices.forEach((choice, index) => {
-      const x = 390 + layoutShift + index * 250;
-      const cardWidth = 228;
-      const cardHeight = 342;
-      const card = this.add.container(x, 325).setSize(cardWidth, cardHeight).setInteractive({ useHandCursor: true });
+      const x = cardXBase + index * cardSpacing;
+      const card = this.add.container(x, cardY).setSize(cardWidth, cardHeight).setInteractive({ useHandCursor: true });
       const rarity = choice.rarity ?? 'blue';
       const rarityColor = rarity === 'gold' ? 0xffd18a : rarity === 'purple' ? 0xb798e2 : 0x5f9dff;
       const cardTextColor = rarity === 'blue' ? '#d9edf3' : rarity === 'purple' ? '#2c2033' : '#3b2818';
@@ -4707,7 +5155,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       card.on('pointerout', () => selectionFrame.setVisible(false));
       card.on('pointerdown', () => selectionFrame.setVisible(true));
       card.on('pointerup', applyChoice);
-      this.addUpgradeTextAction(layer, x, 520, '选择', applyChoice, 'primary');
+      this.addButton(layer, x, cardY + cardHeight / 2 + 24, 142, 38, '选择', applyChoice, 'primary', 4);
     });
     const paidRefresh = upgradeRefreshRequiresPayment(this.upgradeRefreshCount);
     const refreshLabel = this.upgradePaymentPending
@@ -4716,11 +5164,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? '刷新卡牌 · 平台付费'
         : `刷新卡牌 · 免费（剩 ${FREE_UPGRADE_REFRESHES - this.upgradeRefreshCount} 次）`;
     const refreshStyle = paidRefresh ? 'danger' : 'muted';
-    const upgradeActionY = this.safeBottomY(580, 22);
-    this.addUpgradeTextAction(layer, 475 + layoutShift, upgradeActionY, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, true);
-    layer.add(this.add.text(805 + layoutShift, upgradeActionY, `未使用经验 ${Math.floor(this.xp)}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0, 0.5));
+    const upgradeActionY = frameBottom - 48;
+    this.addButton(layer, centerX - 140, upgradeActionY, 280, 42, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, 4);
+    layer.add(this.add.text(centerX + 172, upgradeActionY, `未使用经验 ${Math.floor(this.xp)}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0, 0.5));
     if (this.upgradePaymentMessage) {
-      layer.add(this.add.text(centerX, this.safeBottomY(612, 8), this.upgradePaymentMessage, {
+      layer.add(this.add.text(centerX, frameBottom - 12, this.upgradePaymentMessage, {
         fontFamily: 'Microsoft YaHei',
         fontSize: '12px',
         color: palette.amber,
@@ -4866,7 +5314,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (this.isMiniBossWave()) return 38;
       return 22 + Math.min(10, this.wave * 0.16);
     }
-    return this.wave === 7 ? 38 : this.wave === waves ? 34 : 24 + this.wave * 1.2;
+    return this.wave === 10 ? 38 : this.wave === waves ? 34 : 24 + this.wave * 1.2;
   }
 
   private showResult(win: boolean) {
@@ -4926,7 +5374,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       ? this.runMode === 'daily' ? '每日挑战完成' : finalFloor ? `全部 ${TOTAL_FLOORS} 层清除完成` : `第 ${this.floor} 层清除完成`
       : '失去意识';
     let resultDetail = win
-      ? this.runMode === 'daily' ? '50 波挑战完成，已解锁首领专属外观。' : finalFloor ? `第 ${TOTAL_FLOORS} 层已清理完成。病区暂时恢复安静。` : `第 ${this.floor} 层已清理完成。准备进入第 ${this.floor + 1} 层。`
+      ? this.runMode === 'daily' ? '50 波挑战完成，已解锁月蚀蝶后皮肤。' : finalFloor ? `第 ${TOTAL_FLOORS} 层已清理完成。病区暂时恢复安静。` : `第 ${this.floor} 层已清理完成。准备进入第 ${this.floor + 1} 层。`
       : `你倒在第 ${this.floor} 层第 ${this.wave} 波。当前楼层会保留，重开从第 1 波开始。`;
     if (win && this.tutorialRun) {
       resultTitle = '入口教程完成';
@@ -4949,9 +5397,9 @@ export class HospitalBattleScene extends Phaser.Scene {
         this.progress.dailyBestSeconds = alreadyCompletedThisMonth && this.progress.dailyBestSeconds
           ? Math.min(this.progress.dailyBestSeconds, this.elapsed)
           : this.elapsed;
+        if (!this.progress.unlockedSkinIds.includes('moon-moth-queen')) this.progress.unlockedSkinIds.push('moon-moth-queen');
+        if (!this.progress.archiveKinds.includes('boss')) this.progress.archiveKinds.push('boss');
         if (!alreadyCompletedThisMonth) {
-          if (!this.progress.unlockedSkinIds.includes('scarlet-night')) this.progress.unlockedSkinIds.push('scarlet-night');
-          if (!this.progress.archiveKinds.includes('boss')) this.progress.archiveKinds.push('boss');
           this.progress.metaCoins += 30;
         }
         this.saveProgress();
@@ -5352,18 +5800,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     const dx = x - this.joystickOrigin.x;
     const dy = y - this.joystickOrigin.y;
     const len = Math.hypot(dx, dy) || 1;
-    const scale = Math.min(1, 42 / len);
+    const scale = Math.min(1, this.joystickMaxDistance / len);
     this.joystickVector.x = (dx / len) * scale;
     this.joystickVector.y = (dy / len) * scale;
-    const knob = this.joystickVisual?.getData('knob') as Phaser.GameObjects.Image | undefined;
-    knob?.setPosition(this.joystickVector.x * 42, this.joystickVector.y * 42);
+    const knob = this.joystickVisual?.getData('knob') as Phaser.GameObjects.Arc | undefined;
+    knob?.setPosition(this.joystickVector.x * this.joystickMaxDistance, this.joystickVector.y * this.joystickMaxDistance);
   }
 
   private createTouchJoystick() {
     this.joystickVisual?.destroy(true);
     const visual = this.add.container(this.joystickOrigin.x, this.joystickOrigin.y).setDepth(30).setScrollFactor(0);
-    const ring = this.add.image(0, 0, 'touch-joystick-base-v1').setOrigin(0.5).setDisplaySize(104, 104).setAlpha(0.72);
-    const knob = this.add.image(0, 0, 'upgrade-icon-move').setOrigin(0.5).setDisplaySize(34, 34).setAlpha(0.92);
+    const ring = this.add.circle(0, 0, this.joystickRingRadius, 0x18313a, 0.42).setStrokeStyle(2, 0x6bd3c1, 0.8);
+    const knob = this.add.circle(0, 0, this.joystickKnobRadius, 0x6bd3c1, 0.82).setStrokeStyle(2, 0xf4e8c9, 0.65);
     visual.add([ring, knob]);
     visual.setData('knob', knob);
     this.joystickVisual = visual;
@@ -5396,7 +5844,21 @@ window.addEventListener('resize', () => {
   const scene = game.scene.getScene('hospital-battle') as HospitalBattleScene | undefined;
   scene?.['refreshBuildaLayout']();
 });
+const bossPreview = () => {
+  const run = () => {
+    const scene = game.scene.getScene('hospital-battle') as HospitalBattleScene | undefined;
+    if (!scene) {
+      window.setTimeout(run, 50);
+      return;
+    }
+    (scene as any).startBossPreviewShowcase();
+  };
+  run();
+};
+
+window.__BOSS_PREVIEW__ = bossPreview;
 window.__GAME_TEST_API__ = {
+  ...(window.__GAME_TEST_API__ ?? {}),
   snapshot: () => {
     const scene = game.scene.getScene('hospital-battle') as HospitalBattleScene | undefined;
     if (!scene) return {};
@@ -5436,8 +5898,13 @@ window.__GAME_TEST_API__ = {
       playerDirection: scene['playerDirection'],
       enemies: scene['enemies'].filter((enemy) => !enemy.dead).map((enemy) => ({ kind: enemy.kind, hp: enemy.hp, maxHp: enemy.maxHp })),
       weapon: scene['currentWeapon']() ? { id: scene['currentWeapon']()!.id, name: scene['currentWeapon']()!.name, type: scene['currentWeapon']()!.type, ammo: scene['currentWeapon']()!.ammo, copies: scene['currentWeapon']()!.copies, level: scene['currentWeapon']()!.level, damage: scene['currentWeaponDamage'](scene['currentWeapon']()!), rotationsPerSecond: rotationsPerSecond(scene['currentRotationSpeed'](scene['currentWeapon']()!)) } : undefined,
+      bossVisual: (() => {
+        const boss = scene['enemies'].find((enemy) => enemy.kind === 'boss' && enemy.bossVisual);
+        return boss ? { width: boss.visualWidth, height: boss.visualHeight, state: boss.bossVisual!.state } : undefined;
+      })(),
     };
   },
+  bossPreview,
 };
 
 export { game };

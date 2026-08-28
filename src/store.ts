@@ -67,9 +67,11 @@ export class GameStore {
 export const store = new GameStore();
 
 declare global {
-  interface Window { __GAME_TEST_API__: { snapshot: () => object; workshop?: () => object }; Builda: any }
+  interface Window { __GAME_TEST_API__: { snapshot: () => object; bossPreview?: () => void; workshop?: () => object }; __BOSS_PREVIEW__?: () => void; Builda: any }
 }
 
 window.__GAME_TEST_API__ = {
+  ...(window.__GAME_TEST_API__ ?? {}),
   snapshot: () => JSON.parse(JSON.stringify({ save: store.data, armor: store.currentArmor, result: store.battleResult })),
+  bossPreview: () => window.__BOSS_PREVIEW__?.(),
 };

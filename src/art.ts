@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { ArmorDef, MaterialDef } from './data';
+import { MOON_MOTH_QUEEN_ART } from './moonMothQueenArt';
 
 export function addCoverImage(scene: Phaser.Scene, key: string, depth = -10) {
   if (!scene.textures.exists(key)) return undefined;
@@ -174,9 +175,9 @@ function drawArmorSignature(g: Phaser.GameObjects.Graphics, armor: ArmorDef) {
 }
 
 export function createEnemy(scene: Phaser.Scene, enemy: string, x: number, y: number, boss: boolean, color: number) {
-  if (boss && enemy.includes('狼') && scene.textures.exists('boss-moon-wolf')) {
-    const portrait = scene.add.image(0, 0, 'boss-moon-wolf');
-    portrait.setScale(310 / portrait.width);
+  if (boss && scene.textures.exists(MOON_MOTH_QUEEN_ART.portraitKey)) {
+    const portrait = scene.add.image(0, 0, MOON_MOTH_QUEEN_ART.portraitKey);
+    portrait.setScale(310 / portrait.height);
     return scene.add.container(x, y, [portrait]).setData('enemy', enemy);
   }
   const s = boss ? 1.45 : 1;

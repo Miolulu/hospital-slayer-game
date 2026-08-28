@@ -13,7 +13,7 @@ Source prompts are preserved in:
 - `../../../../tmp/imagegen/relic-assets.jsonl`
 
 Runtime assets currently include three scene backgrounds, the unnamed black cat
-alchemist, two transformation armors, the Moon-Swallowing Dire Wolf boss, and
+alchemist, two transformation armors, the Moon-Eclipsed Moth Queen boss, and
 seven standalone irregular relic objects. Character and relic sources were
 locally keyed, alpha-checked, cropped, and WebP-optimized before integration.
 
@@ -53,10 +53,15 @@ Both assets use transparent square canvases and are displayed at runtime size. T
 
 首领资源槽位：
 
-- `enemies/bosses/mini-boss-01.png` - 第 7 波小首领。
-- `enemies/bosses/floor-boss-01.png` - 楼层首领。
+- `enemies/bosses/pill-mouth/*`、`enemies/bosses/bed-boss/*`、`enemies/bosses/mercury-thermometer/*` - 第 10 波小首领的三套随机动效。
+- `enemies/bosses/mini-boss-01.png` - 旧版第 10 波小首领兜底图。
+- `enemies/bosses/moon-moth-queen/portrait.png` - 月蚀蝶后立绘。
+- `enemies/bosses/moon-moth-queen/death.png` - 月蚀蝶后倒地图。
+- `enemies/bosses/moon-moth-queen/walk.png` - 月蚀蝶后移动动效。
+- `enemies/bosses/moon-moth-queen/attack.png` - 月蚀蝶后攻击动效。
+- `enemies/bosses/moon-moth-queen/transform-1.png` 到 `transform-5.png` - 出场变身动效。
 
-首领图片按 512x512 透明方图接入，运行时根据首领类型缩放。资源未加载时保留原有几何首领作为兜底。
+月蚀蝶后资源按原始尺寸接入，战斗里会按状态切换立绘、变身、移动、攻击和倒地表现。资源未加载时保留原有几何首领作为兜底。
 
 ## Upgrade card slots
 

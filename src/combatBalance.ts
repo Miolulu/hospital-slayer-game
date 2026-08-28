@@ -27,6 +27,8 @@ export const MAX_WEAPON_ROTATION_SPEED = 9.5;
 
 export const MAX_ENEMY_HEALTH_MULTIPLIER = 2.8;
 
+const SMALL_ENEMY_SPEED_MULTIPLIER = 1.5;
+
 export const DEFAULT_PICKUP_RADIUS = 132;
 
 export const FREE_UPGRADE_REFRESHES = 2;
@@ -61,7 +63,7 @@ export const PAID_UPGRADE_REFRESH_SALE_ID = 'upgrade_refresh';
 export const TOTAL_HOSPITAL_FLOORS = 30;
 
 export function wavesPerFloorForFloor(floor: number) {
-  // 主线每层固定 10 波，第 7 波为本层唯一小首领。
+  // 主线每层固定 10 波，第 10 波为本层唯一小首领。
   void floor;
   return 10;
 }
@@ -105,7 +107,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
   if (kind === 'shooter') {
     return {
       hp: openingWaveHp(Math.round(baseHp * 1.55), safeWave),
-      speed: 28 + safeWave * 0.4,
+      speed: (28 + safeWave * 0.4) * SMALL_ENEMY_SPEED_MULTIPLIER,
       damage: baseDamage + 0.8,
       radius: 16,
       xp: 8,
@@ -117,7 +119,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
   if (kind === 'disruptor') {
     return {
       hp: openingWaveHp(Math.round(baseHp * 2.35), safeWave),
-      speed: 24 + safeWave * 0.35,
+      speed: (24 + safeWave * 0.35) * SMALL_ENEMY_SPEED_MULTIPLIER,
       damage: baseDamage + 0.6,
       radius: 18,
       xp: 10,
@@ -129,7 +131,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
   if (kind === 'tentacle') {
     return {
       hp: openingWaveHp(Math.round(baseHp * 1.9), safeWave),
-      speed: 34 + safeWave * 0.45,
+      speed: (34 + safeWave * 0.45) * SMALL_ENEMY_SPEED_MULTIPLIER,
       damage: baseDamage + 1.1,
       radius: 20,
       xp: 12,
@@ -141,7 +143,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
   if (kind === 'bomber') {
     return {
       hp: openingWaveHp(Math.round(baseHp * 2.05), safeWave),
-      speed: 30 + safeWave * 0.25,
+      speed: (30 + safeWave * 0.25) * SMALL_ENEMY_SPEED_MULTIPLIER,
       damage: baseDamage + 1.6,
       radius: 19,
       xp: 14,
@@ -153,7 +155,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
   if (kind === 'eye') {
     return {
       hp: openingWaveHp(Math.round(baseHp * 2.25), safeWave),
-      speed: 26 + safeWave * 0.2,
+      speed: (26 + safeWave * 0.2) * SMALL_ENEMY_SPEED_MULTIPLIER,
       damage: baseDamage + 2.2,
       radius: 21,
       xp: 16,
@@ -188,7 +190,7 @@ export function enemyCombatStats(kind: CombatEnemyKind, wave: number): EnemyComb
 
   return {
     hp: openingWaveHp(baseHp, safeWave),
-    speed: 47 + safeWave * 1.8,
+    speed: (47 + safeWave * 1.8) * SMALL_ENEMY_SPEED_MULTIPLIER,
     damage: baseDamage,
     radius: 15,
     xp: 6,
