@@ -479,6 +479,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ui-command-frame-v2', '/assets/art/ui/ui-command-frame-v2.png');
     this.load.image('ui-typography-kit-v1', '/assets/art/ui/ui-typography-kit-v1.png');
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
+    (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'boss-name', 'start-challenge'] as const).forEach((textAsset) => {
+      this.load.image(`ui-text-${textAsset}-v1`, `/assets/art/ui/text/ui-text-${textAsset}-v1.png`);
+    });
+    this.load.image('ui-stamp-uncompleted-v1', '/assets/art/ui/text/ui-stamp-uncompleted-v1.png');
+    this.load.image('ui-stamp-completed-v1', '/assets/art/ui/text/ui-stamp-completed-v1.png');
     this.load.image('back-icon-v1', '/assets/art/ui/back-icon-v1.png');
     this.load.image('daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png');
     this.load.image('daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png');
@@ -1574,18 +1579,26 @@ export class HospitalBattleScene extends Phaser.Scene {
     };
     const crop = crops[textureKey];
     if (crop) image.setCrop(crop.x, crop.y, crop.width, crop.height);
-    const text = this.add.text(0, 0, label, {
-      fontFamily: 'Microsoft YaHei',
-      fontSize: '23px',
-      color: palette.cream,
-      stroke: '#080d11',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setFontStyle('bold');
-    button.add([image, text]);
+    const textureLabels: Record<string, string> = {
+      'menu-button-archive-v1': 'ui-text-archive-v1',
+      'menu-button-mainline-v1': 'ui-text-mainline-v1',
+      'menu-button-daily-v1': 'ui-text-daily-v1',
+    };
+    const textTextureKey = textureLabels[textureKey];
+    const labelNode = textTextureKey && this.textures.exists(textTextureKey)
+      ? this.add.image(0, 0, textTextureKey).setOrigin(0.5).setDisplaySize(190, 76)
+      : this.add.text(0, 0, label, {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '23px',
+        color: palette.cream,
+        stroke: '#080d11',
+        strokeThickness: 5,
+      }).setOrigin(0.5).setFontStyle('bold');
+    button.add([image, labelNode]);
     const setPressed = (pressed: boolean) => {
       button.setScale(pressed ? 0.96 : 1);
       image.setTint(pressed ? 0xc6d8d0 : 0xffffff);
-      text.setAlpha(pressed ? 0.82 : 1);
+      labelNode.setAlpha(pressed ? 0.82 : 1);
     };
     parent.add(button);
     this.uiActionRegions.push({
@@ -1980,6 +1993,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     return button;
   }
 
+  private addUiTextTexture(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, textureKey: string, fallback: string, fontSize: number, color = palette.cream) {
+    if (this.textures.exists(textureKey)) {
+      parent.add(this.add.image(x, y, textureKey).setOrigin(0.5).setDisplaySize(width, height));
+      return;
+    }
+    parent.add(this.add.text(x, y, fallback, {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: `${fontSize}px`,
+      color,
+      stroke: '#050b10',
+      strokeThickness: Math.max(2, Math.round(fontSize / 7)),
+    }).setOrigin(0.5).setFontStyle('bold'));
+  }
+
   private dialogueLines() {
     if (this.tutorialRun) {
       return [
@@ -2338,7 +2365,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const safe = this.pageSafeBounds(12);
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
-    layer.add(this.add.text(centerX, this.safeTopY(58, 8), '\u75c5\u5386\u6863\u6848', { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    this.addUiTextTexture(layer, centerX, this.safeTopY(58, 8), 170, 68, 'ui-text-archive-v1', '病历档案', 28);
     layer.add(this.add.text(centerX, this.safeTopY(92, 8), 'PATIENT FILE  /  WARD 07', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
     layer.add(this.add.text(safe.right - 8, this.safeTopY(62, 8), `\u521b\u6e38\u8d27\u5e01  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(118, 8), 1080, 1, 0x46636a, 0.78));
