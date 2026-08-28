@@ -1997,10 +1997,15 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
 
     const mainX = 450 + layoutShift;
-    const main = this.add.container(mainX, 280);
     const mainFrame = this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5);
     const mainFrameWidth = 520;
-    main.add(mainFrame.setScale(mainFrameWidth / mainFrame.width).setAlpha(0.98));
+    const mainFrameScale = mainFrameWidth / Math.max(1, mainFrame.width);
+    const mainFrameHeight = mainFrame.height * mainFrameScale;
+    // The sword category is the first-row anchor. Both large frames start on
+    // that same horizontal line instead of floating at unrelated heights.
+    const frameTopY = 170;
+    const main = this.add.container(mainX, frameTopY + mainFrameHeight / 2);
+    main.add(mainFrame.setScale(mainFrameScale).setAlpha(0.98));
     const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(230, 230);
     main.add(mainImage);
     layer.add(main);
@@ -2009,14 +2014,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const mainFrameRight = mainX + mainFrameWidth / 2;
     const skinPanelWidth = Math.min(540, Math.max(320, safe.right - mainFrameRight - skinPanelGap));
     const skinPanelX = safe.right - skinPanelWidth / 2;
-    const skinPanelY = 388;
-    const skinPanelFrame = this.add.container(skinPanelX, skinPanelY);
     const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
     const skinPanelFrameImage = hasSkinPanelFrame
       ? this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5)
       : undefined;
     const skinPanelScale = skinPanelFrameImage ? skinPanelWidth / skinPanelFrameImage.width : 1;
     const skinPanelHeight = skinPanelFrameImage ? skinPanelFrameImage.height * skinPanelScale : 296;
+    const skinPanelY = frameTopY + skinPanelHeight / 2;
+    const skinPanelFrame = this.add.container(skinPanelX, skinPanelY);
     skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0.74));
     if (skinPanelFrameImage) {
       skinPanelFrame.add(skinPanelFrameImage.setScale(skinPanelScale).setAlpha(0.98));

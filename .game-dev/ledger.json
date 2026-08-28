@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3623,
-                     "lastCheckedAt":  "2026-08-28T23:32:18+08:00",
+                     "lastCheckedAt":  "2026-08-28T23:36:54+08:00",
                      "completedCheckboxes":  53,
                      "pendingCheckboxes":  6
                  },
@@ -367,6 +367,7 @@
                          "weaponCategoryLabelRefactor":  "passed: 武器选择页四类入口标签改为对应武器名称剑、枪、鞭、炮，和实际可选武器数据保持一致；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "weaponSelectSkinPanelLayout":  "passed: 武器皮肤面板扩展为三列清晰网格，图片按原比例放大，面板和底部操作在 1280x720 与 1024x576 横屏预览中均未裁切或遮挡；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "weaponSkinAdActionLayout":  "passed: 武器皮肤页广告入口移至主预览下方居中位置，文案收紧并启用居中换行，避免横屏按钮区拥挤；npm.cmd test（38 项）与 npm.cmd run build 通过。",
+                         "weaponSelectFrameAlignment":  "passed: 武器选择页主预览框和皮肤面板按统一顶部基线定位，依据实际素材高度计算容器位置，避免面板错位或运行时变量未初始化；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "floorEnemyPreviewPortraitAlignment":  "passed: 主线楼层敌人预览按首领与普通敌人分别设置立绘垂直中心，避免立绘覆盖名称栏并保持缺图兜底一致；npm.cmd test（38 项）与 npm.cmd run build 通过。"
                      }
 }
