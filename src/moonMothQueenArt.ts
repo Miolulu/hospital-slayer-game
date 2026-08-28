@@ -35,8 +35,10 @@ export const MOON_MOTH_QUEEN_ART_IMAGES: BossArtImageSpec[] = [
 ];
 
 export const MOON_MOTH_QUEEN_ART_SHEETS: BossArtSheetSpec[] = [
-  { key: MOON_MOTH_QUEEN_ART.walkKey, path: '/assets/art/enemies/bosses/moon-moth-queen/walk.png', frameWidth: 1024, frameHeight: 1560 },
-  { key: MOON_MOTH_QUEEN_ART.attackKey, path: '/assets/art/enemies/bosses/moon-moth-queen/attack.png', frameWidth: 1024, frameHeight: 1560 },
+  // The mobile-safe sheets keep the four 543x724 frames below the common
+  // 2048px texture limit by arranging them in a 2x2 grid.
+  { key: MOON_MOTH_QUEEN_ART.walkKey, path: '/assets/art/enemies/bosses/moon-moth-queen/walk-mobile.png', frameWidth: 543, frameHeight: 724 },
+  { key: MOON_MOTH_QUEEN_ART.attackKey, path: '/assets/art/enemies/bosses/moon-moth-queen/attack-mobile.png', frameWidth: 543, frameHeight: 724 },
 ];
 
 export const MOON_MOTH_QUEEN_WALK_FRAME_RATE = 7;
