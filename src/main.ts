@@ -2008,7 +2008,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const skinPanelX = clamp(1020 + layoutShift, safe.left + 240, safe.right - 240);
     layer.add(this.add.text(skinPanelX, this.safeTopY(112, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     const skinPanelFrame = this.add.container(skinPanelX, 360);
-    const skinPanelWidth = 480;
+    const skinPanelWidth = 500;
     const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
     const skinPanelFrameImage = hasSkinPanelFrame
       ? this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5)
@@ -2030,14 +2030,20 @@ export class HospitalBattleScene extends Phaser.Scene {
       const unlocked = this.isWeaponSkinAvailable(skin.id);
       const selected = skin.id === selectedSkin.id;
       const card = this.add.container(x, y);
-      card.add(this.add.image(0, 0, 'weapon-select-frame-skin-card-v1').setOrigin(0.5).setDisplaySize(126, 118).setAlpha(unlocked ? 0.98 : 0.64));
-      card.add(this.add.image(0, -5, this.weaponSkinTextureKey(skin)).setOrigin(0.5).setDisplaySize(76, 76).setAlpha(unlocked ? 0.98 : 0.42));
-      if (selected) card.add(this.add.rectangle(0, 0, 108, 100, 0x6bd3c1, 0).setStrokeStyle(2, accent, 1));
+      const weaponImage = this.add.image(0, -5, this.weaponSkinTextureKey(skin))
+        .setOrigin(0.5)
+        .setAlpha(unlocked ? 0.98 : 0.42);
+      const targetHeight = 76;
+      weaponImage.setDisplaySize(
+        targetHeight * weaponImage.width / Math.max(1, weaponImage.height),
+        targetHeight,
+      );
+      card.add(weaponImage);
       if (!unlocked) {
         card.add(this.add.rectangle(0, -4, 106, 76, 0x05090f, 0.36));
         card.add(this.add.text(0, -4, '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
       }
-      card.add(this.add.text(0, 45, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: unlocked ? palette.cream : palette.muted, wordWrap: { width: 104 }, align: 'center' }).setOrigin(0.5, 0.5));
+      card.add(this.add.text(0, 45, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: selected ? hex(accent) : unlocked ? palette.cream : palette.muted, wordWrap: { width: 104 }, align: 'center' }).setOrigin(0.5, 0.5));
       layer.add(card);
       this.uiActionRegions.push({
         phase: this.phase,
