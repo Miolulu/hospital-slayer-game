@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  2767,
-                     "lastCheckedAt":  "2026-08-28T12:23:22+08:00",
+                     "lastCheckedAt":  "2026-08-28T12:46:43+08:00",
                      "completedCheckboxes":  44,
                      "pendingCheckboxes":  3
                  },
@@ -271,11 +271,11 @@
                          }
                      ],
     "verification":  {
-                           "tests":  "passed: 5 个测试文件，32 项全部通过（2026-08-28 12:40）",
-                           "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 12:40）；保留既有 builda-sdk.js 缺少 type=module 提示",
+                           "tests":  "passed: 5 个测试文件，32 项全部通过（2026-08-28 12:45）",
+                           "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 12:46）；保留既有 builda-sdk.js 缺少 type=module 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                           "documentFetch":  "passed: revision 2767；44 项已完成，3 项待处理",
+                          "documentFetch":  "passed: revision 2767；44 项已完成，3 项待处理（2026-08-28 12:46）",
                           "documentCheckboxUpdate":  "passed: 12 个已实现条目通过 block_replace 勾选，并逐次重新获取文档确认",
                           "buildaBundleCheck":  "passed: bundle-pack dist builda-web-20260828.zip；bundle-check ok，HTML5 网页包 104,073,763 bytes；体积提示不阻断上传",
                           "buildaUpload":  "passed: upload-build 已上传构建 8b5f1aca8c503250d626c941cc7551d6；仅更新 H5 Bundle 与本地 manifest，未调用 publish、create-draft 或 update-draft",
