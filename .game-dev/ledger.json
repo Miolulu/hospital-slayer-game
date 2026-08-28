@@ -309,6 +309,12 @@
                               "summary":  "接入广告和付费接口并先整理皮肤、武器清单与规则",
                               "status":  "blocked",
                               "reason":  "已确认需要先整理清单和规则；等待用户分类确认后再接入 Builda SDK 广告与付费接口。"
+                          },
+                          {
+                              "summary":  "每日挑战真实平台排行榜验收",
+                              "status":  "blocked",
+                              "implementedIn":  "src/main.ts",
+                              "reason":  "本地已接入 daily_night 提交和读取接口；需要在创游世界草稿或试玩环境完成一次真实通关记录，确认榜单配置、周期和最快成绩保留规则。"
                           }
                       ],
     "verification":  {

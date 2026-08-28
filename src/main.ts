@@ -1882,7 +1882,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       const button = this.add.container(x, y);
       const frame = this.add.image(0, 0, 'weapon-select-frame-category-v1').setOrigin(0.5).setDisplaySize(142, 116).setAlpha(unlocked ? 0.98 : 0.58);
       button.add(frame);
-      if (this.textures.exists(meta.icon)) button.add(this.add.image(0, -11, meta.icon).setOrigin(0.5).setDisplaySize(58, 58).setAlpha(unlocked ? 0.98 : 0.45));
+      if (this.textures.exists(meta.icon)) button.add(this.add.image(0, -11, meta.icon).setOrigin(0.5).setDisplaySize(76, 76).setAlpha(unlocked ? 0.98 : 0.45));
       button.add(this.add.text(0, 39, meta.label, { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0.5).setFontStyle('bold'));
       if (weapon.id === selectedWeapon.id) button.add(this.add.rectangle(0, 0, 126, 100, 0x6bd3c1, 0).setStrokeStyle(2, accent, 0.92));
       layer.add(button);
@@ -1903,31 +1903,34 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
 
     const main = this.add.container(500 + layoutShift, 292);
-    main.add(this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5).setDisplaySize(520, 310).setAlpha(0.98));
+    const mainFrame = this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5);
+    main.add(mainFrame.setScale(520 / mainFrame.width).setAlpha(0.98));
     const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(214, 214);
     main.add(mainImage);
     layer.add(main);
 
-    const detail = this.add.container(500 + layoutShift, 525);
-    detail.add(this.add.image(0, 0, 'weapon-select-frame-detail-v1').setOrigin(0.5).setDisplaySize(520, 150).setAlpha(0.98));
-    layer.add(detail);
-
     const skinPanelX = clamp(1004 + layoutShift, safe.left + 222, safe.right - 222);
-    layer.add(this.add.text(skinPanelX, this.safeTopY(139, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(skinPanelX, this.safeTopY(162, 18), `${this.weaponSkinsFor(selectedWeapon.weaponClass).length} 款 · 可预览未解锁`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
-    const skinPanelFrame = this.add.container(skinPanelX, 390);
-    skinPanelFrame.add(this.add.rectangle(0, 0, 444, 486, 0x071117, 0.74));
-    if (this.textures.exists('weapon-select-frame-skin-panel-v1')) {
-      skinPanelFrame.add(this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5).setDisplaySize(444, 486).setAlpha(0.98));
+    layer.add(this.add.text(skinPanelX, this.safeTopY(112, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    const skinPanelFrame = this.add.container(skinPanelX, 360);
+    const skinPanelWidth = 444;
+    const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
+    const skinPanelFrameImage = hasSkinPanelFrame
+      ? this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5)
+      : undefined;
+    const skinPanelScale = skinPanelFrameImage ? skinPanelWidth / skinPanelFrameImage.width : 1;
+    const skinPanelHeight = skinPanelFrameImage ? skinPanelFrameImage.height * skinPanelScale : 296;
+    skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0.74));
+    if (skinPanelFrameImage) {
+      skinPanelFrame.add(skinPanelFrameImage.setScale(skinPanelScale).setAlpha(0.98));
     } else {
-      skinPanelFrame.add(this.add.rectangle(0, 0, 444, 486, 0x071117, 0).setStrokeStyle(2, accent, 0.9));
+      skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0).setStrokeStyle(2, accent, 0.9));
     }
     layer.add(skinPanelFrame);
     this.weaponSkinsFor(selectedWeapon.weaponClass).forEach((skin, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
       const x = skinPanelX - 134 + column * 134;
-      const y = 250 + row * 127;
+      const y = 270 + row * 120;
       const unlocked = this.progress.unlockedWeaponSkinIds.includes(skin.id);
       const selected = skin.id === selectedSkin.id;
       const card = this.add.container(x, y);
@@ -1951,7 +1954,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const actionY = this.safeBottomY(656, 28);
+    const actionY = this.safeBottomY(520, 28);
     if (!selectedSkinUnlocked) {
       this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
       this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
