@@ -1804,8 +1804,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(maskShape);
     this.floorScrollContent = this.add.container(0, 0).setMask(maskShape.createGeometryMask());
     this.floorScrollRegions = [];
-    // Every floor uses the same 16:9 raster window; the vertical gap keeps
-    // the tower readable while allowing all thirty floors to scroll.
+    // Keep the authored perspective ratio and space each floor as a large
+    // scrollable window so the tower remains readable at full size.
     const floorSlotWidth = 560;
     const floorSlotHeight = 392;
     const floorShellWidth = 560;
@@ -1826,14 +1826,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       const x = floorCardX;
       const y = baseYForFloor(floor);
       const card = this.add.container(x, y);
-      const glow = this.add.rectangle(0, 0, 338, 56, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.16) : 0.035);
+      const glow = this.add.rectangle(0, 0, floorSlotWidth + 18, floorSlotHeight + 18, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.12) : 0.035);
       card.add(glow);
       if (unlocked) this.tweens.add({ targets: glow, alpha: isSelected ? 0.5 : 0.28, duration: 760, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      card.add(this.add.rectangle(0, 0, 320, 52, unlocked ? 0x0d1b22 : 0x11191e, 0.98).setStrokeStyle(isSelected ? 3 : 1, isSelected ? paletteRgb.amber : unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.96 : 0.7));
-      card.add(this.add.text(-112, 0, this.floorLabel(floor), { fontFamily: 'Microsoft YaHei', fontSize: floor === 0 ? '15px' : '14px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0, 0.5).setFontStyle('bold'));
-      card.add(this.add.text(158, 0, unlocked ? (isSelected ? '当前选中' : '可进入') : '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: isSelected ? palette.amber : unlocked ? palette.danger : palette.muted }).setOrigin(1, 0.5));
-      if (!unlocked) card.add(this.add.text(0, 0, '锁', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
-      if (isSelected) card.add(this.add.rectangle(0, 0, 338, 62, 0x6bd3c1, 0).setStrokeStyle(1, 0x6bd3c1, 0.74));
+      card.add(this.add.rectangle(0, 0, floorSlotWidth, floorSlotHeight, unlocked ? 0x0d1b22 : 0x11191e, 0.18).setStrokeStyle(isSelected ? 3 : 1, isSelected ? paletteRgb.amber : unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.96 : 0.7));
       if (this.textures.exists('mainline-building-floor-shell-v1')) {
         card.add(this.add.image(0, 0, 'mainline-building-floor-shell-v1')
           .setOrigin(0.5)
@@ -1844,15 +1840,19 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? (isSelected ? 'mainline-floor-selected-v1' : 'mainline-floor-unlocked-v1')
         : (isSelected ? 'mainline-floor-locked-selected-v1' : 'mainline-floor-locked-v1');
       if (isSelected && unlocked) {
-        const halo = this.add.rectangle(0, 0, floorCardWidth + 12, floorCardHeight + 12, paletteRgb.cyan, 0.1)
+        const halo = this.add.rectangle(0, 0, floorSlotWidth + 12, floorSlotHeight + 12, paletteRgb.cyan, 0.1)
           .setStrokeStyle(2, paletteRgb.amber, 0.82);
         card.add(halo);
         this.tweens.add({ targets: halo, alpha: 0.2, duration: 860, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       }
       if (this.textures.exists(textureKey)) {
+        const source = this.textures.get(textureKey).getSourceImage() as { width: number; height: number };
+        const sourceAspect = source.width / Math.max(1, source.height);
+        const displayWidth = Math.min(floorRoomMaxWidth, floorRoomMaxHeight * sourceAspect);
+        const displayHeight = displayWidth / sourceAspect;
         card.add(this.add.image(0, 0, textureKey)
           .setOrigin(0.5)
-          .setDisplaySize(floorCardWidth, floorCardHeight)
+          .setDisplaySize(displayWidth, displayHeight)
           .setAlpha(unlocked ? 0.98 : 0.92));
       }
       const labelColor = unlocked ? palette.cream : palette.muted;
@@ -1870,7 +1870,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       }).setOrigin(1, 0.5));
       this.floorScrollContent.add(card);
       if (unlocked) {
-        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorShellWidth + 18, height: floorShellHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
+        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
         this.uiActionRegions.push(region);
         this.floorScrollRegions.push({ region, baseY: y });
       }
