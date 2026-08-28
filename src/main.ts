@@ -2185,25 +2185,32 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const mainX = 520 + layoutShift;
-    const main = this.add.container(mainX, 280);
+    const mainX = 450 + layoutShift;
     const mainFrame = this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5);
-    const mainFrameWidth = 560;
-    main.add(mainFrame.setScale(mainFrameWidth / mainFrame.width).setAlpha(0.98));
-    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(240, 240);
+    const mainFrameWidth = 520;
+    const mainFrameScale = mainFrameWidth / Math.max(1, mainFrame.width);
+    const mainFrameHeight = mainFrame.height * mainFrameScale;
+    // The sword category is the first-row anchor. Both large frames start on
+    // that same horizontal line instead of floating at unrelated heights.
+    const frameTopY = 170;
+    const main = this.add.container(mainX, frameTopY + mainFrameHeight / 2);
+    main.add(mainFrame.setScale(mainFrameScale).setAlpha(0.98));
+    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(230, 230);
     main.add(mainImage);
     layer.add(main);
 
-    const skinPanelX = clamp(1020 + layoutShift, safe.left + 240, safe.right - 240);
-    layer.add(this.add.text(skinPanelX, this.safeTopY(112, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    const skinPanelFrame = this.add.container(skinPanelX, 360);
-    const skinPanelWidth = 500;
+    const skinPanelGap = 18;
+    const mainFrameRight = mainX + mainFrameWidth / 2;
+    const skinPanelWidth = Math.min(540, Math.max(320, safe.right - mainFrameRight - skinPanelGap));
+    const skinPanelX = safe.right - skinPanelWidth / 2;
     const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
     const skinPanelFrameImage = hasSkinPanelFrame
       ? this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5)
       : undefined;
     const skinPanelScale = skinPanelFrameImage ? skinPanelWidth / skinPanelFrameImage.width : 1;
     const skinPanelHeight = skinPanelFrameImage ? skinPanelFrameImage.height * skinPanelScale : 296;
+    const skinPanelY = frameTopY + skinPanelHeight / 2;
+    const skinPanelFrame = this.add.container(skinPanelX, skinPanelY);
     skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0.74));
     if (skinPanelFrameImage) {
       skinPanelFrame.add(skinPanelFrameImage.setScale(skinPanelScale).setAlpha(0.98));
@@ -2211,43 +2218,48 @@ export class HospitalBattleScene extends Phaser.Scene {
       skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0).setStrokeStyle(2, accent, 0.9));
     }
     layer.add(skinPanelFrame);
+    const skinGridColumnGap = Math.min(146, skinPanelWidth * 0.27);
+    const skinGridTop = 312;
+    const skinGridRowGap = 150;
+    const skinCardImageHeight = 94;
     this.weaponSkinsFor(selectedWeapon.weaponClass).forEach((skin, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
-      const x = skinPanelX - 134 + column * 134;
-      const y = 270 + row * 120;
+      const x = skinPanelX - skinGridColumnGap + column * skinGridColumnGap;
+      const y = skinGridTop + row * skinGridRowGap;
       const unlocked = this.isWeaponSkinAvailable(skin.id);
       const selected = skin.id === selectedSkin.id;
       const card = this.add.container(x, y);
       const weaponImage = this.add.image(0, -5, this.weaponSkinTextureKey(skin))
         .setOrigin(0.5)
         .setAlpha(unlocked ? 0.98 : 0.42);
-      const targetHeight = 76;
+      const targetHeight = skinCardImageHeight;
       weaponImage.setDisplaySize(
         targetHeight * weaponImage.width / Math.max(1, weaponImage.height),
         targetHeight,
       );
       card.add(weaponImage);
       if (!unlocked) {
-        card.add(this.add.rectangle(0, -4, 106, 76, 0x05090f, 0.36));
+        card.add(this.add.rectangle(0, -4, 132, skinCardImageHeight, 0x05090f, 0.36));
         card.add(this.add.text(0, -4, '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
       }
-      card.add(this.add.text(0, 45, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: selected ? hex(accent) : unlocked ? palette.cream : palette.muted, wordWrap: { width: 104 }, align: 'center' }).setOrigin(0.5, 0.5));
+      card.add(this.add.text(0, skinCardImageHeight / 2 + 12, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: selected ? hex(accent) : unlocked ? palette.cream : palette.muted, wordWrap: { width: 148 }, align: 'center' }).setOrigin(0.5, 0.5));
       layer.add(card);
       this.uiActionRegions.push({
         phase: this.phase,
         x,
         y,
-        width: 126,
-        height: 118,
+        width: 164,
+        height: 142,
         callback: () => { this.weaponSelectPreviewSkinId = skin.id; this.showWeaponSelect(mode, this.selectedStartFloor); },
         setPressed: (pressed) => card.setScale(pressed ? 0.96 : 1),
       });
     });
 
-    const actionY = this.safeBottomY(560, 40);
-    const actionLeftX = mainX - 108;
-    const actionRightX = mainX + 108;
+    const actionY = this.safeBottomY(620, 40);
+    const actionLeftX = mainX - 154;
+    const actionRightX = mainX + 154;
+    const adActionX = mainX;
     if (!selectedSkinUnlocked) {
       if (selectedSkin.category === 'boss') {
         this.addWeaponSelectImageButton(layer, actionLeftX, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', '首领掉落', () => undefined, 0x46636a);
@@ -2256,16 +2268,18 @@ export class HospitalBattleScene extends Phaser.Scene {
       }
       this.addWeaponSelectImageButton(layer, actionRightX, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
       if (this.textures.exists('ad-reward-v1')) {
-        this.addImageAction(layer, 842 + layoutShift, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
+        this.addImageAction(layer, adActionX, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
       }
-      layer.add(this.add.text(842 + layoutShift, actionY + 34, '可以看广告免费体验1天', {
+      layer.add(this.add.text(adActionX, actionY + 34, '看广告免费体验一天', {
         fontFamily: 'Microsoft YaHei',
         fontSize: '9px',
         color: palette.amber,
         stroke: '#071015',
         strokeThickness: 2,
+        wordWrap: { width: 120 },
+        align: 'center',
       }).setOrigin(0.5));
-      if (this.weaponSkinAdMessage) layer.add(this.add.text(842 + layoutShift, actionY + 54, this.weaponSkinAdMessage, {
+      if (this.weaponSkinAdMessage) layer.add(this.add.text(adActionX, actionY + 54, this.weaponSkinAdMessage, {
         fontFamily: 'Microsoft YaHei',
         fontSize: '9px',
         color: palette.danger,
@@ -2487,6 +2501,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const accent = kind === 'boss' || kind === 'miniBoss' ? paletteRgb.danger : paletteRgb.cyan;
     const cardWidth = 150;
     const cardHeight = 128;
+    // The frame leaves its name strip below the portrait area. Keep normal
+    // enemy art centered in that inner window, while the full-height boss
+    // portraits stay a few pixels higher so they do not cover the name.
+    const portraitCenterY = kind === 'boss' || kind === 'miniBoss' ? -4 : 0;
     if (this.textures.exists('mainline-floor-enemy-frame-v1')) {
       card.add(this.add.image(0, 0, 'mainline-floor-enemy-frame-v1').setOrigin(0.5).setDisplaySize(cardWidth, cardHeight).setAlpha(0.98));
     } else {
@@ -2498,20 +2516,20 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? MOON_MOTH_QUEEN_ART.portraitKey
         : MAINLINE_BOSS_ART_VARIANT_LIST[Math.abs(Math.floor(floor)) % MAINLINE_BOSS_ART_VARIANT_LIST.length]?.portraitKey;
       if (this.textures.exists(key)) {
-        sprite = this.add.sprite(0, -10, key, 0).setOrigin(0.5);
+        sprite = this.add.sprite(0, portraitCenterY, key, 0).setOrigin(0.5);
         const targetHeight = 84;
         sprite.setDisplaySize(targetHeight * sprite.width / Math.max(1, sprite.height), targetHeight);
       }
     } else {
       const artKey = smallEnemyArtForFloor(kind as SmallEnemyKind, floor);
       if (artKey && this.textures.exists(artKey)) {
-        sprite = this.add.sprite(0, -10, artKey, 0).setOrigin(0.5);
+        sprite = this.add.sprite(0, portraitCenterY, artKey, 0).setOrigin(0.5);
         const targetHeight = 74;
         sprite.setDisplaySize(targetHeight * sprite.width / Math.max(1, sprite.height), targetHeight);
       }
     }
     if (sprite) card.add(sprite);
-    else card.add(this.add.circle(0, -10, 23, kind === 'boss' ? 0x7e2e51 : 0x315b68, 0.9).setStrokeStyle(2, accent, 0.8));
+    else card.add(this.add.circle(0, portraitCenterY, 23, kind === 'boss' ? 0x7e2e51 : 0x315b68, 0.9).setStrokeStyle(2, accent, 0.8));
     card.add(this.add.text(0, 47, this.enemyPreviewLabel(kind), { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream, align: 'center', wordWrap: { width: 128 } }).setOrigin(0.5));
     parent.add(card);
     return card;
@@ -3330,7 +3348,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (previewAdEligible) {
       const adX = boardX + 250 * caseSheetScale;
       if (this.textures.exists('ad-reward-v1')) this.addImageAction(layer, adX, previewActionY, 40, 40, 'ad-reward-v1', () => { void this.watchSkinAd(previewSkin.id); }, 8);
-      layer.add(this.add.text(adX, previewActionY + 30, '可以看广告免费体验1天', {
+      layer.add(this.add.text(adX, previewActionY + 30, '看广告免费体验一天', {
         fontFamily: 'Microsoft YaHei',
         fontSize: '8px',
         color: palette.amber,
