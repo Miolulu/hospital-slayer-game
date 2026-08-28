@@ -22,6 +22,9 @@ export const SKINS: SkinDef[] = [
   { id: 'moon-moth-queen', name: '月蚀蝶后', color: 0xb798e2, category: 'boss', cost: 0, assetPrefix: 'moon-moth-queen', setName: '月蚀蝶后皮肤', setBuff: '纯外观' },
   { id: 'street-runner', name: '夜行校服', color: 0x2b7880, category: 'store', cost: 25, assetPrefix: 'street-runner', coverPath: '/assets/art/skins/street-runner/cover.jpg', setName: '街区夜行套装', setBuff: '移速 +5%' },
   { id: 'cthulhu-dark', name: '深潜祭服', color: 0x573a6b, category: 'store', cost: 40, assetPrefix: 'cthulhu-dark', coverPath: '/assets/art/skins/cthulhu-dark/cover.jpg', setName: '深潜祭服套装', setBuff: '伤害 +8' },
+  { id: 'fairytale-stitch-prince', name: '缝线王子', color: 0xed716e, category: 'store', cost: 35, assetPrefix: 'fairytale-stitch-prince', coverPath: '/assets/art/skins/fairytale-stitch-prince/cover.png', setName: '怪诞童话套装', setBuff: '纯外观' },
+  { id: 'obsidian-knight', name: '黑曜夜巡', color: 0x5fd7df, category: 'store', cost: 50, assetPrefix: 'obsidian-knight', coverPath: '/assets/art/skins/obsidian-knight/cover.png', setName: '黑曜骑士套装', setBuff: '纯外观' },
+  { id: 'abyssal-oracle', name: '深渊祷告', color: 0x9a6bd1, category: 'store', cost: 60, assetPrefix: 'abyssal-oracle', coverPath: '/assets/art/skins/abyssal-oracle/cover.png', setName: '深渊访客套装', setBuff: '纯外观' },
 ];
 
 export const DEFAULT_UNLOCKED_SKIN_IDS = SKINS.filter((skin) => skin.startingUnlocked).map((skin) => skin.id);

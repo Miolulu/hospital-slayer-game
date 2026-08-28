@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3457,
-                     "lastCheckedAt":  "2026-08-28T19:47:40+08:00",
+                     "lastCheckedAt":  "2026-08-28T20:06:09+08:00",
                      "completedCheckboxes":  52,
                      "pendingCheckboxes":  5
                  },
@@ -287,21 +287,33 @@
                              "status":  "blocked",
                              "reason":  "完整清单已更新，静态页面底框已替换为图片；伤害数字、状态标记、攻击预警等动态 UI 仍没有用户确认的最终图集。"
                          },
-                         {
-                             "summary":  "每日挑战排行榜前三名徽章、滚动榜单和全量字体位置验收",
-                             "status":  "blocked",
-                             "implementedIn":  "src/main.ts",
-                             "reason":  "排行榜可视行数、触摸拖动/滚轮滚动和前三名徽章已完成并完成本地回归；文档要求的所有页面字体位置仍需逐页验收。"
-                         }
-                     ],
+                          {
+                              "summary":  "每日挑战排行榜前三名徽章、滚动榜单和全量字体位置验收",
+                              "status":  "blocked",
+                              "implementedIn":  "src/main.ts",
+                              "reason":  "排行榜可视行数、触摸拖动/滚轮滚动和前三名徽章已完成并完成本地回归；文档要求的所有页面字体位置仍需逐页验收。"
+                          },
+                          {
+                              "summary":  "调查员女正常版前后动效和静态图去除白色毛刺",
+                              "status":  "blocked",
+                              "implementedIn":  "src/playerSkinArt.ts, public/assets/art/player-skins/investigator-female-normal",
+                              "reason":  "调查员女正常版的静态图与四向行走序列已接入，但当前没有完成逐帧透明边缘复核，也没有用户确认的替换素材；暂不改写现有美术。"
+                          },
+                          {
+                              "summary":  "主线敌人每类两种皮肤并在图鉴和楼层中轮换展示",
+                              "status":  "blocked",
+                              "implementedIn":  "src/patientEnemyArt.ts, src/main.ts",
+                              "reason":  "主线战斗已按敌人类型随机选择两种已接入变体；独立怪物图鉴入口目前隐藏，文档要求的图鉴轮换和逐楼层不同立绘仍未完成验收。"
+                          }
+                      ],
     "verification":  {
                            "tests":  "passed: 5 个测试文件，32 项全部通过（2026-08-28 19:56）",
                            "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 19:56）；保留既有 builda-sdk.js 缺少 type=module 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                           "documentFetch":  "passed: revision 3457；52 项已完成，5 项待处理（2026-08-28 19:47）",
-                           "documentCheckboxUpdate":  "passed: 本轮未发现新增意见或版本变化；文档仍为 52 项已完成、5 项待处理",
-                          "buildaBundleCheck":  "passed: bundle-pack compressed upload copy；bundle-check ok，HTML5 网页包 190,036,944 bytes；体积提示不阻断上传",
+                            "documentFetch":  "passed: revision 3457；52 项已完成，5 项待处理（2026-08-28 20:06）",
+                            "documentCheckboxUpdate":  "passed: 本轮未发现新增意见或版本变化；文档仍为 52 项已完成、5 项待处理",
+                           "buildaBundleCheck":  "blocked: 线上版本 9f7f0cf471d120f6458a07a925168de8 使用了错误的 WebP 压缩包；入口和脚本仍引用 .png，主背景、角色、卡牌及加载图在创游世界返回 404。",
                           "buildaUpload":  "passed: upload-build 已上传构建 8b5f1aca8c503250d626c941cc7551d6；仅更新 H5 Bundle 与本地 manifest，未调用 publish、create-draft 或 update-draft",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
                          "mobileTouchAcceptance":  "blocked: 当前无独立真实触摸环境",
@@ -328,7 +340,9 @@
                            "openingDialogueBubbleRetest":  "passed: local 1280x720 and 1024x576 previews show the generated dialogue frame at native 3:1 ratio, the tutorial guide panel is absent, and the day-ward to night-battle transition fades continuously."
                            ,"dailyRepeatChallenge":  "passed: 通关后每日挑战入口保持可用；同月再次挑战会消耗当日次数并只刷新更快的本月记录，首领奖励仅在当月首次通关发放。"
                             ,"profileLayoutFinal":  "passed: local 1280x720 回归中病历档案三排皮肤卡片、分类标签和操作文字均留在右侧图片框内，第三排未被画布裁切。",
-                            "compressedBundle":  "passed: 上传副本使用无损 WebP 资源并补入最新皮肤封面，尺寸和像素校验通过；bundle-check 通过，包体 190036944 字节。",
+                             "compressedBundle":  "blocked: 旧压缩包把 PNG 改为 WebP 却没有同步入口和脚本引用，静态 bundle-check 无法覆盖运行时 404；已在本地生成修复包 builda-web-fixed-webp-files-20260828.zip，包体 193121819 字节，引用检查通过。",
+                             "buildaRuntimeDiagnosis":  "passed: 线上入口和 manifest 返回 200；对 10 个关键资源抽样确认 .png 全部 404、对应 .webp 返回 200，确认失败来自压缩包扩展名与运行时代码不一致。",
+                             "buildaFixedBundleLocal":  "passed: 当前 dist 重新构建；仅保留一份 index-CEDYJxlD.js，PNG 全部转为同名 WebP 并同步 index.html/脚本引用；299 个 WebP、0 个 PNG、0 个目录条目，bundle-check 通过，包体 193121819 字节；未上传或发布。",
                             "buildaDraftUpload":  "passed: Builda 草稿同步完成，gameId GD:48356599:1，currentVersionId 4ae92de7-f9b7-528b-afc7-a31c7a89939a，bundleVersion 9f7f0cf471d120f6458a07a925168de8；未公开发布。"
                      }
 }
