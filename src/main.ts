@@ -34,6 +34,9 @@ import {
   SMALL_ENEMY_ART_VARIANTS,
   type SmallEnemyKind,
 } from './patientEnemyArt';
+import { installUiTextTheme } from './uiTheme';
+
+installUiTextTheme();
 
 const W = 1280;
 const H = 720;
@@ -410,6 +413,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('menu-button-mainline-v1', '/assets/art/menu/menu-button-mainline-v1.png');
     this.load.image('menu-button-daily-v1', '/assets/art/menu/menu-button-daily-v1.png');
     this.load.image('ui-command-frame', '/assets/art/ui-command-frame.webp');
+    this.load.image('ui-command-frame-v2', '/assets/art/ui/ui-command-frame-v2.png');
+    this.load.image('ui-typography-kit-v1', '/assets/art/ui/ui-typography-kit-v1.png');
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
     this.load.image('daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png');
     this.load.image('daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png');
@@ -1533,13 +1538,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     frame.add(this.add.rectangle(4, 4, width, height, 0x03060a, 0.96));
     frame.add(this.add.rectangle(0, 0, width, height, fill, 0.98).setStrokeStyle(2, 0x080d13, 1));
     frame.add(this.add.rectangle(0, 0, width - 10, height - 10, fill, 0).setStrokeStyle(1, accent, 0.45));
-    if (this.textures.exists('ui-command-frame')) {
+    const commandFrameKey = this.textures.exists('ui-command-frame-v2') ? 'ui-command-frame-v2' : 'ui-command-frame';
+    if (this.textures.exists(commandFrameKey)) {
       const edgeWidth = Math.max(180, width + 42);
       const edgeHeight = Math.min(58, Math.max(44, height * 0.12));
-      const top = this.add.image(0, -height / 2 + edgeHeight * 0.38, 'ui-command-frame')
+      const top = this.add.image(0, -height / 2 + edgeHeight * 0.38, commandFrameKey)
         .setDisplaySize(edgeWidth, edgeHeight)
         .setAlpha(0.78);
-      const bottom = this.add.image(0, height / 2 - edgeHeight * 0.38, 'ui-command-frame')
+      const bottom = this.add.image(0, height / 2 - edgeHeight * 0.38, commandFrameKey)
         .setDisplaySize(edgeWidth, edgeHeight)
         .setFlipY(true)
         .setAlpha(0.7);
@@ -2008,14 +2014,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v1', 0.56);
     this.addPixelFrame(layer, 640, 350, 820, 560, 0x101b24, 0xb798e2);
-    layer.add(this.add.text(640, 104, '每日挑战 / DAILY NIGHT', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 140, '当天解锁一关，使用主线已解锁的武器挑战 50 波。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
+    layer.add(this.add.text(640, 104, '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     this.addPixelFrame(layer, 640, 330, 610, 250, 0x0a141b, 0x46636a);
     const completed = this.isDailyCompleted();
     layer.add(this.add.text(640, 266, completed ? '今日挑战已锁定' : '今日挑战可进入', { fontFamily: 'Microsoft YaHei', fontSize: '24px', color: completed ? palette.muted : palette.violet }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(this.add.text(640, 312, completed ? '每日只能完成一次，明日刷新挑战资格。' : '选择主线已解锁的武器，完成 50 波挑战。', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setOrigin(0.5));
     layer.add(this.add.text(640, 360, '挑战规则：选定武器后不可更换。每次升级三选一，银色、金色、棱彩卡牌会组合出不同战斗流派。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 510 } }).setOrigin(0.5));
-    layer.add(this.add.text(640, 400, '最终首领拥有范围技能和蓄力攻击，击败后可获得专属外观。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cyan }).setOrigin(0.5));
     if (!completed) this.addButton(layer, 640, 474, 220, 44, '选择武器并开始', () => this.showWeaponSelect('daily', 1), 'primary');
     if (toast) layer.add(this.add.text(640, 448, toast, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted');
@@ -2039,19 +2043,11 @@ export class HospitalBattleScene extends Phaser.Scene {
       strokeThickness: Math.max(2, Math.round(size / 7)),
     }).setOrigin(0.5).setFontStyle('bold');
     const title = cthulhuText(640, 42, '每日挑战', 26);
-    const subtitle = this.add.text(640, 72, 'MONTHLY NIGHT / 50 WAVES', { fontFamily: 'Courier New', fontSize: '11px', color: palette.violet }).setOrigin(0.5);
-    layer.add([title, subtitle]);
+    layer.add(title);
 
     const bossX = 205;
     const bossPanel = this.addDailyPanelFrame(layer, bossX, 220, 330, 250);
     layer.add(cthulhuText(bossX, 79, '本月首领', 15, palette.violet));
-    layer.add(this.add.text(bossX + 145, 79, completed ? '已完成' : '待挑战', {
-      fontFamily: 'Courier New, Microsoft YaHei',
-      fontSize: '11px',
-      color: completed ? palette.green : palette.amber,
-      stroke: '#050b10',
-      strokeThickness: 2,
-    }).setOrigin(1, 0.5));
     if (this.textures.exists('boss-moon-wolf')) {
       bossPanel.add(this.add.image(0, -2, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(250, 180));
     } else {
@@ -2059,14 +2055,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       bossPanel.add(this.add.text(0, -2, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
     }
     layer.add(cthulhuText(bossX, 355, '月蚀狼王', 20));
-    layer.add(this.add.text(bossX, 379, '范围追击  ·  蓄力爆裂', {
-      fontFamily: 'Courier New, Microsoft YaHei',
-      fontSize: '11px',
-      color: palette.cyan,
-      stroke: '#050b10',
-      strokeThickness: 2,
-    }).setOrigin(0.5));
-
     layer.add(cthulhuText(bossX, 407, 'BOSS 掉落', 14, palette.violet));
     const dropItems = [
       { texture: 'relic-crown', label: '月蚀王冠' },
@@ -2085,7 +2073,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         strokeThickness: 2,
       }).setOrigin(0.5));
     });
-    layer.add(this.add.text(bossX, 619, completed ? '已加入病历档案' : '通关后随机获得一件', {
+    layer.add(this.add.text(bossX, 619, completed ? '已加入病历档案' : '通关后随机掉落任意一件BOSS遗物', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '10px',
       color: completed ? palette.green : palette.muted,
@@ -2095,26 +2083,19 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const infoX = 645;
     layer.add(cthulhuText(infoX, 168, completed ? '本月挑战已完成' : '今晚的病区正在等待', 19, completed ? palette.green : palette.cream));
-    layer.add(this.add.text(infoX, 215, '首领技能  ·  范围追击 / 蓄力爆裂', {
-      fontFamily: 'Courier New, Microsoft YaHei',
-      fontSize: '12px',
-      color: palette.cyan,
-      stroke: '#050b10',
-      strokeThickness: 2,
-    }).setOrigin(0.5));
-    layer.add(this.add.text(infoX, 258, '通关最快记录', {
+    layer.add(this.add.text(infoX, 220, '通关最快记录', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '11px',
       color: palette.muted,
     }).setOrigin(0.5));
-    layer.add(cthulhuText(infoX, 288, this.formatDailyTime(this.progress.dailyBestSeconds), 24, this.progress.dailyBestSeconds ? palette.green : palette.danger));
-    if (!completed) this.addDailyImageButton(layer, 525, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
-    layer.add(this.add.text(525, 700, '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
+    layer.add(cthulhuText(infoX, 252, this.formatDailyTime(this.progress.dailyBestSeconds), 24, this.progress.dailyBestSeconds ? palette.green : palette.danger));
+    if (!completed) this.addDailyImageButton(layer, 640, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    layer.add(this.add.text(640, 700, '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '11px',
       color: attempts >= 3 ? palette.amber : palette.cyan,
     }).setOrigin(0.5));
-    if (toast) layer.add(this.add.text(525, 611, toast, {
+    if (toast) layer.add(this.add.text(640, 611, toast, {
       fontFamily: 'Microsoft YaHei',
       fontSize: '10px',
       color: palette.amber,
@@ -2124,21 +2105,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const rankingX = 1080;
     const rankingY = 370;
     const boardPanel = this.addDailyRankingFrame(layer, rankingX, rankingY, 360, 560);
-    layer.add(cthulhuText(rankingX, 79, '排行榜', 18));
-    layer.add(this.add.text(rankingX, 103, 'MONTHLY NIGHT  ·  TOP 20', {
-      fontFamily: 'Courier New',
-      fontSize: '10px',
-      color: palette.violet,
-      stroke: '#050b10',
-      strokeThickness: 2,
-    }).setOrigin(0.5));
-    boardPanel.add(this.add.text(-143, -248, '排名', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
-    boardPanel.add(this.add.text(-76, -248, '昵称', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
-    boardPanel.add(this.add.text(143, -248, '通关记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
-    boardPanel.add(this.add.rectangle(0, -230, 300, 1, 0x6bd3c1, 0.28));
+    boardPanel.add(cthulhuText(0, -248, '排行榜', 18));
+    boardPanel.add(this.add.text(-143, -218, '排名', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    boardPanel.add(this.add.text(-76, -218, '昵称', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    boardPanel.add(this.add.text(143, -218, '通关记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
+    boardPanel.add(this.add.rectangle(0, -200, 300, 1, 0x6bd3c1, 0.28));
     const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && this.progress.dailyBestSeconds ? { ...entry, score: this.dailyScoreForTime(this.progress.dailyBestSeconds) } : entry);
     board.slice(0, 20).forEach((entry) => {
-      const y = -211 + (entry.rank - 1) * 17;
+      const y = -181 + (entry.rank - 1) * 17;
       const own = entry.name === this.playerNickname;
       const topRank = entry.rank <= 3;
       const rankColor = entry.rank === 1 ? palette.amber : entry.rank === 2 ? '#d6e7ea' : entry.rank === 3 ? '#d99263' : palette.cream;
@@ -2158,9 +2132,9 @@ export class HospitalBattleScene extends Phaser.Scene {
         color: entry.score > 0 ? (topRank ? rankColor : palette.amber) : palette.danger,
       }).setOrigin(1, 0.5));
     });
-    boardPanel.add(this.add.rectangle(0, 145, 300, 1, 0x6bd3c1, 0.28));
-    boardPanel.add(this.add.text(-143, 159, '我的记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }));
-    boardPanel.add(this.add.text(143, 159, this.progress.dailyBestSeconds ? this.formatDailyTime(this.progress.dailyBestSeconds) : '未通关', {
+    boardPanel.add(this.add.rectangle(0, 165, 300, 1, 0x6bd3c1, 0.28));
+    boardPanel.add(this.add.text(-143, 180, '我的记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }));
+    boardPanel.add(this.add.text(143, 180, this.progress.dailyBestSeconds ? this.formatDailyTime(this.progress.dailyBestSeconds) : '未通关', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '19px',
       color: this.progress.dailyBestSeconds ? palette.green : palette.danger,
@@ -2187,12 +2161,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const completed = this.isDailyCompleted();
     const attempts = this.dailyAttemptsUsed();
     const title = this.add.text(640, 42, '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '26px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold');
-    const subtitle = this.add.text(640, 72, 'MONTHLY NIGHT / 50 WAVES', { fontFamily: 'Courier New', fontSize: '11px', color: palette.violet }).setOrigin(0.5);
-    layer.add([title, subtitle]);
+    layer.add(title);
 
     const bossPanel = this.addDailyPanelFrame(layer, 205, 215, 310, 255);
     bossPanel.add(this.add.text(-116, -101, '本月首领', { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.violet }).setFontStyle('bold'));
-    bossPanel.add(this.add.text(116, -101, completed ? '已完成' : '待挑战', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: completed ? palette.green : palette.amber }).setOrigin(1, 0));
     if (this.textures.exists('boss-moon-wolf')) {
       bossPanel.add(this.add.image(0, -8, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(210, 142));
     } else {
@@ -2215,7 +2187,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (this.textures.exists(item.texture)) dropPanel.add(this.add.image(x, 5, item.texture).setOrigin(0.5).setDisplaySize(42, 42));
       dropPanel.add(this.add.text(x, 45, item.label, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream }).setOrigin(0.5));
     });
-    dropPanel.add(this.add.text(0, 70, completed ? '已加入病历档案' : '通关后随机获得一件', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: completed ? palette.green : palette.muted }).setOrigin(0.5));
+    dropPanel.add(this.add.text(0, 70, completed ? '已加入病历档案' : '通关后随机掉落任意一件BOSS遗物', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: completed ? palette.green : palette.muted }).setOrigin(0.5));
     layer.add(dropPanel);
 
     const entryWeapon = this.createWeaponRoster().find((weapon) => weapon.id === this.selectedWeaponId) ?? this.createWeaponRoster()[0];
@@ -2232,16 +2204,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const infoX = 655;
     layer.add(this.add.text(infoX, 176, completed ? '本月挑战已完成' : '今晚的病区正在等待', { fontFamily: 'Microsoft YaHei', fontSize: '19px', color: completed ? palette.green : palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(this.add.text(infoX, 214, '选定武器后完成 50 波战斗，升级卡牌会改变攻击节奏。', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted, wordWrap: { width: 300 } }).setOrigin(0.5));
-    layer.add(this.add.text(infoX, 271, '首领技能：范围追击、蓄力爆裂', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.text(infoX, 300, '通关最快记录', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
-    layer.add(this.add.text(infoX, 329, this.formatDailyTime(this.progress.dailyBestSeconds), { fontFamily: 'Courier New', fontSize: '24px', color: this.progress.dailyBestSeconds ? palette.green : palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    if (!completed) this.addDailyImageButton(layer, 525, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
-    layer.add(this.add.text(525, 700, `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
-    if (toast) layer.add(this.add.text(525, 680, toast, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber, wordWrap: { width: 300 } }).setOrigin(0.5));
+    layer.add(this.add.text(infoX, 286, '通关最快记录', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
+    layer.add(this.add.text(infoX, 315, this.formatDailyTime(this.progress.dailyBestSeconds), { fontFamily: 'Courier New', fontSize: '24px', color: this.progress.dailyBestSeconds ? palette.green : palette.amber }).setOrigin(0.5).setFontStyle('bold'));
+    if (!completed) this.addDailyImageButton(layer, 640, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    layer.add(this.add.text(640, 700, `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
+    if (toast) layer.add(this.add.text(640, 611, toast, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber, wordWrap: { width: 300 } }).setOrigin(0.5));
 
     const boardPanel = this.addDailyRankingFrame(layer, 1080, 370, 350, 600);
     boardPanel.add(this.add.text(-125, -268, '排行榜', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.cream }).setFontStyle('bold'));
-    boardPanel.add(this.add.text(125, -268, '前 20 名', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
     boardPanel.add(this.add.text(-137, -228, '名次', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     boardPanel.add(this.add.text(-65, -228, '昵称', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     boardPanel.add(this.add.text(137, -228, '用时', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
@@ -4268,9 +4238,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const hitHeight = Math.max(48, height + hitPadding * 2);
     const button = this.add.container(x, y);
     const shadow = this.add.rectangle(4, 4, width, height, 0x05090f, 0.96).setStrokeStyle(1, 0x05090f, 1);
-    const hasPixelButton = !isBackButton && this.textures.exists('ui-command-frame');
+    const commandFrameKey = this.textures.exists('ui-command-frame-v2') ? 'ui-command-frame-v2' : 'ui-command-frame';
+    const hasPixelButton = !isBackButton && this.textures.exists(commandFrameKey);
     const pixelButton = hasPixelButton
-      ? this.add.image(0, 0, 'ui-command-frame').setDisplaySize(width + 24, Math.max(48, height + 16)).setAlpha(0.92)
+      ? this.add.image(0, 0, commandFrameKey).setDisplaySize(width + 24, Math.max(48, height + 16)).setAlpha(0.92)
       : undefined;
     const rect = this.add.rectangle(0, 0, width, height, colors[style], hasPixelButton ? 0.32 : 1).setStrokeStyle(2, lineColors[style], 0.95);
     button.add(shadow);

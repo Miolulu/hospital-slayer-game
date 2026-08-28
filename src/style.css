@@ -1,8 +1,17 @@
+@font-face {
+  font-family: "HospitalPixel";
+  src: url("/assets/fonts/hospital-ui.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
-  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  font-family: "HospitalPixel", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
   background: #0b1117;
   font-synthesis: none;
+  text-rendering: optimizeLegibility;
   --ink: #05090f;
   --panel: #111d27;
   --line: #6bd3c1;
@@ -80,7 +89,7 @@ canvas {
 }
 
 .orientation-card strong {
-  font: 700 20px "Microsoft YaHei", sans-serif;
+  font: 700 20px "HospitalPixel", "Noto Sans SC", sans-serif;
 }
 
 .orientation-card span {
@@ -90,7 +99,7 @@ canvas {
 
 .orientation-glyph {
   color: var(--amber);
-  font: 700 42px/1 "Courier New", monospace;
+  font: 700 42px/1 "HospitalPixel", "Noto Sans SC", monospace;
 }
 
 @media (orientation: portrait) {

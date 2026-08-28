@@ -1,16 +1,18 @@
 import Phaser from 'phaser';
 import { audio } from './audio';
 import { store } from './store';
+import { UI_FONT_STACK } from './uiTheme';
 
 export const COLORS = { ink: 0x0a0c10, paper: 0xeee2c2, gold: 0xd3aa55, teal: 0x79b6ac, red: 0xb82e43, muted: 0x9c9b91 };
 
 export function text(scene: Phaser.Scene, x: number, y: number, value: string, size = 18, color = '#eee2c2', align: 'left' | 'center' | 'right' = 'left') {
-  return scene.add.text(x, y, value, { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: `${size}px`, color, align, wordWrap: { width: 720 }, letterSpacing: 0 }).setOrigin(align === 'center' ? .5 : align === 'right' ? 1 : 0, .5);
+  return scene.add.text(x, y, value, { fontFamily: UI_FONT_STACK, fontSize: `${size}px`, color, align, wordWrap: { width: 720 }, letterSpacing: 0 }).setOrigin(align === 'center' ? .5 : align === 'right' ? 1 : 0, .5);
 }
 
 export function iconButton(scene: Phaser.Scene, x: number, y: number, icon: string, label: string, action: () => void, width = 132, labelColor = '#f2e6c8') {
-  const bg = scene.textures.exists('ui-command-frame')
-    ? scene.add.image(0, 0, 'ui-command-frame').setDisplaySize(width + 24, 54)
+  const commandFrameKey = scene.textures.exists('ui-command-frame-v2') ? 'ui-command-frame-v2' : 'ui-command-frame';
+  const bg = scene.textures.exists(commandFrameKey)
+    ? scene.add.image(0, 0, commandFrameKey).setDisplaySize(width + 24, 54)
     : scene.add.rectangle(0, 0, width, 48, COLORS.ink, .78).setStrokeStyle(1, COLORS.gold, .8);
   const labelText = text(scene, 0, 0, `${icon}  ${label}`, 16, labelColor, 'center').setShadow(0, 2, '#090a0d', 0.85, true, true);
   const c = scene.add.container(x, y, [bg, labelText]).setSize(width, 48).setInteractive({ useHandCursor: true });
