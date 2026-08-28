@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3623,
-                     "lastCheckedAt":  "2026-08-28T21:14:10+08:00",
+                     "lastCheckedAt":  "2026-08-28T22:03:23+08:00",
                      "completedCheckboxes":  53,
                      "pendingCheckboxes":  6
                  },
@@ -308,7 +308,8 @@
                           {
                               "summary":  "接入广告和付费接口并先整理皮肤、武器清单与规则",
                               "status":  "blocked",
-                              "reason":  "已确认需要先整理清单和规则；等待用户分类确认后再接入 Builda SDK 广告与付费接口。"
+                              "implementedIn":  "src/main.ts",
+                              "reason":  "广告规则已确认：每月挑战前三次免费，之后调用 Builda SDK 激励广告，每次广告增加一次挑战次数；代码已接入，平台实际广告与付费验收仍待完成。"
                           },
                           {
                               "summary":  "每日挑战真实平台排行榜验收",
@@ -318,11 +319,11 @@
                           }
                       ],
     "verification":  {
-                           "tests":  "passed: 5 个测试文件，32 项全部通过（2026-08-28 19:56）",
-                           "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 19:56）；保留既有 builda-sdk.js 缺少 type=module 提示",
+                           "tests":  "passed: 7 个测试文件，38 项全部通过（2026-08-28 21:55）",
+                           "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:02）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                            "documentFetch":  "passed: revision 3623；53 项已完成，6 项待处理（2026-08-28 21:14）",
+                            "documentFetch":  "passed: revision 3623；53 项已完成，6 项待处理（2026-08-28 22:03）",
                             "documentCheckboxUpdate":  "passed: revision 3623；已勾选调查员女正常版白色毛刺处理项，文档剩余 6 项待处理",
                            "buildaBundleCheck":  "blocked: 线上版本 9f7f0cf471d120f6458a07a925168de8 使用了错误的 WebP 压缩包；入口和脚本仍引用 .png，主背景、角色、卡牌及加载图在创游世界返回 404。",
                            "buildaUpload":  "passed: 修复包已上传并更新现有创游世界草稿；Builda 构建 b1f0e49df58f2bb15edbbf215beb42c8，未执行公开发布。",
@@ -330,7 +331,8 @@
                          "mobileTouchAcceptance":  "blocked: 当前无独立真实触摸环境",
                           "buildaLandscapeAcceptance":  "blocked: 当前无可用 Builda 外壳真机/浏览器实例",
                           "buildaLocalMockRetest":  "passed: Builda 本地手机模拟外壳 18100 端口冷启动复测；修复 Phaser 资源基础地址双斜杠与 CSS crossorigin 后，横屏、加载进度 100%、样式、主菜单和画布均可见；正式真机仍待平台环境",
-                         "upgradeCardIconCheck":  "passed: 14 transparent 256x256 PNG icons loaded from public/assets/art/cards/icons; top card slot uses 128px display size to fill the card opening; mainline upgrade-weapon card removed",
+                          "upgradeCardIconCheck":  "passed: 14 transparent 256x256 PNG icons loaded from public/assets/art/cards/icons; top card slot uses 128px display size to fill the card opening; mainline upgrade-weapon card removed",
+                          "adIconSplit":  "passed: monthly challenge uses daily-ad-icon-monthly-v1; legacy compatibility layout keeps daily-ad-icon-v1; both transparent PNG assets are preloaded and built",
                          "dialogueSceneVisual":  "passed: local 1280x720 preview shows ward-day-v1 full-screen, two characters centered at the same standing scale, only the active speaker has a compact head-top bubble, and the final line fades into ward-night-v1 battle HUD",
                           "dailyChallengeLayout":  "passed: local 1280x720 preview uses the supplied background, three separate supplied panel frames for boss, drops and entry weapon, the supplied tall ranking frame on the right, and the supplied start button; the button opens daily weapon selection",
                           "weaponSelectLayout":  "passed: 1280x720 and 1024x576 landscape previews show the supplied weapon-select background, separate frame assets, four weapon categories and weapon-skin grid; locked skins remain previewable",
