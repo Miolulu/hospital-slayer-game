@@ -34,7 +34,7 @@ import {
   SMALL_ENEMY_ART_VARIANTS,
   type SmallEnemyKind,
 } from './patientEnemyArt';
-import { installUiTextTheme } from './uiTheme';
+import { installUiTextTheme, UI_FONT_STACK } from './uiTheme';
 
 installUiTextTheme();
 
@@ -46,7 +46,7 @@ const FULL_TURN = Math.PI * 2;
 const ARENA = { left: 160, right: 1120, top: 116, bottom: 642 };
 const WORLD_BOUNDS = { left: -720, right: 2000, top: -520, bottom: 1700 };
 
-type Phase = 'start' | 'mainline-select' | 'weapon-select' | 'dialogue' | 'battle' | 'wave-cleanup' | 'wave-break' | 'upgrade' | 'result';
+type Phase = 'start' | 'mainline-intro' | 'mainline-select' | 'weapon-select' | 'dialogue' | 'battle' | 'wave-cleanup' | 'wave-break' | 'upgrade' | 'result';
 type EnemyKind = CombatEnemyKind;
 type DropKind = 'xp';
 type WeaponType = 'melee' | 'ranged';
@@ -77,6 +77,7 @@ interface SkinDef {
 
 interface ProgressSave {
   maxFloor: number;
+  mainlineIntroSeen?: boolean;
   unlockedWeaponIds: string[];
   unlockedWeaponSkinIds: string[];
   equippedWeaponSkinIds: Partial<Record<WeaponClass, string>>;
@@ -203,15 +204,26 @@ const palette = {
   green: '#8fd17c',
 };
 
+const paletteRgb = {
+  amber: 0xf2bf62,
+  danger: 0xed716e,
+  cyan: 0x7ab9d0,
+};
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 const hex = (color: number) => Phaser.Display.Color.IntegerToColor(color).rgba;
 
 export class HospitalBattleScene extends Phaser.Scene {
   private phase: Phase = 'start';
+  private loadingLayer?: Phaser.GameObjects.Container;
+  private loadingProgress?: Phaser.GameObjects.Graphics;
+  private loadingStatus?: Phaser.GameObjects.Text;
   private overlay?: Phaser.GameObjects.Container;
   private canvasUiPointerDownHandler?: (event: PointerEvent) => void;
+  private canvasUiPointerMoveHandler?: (event: PointerEvent) => void;
   private canvasUiPointerUpHandler?: (event: PointerEvent) => void;
+  private canvasUiWheelHandler?: (event: WheelEvent) => void;
   private canvasPointerCancelHandler?: (event: PointerEvent) => void;
   private world!: Phaser.GameObjects.Container;
   private ui!: Phaser.GameObjects.Container;
@@ -243,6 +255,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private selectedStartFloor = 1;
   private progress: ProgressSave = {
     maxFloor: 1,
+    mainlineIntroSeen: false,
     unlockedWeaponIds: ['knife', 'ward-lantern'],
     unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'],
     equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' },
@@ -366,6 +379,18 @@ export class HospitalBattleScene extends Phaser.Scene {
   private dialogueIndex = 0;
   private dialogueTransitioning = false;
   private tutorialRun = false;
+  private tutorialGuide?: Phaser.GameObjects.Container;
+  private tutorialGuideTimer = 0;
+  private floorScrollContent?: Phaser.GameObjects.Container;
+  private floorScrollRegions: Array<{ region: UiActionRegion; baseY: number }> = [];
+  private floorScrollOffset = 0;
+  private floorScrollMin = 0;
+  private floorScrollMax = 0;
+  private floorScrollPointer?: number;
+  private floorScrollStartY = 0;
+  private floorScrollStartOffset = 0;
+  private floorScrollMoved = false;
+  private readonly floorScrollViewport = { top: 174, bottom: 628 };
   private screenShakeEnabled = true;
   private damageNumbersEnabled = true;
   private buildaSafeArea = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -404,6 +429,23 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   preload() {
+    this.createLoadingScreen();
+    this.load.on('progress', (value: number) => {
+      this.loadingProgress?.clear()
+        .fillStyle(0x6bd3c1, 1)
+        .fillRect(W / 2 - 210, H / 2 + 35, 420 * clamp(value, 0, 1), 10);
+      this.loadingStatus?.setText(`正在加载病区资源  ${Math.round(value * 100)}%`);
+    });
+    this.load.on('loaderror', (file: { key?: string }) => {
+      const key = file.key || '未知资源';
+      this.loadingStatus?.setText(`资源加载失败：${key}`.slice(0, 42)).setColor(palette.danger);
+    });
+    this.load.once('complete', () => {
+      this.loadingLayer?.destroy(true);
+      this.loadingLayer = undefined;
+      this.loadingProgress = undefined;
+      this.loadingStatus = undefined;
+    });
     this.load.image('patient-boy', '/assets/art/patient-boy.png');
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
@@ -422,6 +464,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('daily-panel-frame-v1', '/assets/art/daily/daily-panel-frame-v1.png');
     this.load.image('daily-start-button-v1', '/assets/art/daily/daily-start-button-v1.png');
     this.load.image('mainline-background-v1', '/assets/art/mainline-background-v1.png');
+    this.load.image('mainline-building-v1', '/assets/art/mainline-building-v1.png');
+    this.load.image('mainline-building-v2', '/assets/art/mainline-building-v2.png');
+    this.load.image('mainline-building-v3', '/assets/art/mainline-building-v3.png');
     this.load.image('weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.png');
     (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => {
       this.load.image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.png`);
@@ -473,6 +518,31 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
   }
 
+  private createLoadingScreen() {
+    const layer = this.add.container(0, 0).setDepth(1000).setScrollFactor(0);
+    const backdrop = this.add.rectangle(W / 2, H / 2, W, H, palette.bg, 1);
+    const frame = this.add.rectangle(W / 2, H / 2, 560, 188, 0x101b24, 0.98)
+      .setStrokeStyle(2, 0x6bd3c1, 0.92);
+    const title = this.add.text(W / 2, H / 2 - 46, '正在进入病区', {
+      fontFamily: UI_FONT_STACK,
+      fontSize: '24px',
+      color: palette.cream,
+      stroke: '#071015',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setFontStyle('bold');
+    const status = this.add.text(W / 2, H / 2 - 8, '正在加载病区资源  0%', {
+      fontFamily: UI_FONT_STACK,
+      fontSize: '13px',
+      color: palette.muted,
+    }).setOrigin(0.5);
+    const track = this.add.graphics().fillStyle(0x26383f, 1).fillRect(W / 2 - 210, H / 2 + 35, 420, 10);
+    const progress = this.add.graphics();
+    layer.add([backdrop, frame, title, status, track, progress]);
+    this.loadingLayer = layer;
+    this.loadingProgress = progress;
+    this.loadingStatus = status;
+  }
+
   create() {
     this.cameras.main.setBackgroundColor(palette.bg);
     this.loadProgress();
@@ -502,13 +572,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.input.on('pointerup', this.handlePointerUp, this);
     this.input.on('pointerupoutside', this.handlePointerUp, this);
     this.canvasUiPointerDownHandler = (event: PointerEvent) => this.handleUiPointerDown(event);
+    this.canvasUiPointerMoveHandler = (event: PointerEvent) => this.handleUiPointerMove(event);
     this.canvasUiPointerUpHandler = (event: PointerEvent) => this.handleUiPointerUp(event);
+    this.canvasUiWheelHandler = (event: WheelEvent) => this.handleUiWheel(event);
     this.canvasPointerCancelHandler = () => {
       this.releaseJoystick();
       this.releaseUiPointer();
+      this.releaseFloorScroll();
     };
     this.game.canvas.addEventListener('pointerdown', this.canvasUiPointerDownHandler, true);
+    this.game.canvas.addEventListener('pointermove', this.canvasUiPointerMoveHandler, true);
     this.game.canvas.addEventListener('pointerup', this.canvasUiPointerUpHandler, true);
+    this.game.canvas.addEventListener('wheel', this.canvasUiWheelHandler, { passive: false });
     this.game.canvas.addEventListener('pointercancel', this.canvasPointerCancelHandler);
     this.game.canvas.addEventListener('lostpointercapture', this.canvasPointerCancelHandler);
     this.refreshBuildaLayout();
@@ -569,7 +644,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       if (this.canvasUiPointerDownHandler) this.game.canvas.removeEventListener('pointerdown', this.canvasUiPointerDownHandler, true);
+      if (this.canvasUiPointerMoveHandler) this.game.canvas.removeEventListener('pointermove', this.canvasUiPointerMoveHandler, true);
       if (this.canvasUiPointerUpHandler) this.game.canvas.removeEventListener('pointerup', this.canvasUiPointerUpHandler, true);
+      if (this.canvasUiWheelHandler) this.game.canvas.removeEventListener('wheel', this.canvasUiWheelHandler);
       if (this.canvasPointerCancelHandler) {
         this.game.canvas.removeEventListener('pointercancel', this.canvasPointerCancelHandler);
         this.game.canvas.removeEventListener('lostpointercapture', this.canvasPointerCancelHandler);
@@ -677,6 +754,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     const dt = Math.min(delta / 1000, 0.05) * this.gameSpeed;
+    this.updateTutorialGuide(dt);
     if (this.phase === 'wave-break') {
       this.elapsed += dt;
       this.waveBreakTimer = Math.max(0, this.waveBreakTimer - dt);
@@ -883,6 +961,19 @@ export class HospitalBattleScene extends Phaser.Scene {
     return this.safeGameRect(16).top + 21;
   }
 
+  /** Keep page chrome inside the same logical safe rectangle as the title screen. */
+  private pageSafeBounds(padding = 16) {
+    return this.safeGameRect(padding);
+  }
+
+  private safeTopY(desired: number, margin = 10) {
+    return Math.max(desired, this.pageSafeBounds(0).top + margin);
+  }
+
+  private safeBottomY(desired: number, margin = 12) {
+    return Math.min(desired, this.pageSafeBounds(0).bottom - margin);
+  }
+
   private refreshBuildaLayout() {
     const sdk = window.Builda;
     if (sdk?.runtime) {
@@ -1076,6 +1167,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         : { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' };
       this.progress = {
         maxFloor: clamp(Number(parsed.maxFloor) || 1, 1, TOTAL_FLOORS),
+        mainlineIntroSeen: parsed.mainlineIntroSeen === true,
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
@@ -1102,7 +1194,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
       if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
     } catch {
-      this.progress = { maxFloor: 1, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
+      this.progress = { maxFloor: 1, mainlineIntroSeen: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
     }
   }
 
@@ -1243,10 +1335,13 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     this.phase = 'weapon-select';
     this.runMode = mode;
-    this.selectedStartFloor = clamp(Math.round(targetFloor), 1, TOTAL_FLOORS);
+    this.selectedStartFloor = clamp(Math.round(targetFloor), mode === 'mainline' ? 0 : 1, TOTAL_FLOORS);
     this.ui?.setVisible(false);
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
     const background = this.textures.exists('weapon-select-background-v1')
       ? this.add.image(W / 2, H / 2, 'weapon-select-background-v1').setOrigin(0.5).setDisplaySize(W, H)
       : this.add.image(W / 2, H / 2, 'menu-ward-night-v1').setOrigin(0.5).setDisplaySize(W, H);
@@ -1270,14 +1365,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const equippedSkin = this.equippedWeaponSkin(selectedWeapon.weaponClass);
     const accent = mode === 'daily' ? 0xb798e2 : 0x6bd3c1;
 
-    layer.add(this.add.text(640, 48, '武器库', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '29px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 82, mode === 'daily' ? '每日挑战 · 选择入场武器' : `第 ${this.selectedStartFloor} 层 · 选择入场武器`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.text(1195, 53, `创游货币  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
+    layer.add(this.add.text(centerX, this.safeTopY(48, 8), '武器库', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '29px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(82, 8), mode === 'daily' ? '每日挑战 · 选择入场武器' : `第 ${this.selectedStartFloor} 层 · 选择入场武器`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(safe.right - 8, this.safeTopY(53, 8), `创游货币  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
 
     baseWeapons.forEach((weapon, index) => {
       const meta = categoryMeta[weapon.weaponClass];
       const unlocked = this.isWeaponUnlocked(weapon.id) || (mode === 'mainline' && weapon.id === 'knife');
-      const x = 112;
+      const x = 112 + layoutShift;
       const y = 170 + index * 132;
       const color = unlocked ? weapon.color : 0x405158;
       const button = this.add.container(x, y);
@@ -1303,7 +1398,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const main = this.add.container(500, 292);
+    const main = this.add.container(500 + layoutShift, 292);
     main.add(this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5).setDisplaySize(520, 310).setAlpha(0.98));
     const mainImage = this.add.image(0, -4, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(214, 214);
     main.add(mainImage);
@@ -1311,7 +1406,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     main.add(this.add.text(0, 146, `${categoryMeta[selectedWeapon.weaponClass].label} · ${selectedWeapon.type === 'melee' ? '环绕近战' : '远程投射'} · 伤害 ${selectedWeapon.damage}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
     layer.add(main);
 
-    const detail = this.add.container(500, 525);
+    const detail = this.add.container(500 + layoutShift, 525);
     detail.add(this.add.image(0, 0, 'weapon-select-frame-detail-v1').setOrigin(0.5).setDisplaySize(520, 150).setAlpha(0.98));
     detail.add(this.add.text(-226, -44, selectedSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: selectedSkin.color ? hex(selectedSkin.color) : palette.cyan }).setFontStyle('bold'));
     detail.add(this.add.text(-226, -12, selectedSkinUnlocked ? (selectedSkin.id === equippedSkin.id ? '当前装备 · 进入战斗后生效' : '已解锁 · 可装备') : `未解锁 · 需要 ${selectedSkin.cost} 创游货币`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: selectedSkinUnlocked ? palette.green : palette.amber }));
@@ -1319,13 +1414,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     detail.add(this.add.text(-226, 39, '皮肤只改变武器外观，伤害和成长仍由武器本体决定。', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     layer.add(detail);
 
-    layer.add(this.add.text(1004, 139, '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(1004, 162, `${this.weaponSkinsFor(selectedWeapon.weaponClass).length} 款 · 可预览未解锁`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
-    this.addPixelFrame(layer, 1004, 390, 444, 486, 0x071117, accent);
+    const skinPanelX = clamp(1004 + layoutShift, safe.left + 222, safe.right - 222);
+    layer.add(this.add.text(skinPanelX, this.safeTopY(139, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(skinPanelX, this.safeTopY(162, 18), `${this.weaponSkinsFor(selectedWeapon.weaponClass).length} 款 · 可预览未解锁`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
+    this.addPixelFrame(layer, skinPanelX, 390, 444, 486, 0x071117, accent);
     this.weaponSkinsFor(selectedWeapon.weaponClass).forEach((skin, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
-      const x = 870 + column * 134;
+      const x = skinPanelX - 134 + column * 134;
       const y = 250 + row * 127;
       const unlocked = this.progress.unlockedWeaponSkinIds.includes(skin.id);
       const selected = skin.id === selectedSkin.id;
@@ -1350,22 +1446,23 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const actionY = 656;
+    const actionY = this.safeBottomY(656, 28);
     if (!selectedSkinUnlocked) {
-      this.addWeaponSelectImageButton(layer, 390, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
-      this.addWeaponSelectImageButton(layer, 615, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
+      this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
+      this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
     } else {
-      this.addWeaponSelectImageButton(layer, 390, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
+      this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
         this.equipWeaponSkin(selectedSkin.id);
         this.showWeaponSelect(mode, this.selectedStartFloor);
       }, selectedSkin.id === equippedSkin.id ? 0x46636a : accent);
-      this.addWeaponSelectImageButton(layer, 615, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '进入战斗', () => {
+      this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '进入战斗', () => {
         this.equipWeaponSkin(selectedSkin.id);
         if (mode === 'daily') void this.startDailyAttempt(selectedWeapon.id);
         else this.startRun(this.selectedStartFloor, mode, selectedWeapon.id);
       }, accent);
     }
-    this.addWeaponSelectImageButton(layer, 95, 680, 178, 38, 'weapon-select-frame-back-v1', '', () => {
+    const backY = this.safeBottomY(680, 22);
+    this.addWeaponSelectImageButton(layer, 95 + layoutShift, backY, 178, 38, 'weapon-select-frame-back-v1', '', () => {
       if (mode === 'daily') this.showDailyChallenge();
       else this.showMainline(this.selectedStartFloor);
     }, 0x46636a);
@@ -1458,7 +1555,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     return button;
   }
 
-  private showMainline(targetFloor = this.floor) {
+  private showMainlineLegacy(targetFloor = this.floor) {
     this.phase = 'mainline-select';
     this.runMode = 'mainline';
     this.ui?.setVisible(false);
@@ -1467,13 +1564,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'mainline-background-v1', 0.58);
     this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 640, 360, 1120, 620, 0x101b24, 0x6bd3c1);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 360, 1120, 620, 0x101b24, 0x6bd3c1);
     const selected = this.selectedStartFloor;
-    layer.add(this.add.text(640, 92, '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 126, 'MAINLINE / PATIENT ROUTE', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.rectangle(640, 153, 1000, 1, 0x46636a, 0.75));
+    layer.add(this.add.text(centerX, this.safeTopY(92, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(126, 18), 'MAINLINE / PATIENT ROUTE', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.rectangle(centerX, this.safeTopY(153, 18), Math.min(1000, safe.width), 1, 0x46636a, 0.75));
 
-    const progressPanel = this.add.container(345, 365);
+    const progressPanel = this.add.container(345 + layoutShift, 365);
     progressPanel.add(this.add.rectangle(0, 0, 500, 430, 0x0a141b, 0.96).setStrokeStyle(2, 0x6bd3c1, 0.88));
     progressPanel.add(this.add.text(-220, -184, '通关记录', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cyan }).setFontStyle('bold'));
     progressPanel.add(this.add.text(-220, -138, `第 ${this.progress.maxFloor} / ${TOTAL_FLOORS} 层`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '30px', color: palette.cream }).setFontStyle('bold'));
@@ -1487,9 +1587,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     progressPanel.add(this.add.text(-220, 64, `${selected === 1 ? '旧住院部' : '封锁病区'}  /  ${this.wavesPerFloor()} 波`, { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }));
     progressPanel.add(this.add.text(-220, 96, `病历编号 ${String(selected).padStart(4, '0')}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
     layer.add(progressPanel);
-    this.addButton(layer, 345, 565, 250, 48, `进入第 ${selected} 层`, () => this.showWeaponSelect('mainline', selected), 'primary', 10);
+    this.addButton(layer, 345 + layoutShift, this.safeBottomY(565, 60), 250, 48, `进入第 ${selected} 层`, () => this.showWeaponSelect('mainline', selected), 'primary', 10);
 
-    const floorPanel = this.add.container(890, 365);
+    const floorPanel = this.add.container(890 + layoutShift, 365);
     floorPanel.add(this.add.rectangle(0, 0, 510, 430, 0x0a141b, 0.96).setStrokeStyle(2, 0x46636a, 0.9));
     floorPanel.add(this.add.text(-230, -184, '选择楼层', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
     floorPanel.add(this.add.text(230, -184, `${this.progress.maxFloor} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New', fontSize: '13px', color: palette.green }).setOrigin(1, 0));
@@ -1503,12 +1603,233 @@ export class HospitalBattleScene extends Phaser.Scene {
       const y = -130 + row * 58;
       const unlocked = floor <= this.progress.maxFloor;
       if (unlocked) {
-        this.addButton(layer, 890 + x, 365 + y, 208, 40, `${String(floor).padStart(2, '0')}  ${floor === selected ? '当前' : '已开放'}`, () => this.showMainline(floor), floor === selected ? 'primary' : 'muted', 6);
+        this.addButton(layer, 890 + layoutShift + x, 365 + y, 208, 40, `${String(floor).padStart(2, '0')}  ${floor === selected ? '当前' : '已开放'}`, () => this.showMainline(floor), floor === selected ? 'primary' : 'muted', 6);
       } else {
         floorPanel.add(this.add.rectangle(x, y, 208, 40, 0x1b2930, 0.72).setStrokeStyle(1, 0x3b5158, 0.8));
         floorPanel.add(this.add.text(x, y, `${String(floor).padStart(2, '0')}  封锁`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0.5));
       }
     }
+    this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
+    this.overlay = layer;
+  }
+
+  private floorLabel(floor: number) {
+    return floor === 0 ? '入口' : `第${floor}层`;
+  }
+
+  private floorZoneLabel(floor: number) {
+    if (floor === 0) return '新手病区 / 入口大厅';
+    if (floor <= 5) return '旧住院部 / 东翼';
+    if (floor <= 12) return '异化病区 / 中庭';
+    if (floor <= 20) return '深层病区 / 观测层';
+    return '禁闭病区 / 深渊层';
+  }
+
+  private floorEnemyKinds(floor: number): EnemyKind[] {
+    if (floor === 0) return ['chaser', 'shooter', 'disruptor', 'tentacle', 'bomber', 'eye'];
+    const kinds: EnemyKind[] = ['chaser', 'shooter'];
+    if (floor >= 4) kinds.push('disruptor');
+    if (floor >= 7) kinds.push('tentacle', 'miniBoss');
+    if (floor >= 12) kinds.push('bomber');
+    if (floor >= 18) kinds.push('eye');
+    if (floor >= TOTAL_FLOORS) kinds.push('boss');
+    return kinds;
+  }
+
+  private enemyPreviewLabel(kind: EnemyKind) {
+    const labels: Record<EnemyKind, string> = {
+      chaser: '骨骸病患',
+      shooter: '梦魇注视',
+      disruptor: '潮汐护士',
+      tentacle: '触手寄生体',
+      bomber: '裂口爆体',
+      eye: '异化眼球',
+      miniBoss: '巡夜首领',
+      boss: '月蚀狼王',
+    };
+    return labels[kind];
+  }
+
+  private addFloorEnemyPreview(parent: Phaser.GameObjects.Container, x: number, y: number, kind: EnemyKind) {
+    const card = this.add.container(x, y);
+    const accent = kind === 'boss' || kind === 'miniBoss' ? paletteRgb.danger : paletteRgb.cyan;
+    card.add(this.add.rectangle(0, 0, 124, 106, 0x071117, 0.9).setStrokeStyle(1, accent, 0.62));
+    let sprite: Phaser.GameObjects.Sprite | undefined;
+    if (kind === 'boss' || kind === 'miniBoss') {
+      const key = kind === 'boss' ? 'floor-boss-01' : 'mini-boss-01';
+      if (this.textures.exists(key)) sprite = this.add.sprite(0, -10, key, 0).setOrigin(0.5).setDisplaySize(68, 68);
+    } else {
+      const artKey = SMALL_ENEMY_ART_VARIANTS[kind as SmallEnemyKind]?.[0];
+      if (artKey && this.textures.exists(artKey)) sprite = this.add.sprite(0, -10, artKey, 0).setOrigin(0.5).setDisplaySize(58, 58);
+    }
+    if (sprite) card.add(sprite);
+    else card.add(this.add.circle(0, -10, 23, kind === 'boss' ? 0x7e2e51 : 0x315b68, 0.9).setStrokeStyle(2, accent, 0.8));
+    card.add(this.add.text(0, 38, this.enemyPreviewLabel(kind), { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream, align: 'center' }).setOrigin(0.5));
+    parent.add(card);
+    return card;
+  }
+
+  private setFloorScrollOffset(offset: number) {
+    this.floorScrollOffset = clamp(offset, this.floorScrollMin, this.floorScrollMax);
+    this.floorScrollContent?.setY(this.floorScrollOffset);
+    this.floorScrollRegions.forEach(({ region, baseY }) => { region.y = baseY + this.floorScrollOffset; });
+  }
+
+  private showMainlineIntro() {
+    this.phase = 'mainline-intro';
+    this.runMode = 'mainline';
+    this.ui?.setVisible(false);
+    this.clearOverlay();
+    const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0).setAlpha(0);
+    const safe = this.pageSafeBounds(12);
+    const layoutShift = safe.centerX - W / 2;
+    const panelX = clamp(1010 + layoutShift, safe.left + 225, safe.right - 225);
+    const background = this.add.image(W / 2, H / 2, 'mainline-building-v3')
+      .setOrigin(0.5)
+      .setDisplaySize(W, H)
+      .setAlpha(0.98);
+    layer.add(background);
+    layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.16));
+    const textShade = this.add.rectangle(panelX, 360, 450, 430, 0x02070b, 0.46)
+      .setStrokeStyle(1, 0x46636a, 0.52);
+    layer.add(textShade);
+    layer.add(this.add.rectangle(panelX, this.safeTopY(177, 18), 360, 2, paletteRgb.danger, 0.7));
+    layer.add(this.add.text(panelX, this.safeTopY(132, 18), '主线通关', {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: '30px',
+      color: palette.cream,
+      stroke: '#05090f',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(panelX, this.safeTopY(205, 18), '病历记录  ·  夜间再入院', {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: '13px',
+      color: palette.cyan,
+    }).setOrigin(0.5));
+    layer.add(this.add.text(panelX - 200, 270, '又来到了这座医院...\n难道还要和那群恶心的怪物战斗吗？', {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: '24px',
+      color: palette.cream,
+      lineSpacing: 12,
+      wordWrap: { width: 400 },
+      stroke: '#05090f',
+      strokeThickness: 4,
+    }).setOrigin(0, 0.5));
+    layer.add(this.add.text(panelX - 200, 395, '楼层还在向上延伸。黑雾里没有尽头。', {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: '13px',
+      color: palette.muted,
+      wordWrap: { width: 390 },
+    }));
+    const continueIntro = () => {
+      if (this.progress.mainlineIntroSeen) return;
+      this.progress.mainlineIntroSeen = true;
+      this.saveProgress();
+      this.showMainline(this.floor);
+    };
+    this.uiActionRegions.push({
+      phase: this.phase,
+      x: safe.centerX,
+      y: H / 2,
+      width: W,
+      height: H,
+      callback: continueIntro,
+      setPressed: () => undefined,
+    });
+    this.addButton(layer, panelX, this.safeBottomY(610, 40), 300, 54, '进入楼层档案', continueIntro, 'primary', 12);
+    this.overlay = layer;
+    this.tweens.add({ targets: layer, alpha: 1, duration: 720, ease: 'Sine.easeOut' });
+  }
+
+  private showMainline(targetFloor = this.floor) {
+    if (!this.progress.mainlineIntroSeen) {
+      this.showMainlineIntro();
+      return;
+    }
+    this.phase = 'mainline-select';
+    this.runMode = 'mainline';
+    this.ui?.setVisible(false);
+    const maxSelectable = clamp(this.progress.maxFloor, 1, TOTAL_FLOORS);
+    this.selectedStartFloor = clamp(Math.round(targetFloor), 0, maxSelectable);
+    this.clearOverlay();
+    const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
+    this.addHospitalBackdrop(layer, 'mainline-background-v1', 0.26);
+    layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.24));
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    const selected = this.selectedStartFloor;
+    layer.add(this.add.text(centerX, this.safeTopY(46, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(safe.right - 8, this.safeTopY(52, 18), `已开放 ${this.progress.maxFloor} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.green }).setOrigin(1, 0.5));
+    layer.add(this.add.rectangle(centerX, this.safeTopY(104, 18), Math.min(1030, safe.width), 1, 0x46636a, 0.78));
+
+    const leftColumnX = 355 + layoutShift;
+    const building = this.add.container(leftColumnX, 400);
+    if (this.textures.exists('mainline-building-v3')) {
+      building.add(this.add.image(150, -18, 'mainline-building-v3')
+        .setOrigin(0.5)
+        .setDisplaySize(1000, 563)
+        .setAlpha(0.96));
+    }
+    building.add(this.add.text(0, -252, '精神病院 · WARD 07', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(building);
+
+    const maskShape = this.add.graphics();
+    maskShape.fillStyle(0xffffff, 1).fillRect(64 + layoutShift, this.floorScrollViewport.top, 582, this.floorScrollViewport.bottom - this.floorScrollViewport.top);
+    maskShape.setVisible(false);
+    layer.add(maskShape);
+    this.floorScrollContent = this.add.container(0, 0).setMask(maskShape.createGeometryMask());
+    this.floorScrollRegions = [];
+    const baseYForFloor = (floor: number) => 596 - floor * 64;
+    this.floorScrollMin = Math.min(0, this.floorScrollViewport.bottom - baseYForFloor(0));
+    this.floorScrollMax = Math.max(0, this.floorScrollViewport.top - baseYForFloor(TOTAL_FLOORS));
+    this.floorScrollOffset = clamp(408 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
+    this.floorScrollContent.setY(this.floorScrollOffset);
+    for (let floor = 0; floor <= TOTAL_FLOORS; floor += 1) {
+      const unlocked = floor === 0 || floor <= this.progress.maxFloor;
+      const isSelected = floor === selected;
+      // Every floor maps to the tower's single vertical window column.
+      const x = leftColumnX;
+      const y = baseYForFloor(floor);
+      const card = this.add.container(x, y);
+      const glow = this.add.rectangle(0, 0, 338, 56, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.16) : 0.035);
+      card.add(glow);
+      if (unlocked) this.tweens.add({ targets: glow, alpha: isSelected ? 0.5 : 0.28, duration: 760, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      card.add(this.add.rectangle(0, 0, 320, 52, unlocked ? 0x0d1b22 : 0x11191e, 0.98).setStrokeStyle(isSelected ? 3 : 1, isSelected ? paletteRgb.amber : unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.96 : 0.7));
+      card.add(this.add.text(-112, 0, this.floorLabel(floor), { fontFamily: 'Microsoft YaHei', fontSize: floor === 0 ? '15px' : '14px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0, 0.5).setFontStyle('bold'));
+      card.add(this.add.text(158, 0, unlocked ? (isSelected ? '当前选中' : '可进入') : '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: isSelected ? palette.amber : unlocked ? palette.danger : palette.muted }).setOrigin(1, 0.5));
+      if (!unlocked) card.add(this.add.text(0, 0, '锁', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
+      if (isSelected) card.add(this.add.rectangle(0, 0, 338, 62, 0x6bd3c1, 0).setStrokeStyle(1, 0x6bd3c1, 0.74));
+      this.floorScrollContent.add(card);
+      if (unlocked) {
+        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: 356, height: 66, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
+        this.uiActionRegions.push(region);
+        this.floorScrollRegions.push({ region, baseY: y });
+      }
+    }
+    layer.add(this.floorScrollContent);
+    layer.add(this.add.text(leftColumnX, this.safeTopY(130, 18), '上下滑动查看楼层', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
+    layer.add(this.add.text(leftColumnX, this.safeBottomY(650, 22), '红光窗口可进入 · 锁定楼层需完成上一层', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
+
+    const detailX = clamp(940 + layoutShift, safe.left + 250, safe.right - 250);
+    const detail = this.add.container(detailX, 382);
+    detail.add(this.add.rectangle(0, 0, 500, 470, 0x071117, 0.96).setStrokeStyle(2, selected === 0 ? paletteRgb.amber : paletteRgb.cyan, 0.9));
+    detail.add(this.add.rectangle(0, 0, 484, 454, 0x071117, 0).setStrokeStyle(1, 0x46636a, 0.66));
+    detail.add(this.add.text(-220, -206, this.floorLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '25px', color: selected === 0 ? palette.amber : palette.cream }).setFontStyle('bold'));
+    detail.add(this.add.text(220, -204, `${selected === 0 ? '教程' : `进度 ${selected} / ${TOTAL_FLOORS}`}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.green }).setOrigin(1, 0));
+    detail.add(this.add.text(-220, -168, this.floorZoneLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
+    detail.add(this.add.rectangle(0, -138, 438, 1, 0x46636a, 0.74));
+    detail.add(this.add.text(-220, -112, '可能出现', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
+    this.floorEnemyKinds(selected).slice(0, 6).forEach((kind, index) => this.addFloorEnemyPreview(detail, -148 + (index % 3) * 148, -34 + Math.floor(index / 3) * 112, kind));
+    if (selected === 0) {
+      detail.add(this.add.text(-220, 170, '入口教程', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setFontStyle('bold'));
+      detail.add(this.add.text(-220, 196, '满级体验：熟悉移动、自动攻击、经验升级与 SAN 异化。', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 430 } }));
+    } else {
+      detail.add(this.add.text(-220, 170, `通关后解锁 ${selected < TOTAL_FLOORS ? this.floorLabel(selected + 1) : '终局档案'}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.green }));
+    }
+    layer.add(detail);
+    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始入口教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12);
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
@@ -1636,25 +1957,28 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'ward-day-v1', 0);
+    const safe = this.pageSafeBounds(12);
+    const layoutShift = safe.centerX - W / 2;
     const line = this.dialogueLines()[this.dialogueIndex];
     const playerActive = line.speaker === '小男孩';
     const npcLine = playerActive ? this.dialogueLines().find((entry) => entry.speaker !== '小男孩') ?? this.dialogueLines()[0] : line;
     const npcData = { color: npcLine.color, role: npcLine.role, glyph: npcLine.glyph };
-    const progressLabel = this.add.text(42, 34, `${String(this.dialogueIndex + 1).padStart(2, '0')} / ${String(this.dialogueLines().length).padStart(2, '0')}`, {
+    const progressLabel = this.add.text(safe.left, this.safeTopY(34, 8), `${String(this.dialogueIndex + 1).padStart(2, '0')} / ${String(this.dialogueLines().length).padStart(2, '0')}`, {
       fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.cream, stroke: '#1b1413', strokeThickness: 4,
     }).setOrigin(0, 0.5);
-    const floorLabel = this.add.text(42, 58, `第 ${this.floor} 层`, {
+    const floorLabel = this.add.text(safe.left, this.safeTopY(58, 8), `第 ${this.floor} 层`, {
       fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted, stroke: '#1b1413', strokeThickness: 3,
     }).setOrigin(0, 0.5);
-    const skipLabel = this.add.text(1238, 34, '跳过', {
+    const skipLabel = this.add.text(safe.right, this.safeTopY(34, 8), '跳过', {
       fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream, stroke: '#1b1413', strokeThickness: 4,
     }).setOrigin(1, 0.5);
     layer.add([progressLabel, floorLabel, skipLabel]);
+    if (this.tutorialRun) floorLabel.setText('入口教程');
 
-    const stage = this.add.container(0, 0);
+    const stage = this.add.container(layoutShift, 0);
     const npcX = 500;
     const playerX = 780;
-    const actorY = 515;
+    const actorY = this.safeBottomY(515, 108);
     this.addDialogueCharacter(stage, npcX, actorY - 28, npcLine.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
     const playerShadow = this.add.graphics();
     playerShadow.fillStyle(0x05090f, 0.24).fillEllipse(playerX, actorY + 112, 126, 22);
@@ -1676,7 +2000,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       else { this.dialogueIndex += 1; this.showDialogue(); }
     };
     this.uiActionRegions.push({ phase: this.phase, x: W / 2, y: H / 2, width: W, height: H, callback: advanceDialogue, setPressed: () => undefined });
-    this.uiActionRegions.push({ phase: this.phase, x: 1180, y: 68, width: 132, height: 28, callback: () => this.transitionToBattleFromDialogue(), setPressed: () => undefined });
+    this.uiActionRegions.push({ phase: this.phase, x: safe.right - 58, y: this.safeTopY(68, 8), width: 132, height: 28, callback: () => this.transitionToBattleFromDialogue(), setPressed: () => undefined });
     this.overlay = layer;
   }
 
@@ -1785,6 +2109,28 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.phase = 'battle';
     this.ui?.setVisible(true);
     this.updateHud();
+    if (this.tutorialRun) this.showTutorialGuide();
+  }
+
+  private showTutorialGuide() {
+    this.tutorialGuide?.destroy(true);
+    const guide = this.add.container(W / 2, 122).setDepth(80).setScrollFactor(0);
+    guide.add(this.add.rectangle(0, 0, 780, 82, 0x071117, 0.94).setStrokeStyle(2, paletteRgb.amber, 0.86));
+    guide.add(this.add.text(0, -22, '入口教程 · 先活下来，再观察 SAN', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
+    guide.add(this.add.text(0, 12, '拖动任意位置移动 ｜ 武器自动攻击 ｜ 收集绿色经验升级 ｜ SAN 归零会异化', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream }).setOrigin(0.5));
+    this.ui.add(guide);
+    this.tutorialGuide = guide;
+    this.tutorialGuideTimer = 10;
+  }
+
+  private updateTutorialGuide(dt: number) {
+    if (!this.tutorialGuide) return;
+    this.tutorialGuideTimer = Math.max(0, this.tutorialGuideTimer - dt);
+    if (this.tutorialGuideTimer <= 2) this.tutorialGuide.setAlpha(this.tutorialGuideTimer / 2);
+    if (this.tutorialGuideTimer <= 0) {
+      this.tutorialGuide.destroy(true);
+      this.tutorialGuide = undefined;
+    }
   }
 
   private showProfileLegacy() {
@@ -1794,10 +2140,13 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.56);
     this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 640, 350, 820, 620, 0x101b24, 0xf2bf62);
-    layer.add(this.add.text(640, 104, '我的 / PATIENT FILE', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 140, '外观只改变显示效果，武器等级决定攻击方式。', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
-    const profile = this.add.container(360, 340);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 350, 820, 620, 0x101b24, 0xf2bf62);
+    layer.add(this.add.text(centerX, this.safeTopY(104, 18), '我的 / PATIENT FILE', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(140, 18), '外观只改变显示效果，武器等级决定攻击方式。', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
+    const profile = this.add.container(360 + layoutShift, 340);
     profile.add(this.add.rectangle(0, 0, 220, 280, 0x0a141b, 1).setStrokeStyle(2, 0xf2bf62, 0.9));
     if (!this.addPatientSprite(profile, 0, 6, 232)) {
       profile.add(this.add.circle(0, -70, 50, 0xf2bf62, 0.9).setStrokeStyle(2, 0x071015, 1));
@@ -1807,26 +2156,26 @@ export class HospitalBattleScene extends Phaser.Scene {
     profile.add(this.add.text(0, 132, '患者 / 0001', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
     layer.add(profile);
     const weapon = this.currentWeapon();
-    layer.add(this.add.text(525, 230, '当前装备', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.muted }).setFontStyle('bold'));
-    layer.add(this.add.text(525, 270, weapon ? `${weapon.name}  Lv.${weapon.level}` : '病院刀  Lv.1', { fontFamily: 'Microsoft YaHei', fontSize: '22px', color: palette.amber }).setFixedSize(390, 34));
-    layer.add(this.add.text(525, 314, weapon ? `武器数量 ×${weapon.copies} · ${this.currentWeaponDamage(weapon)} 伤害` : '武器数量 ×1 · 24 伤害', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setFixedSize(390, 22));
-    layer.add(this.add.text(525, 348, '已解锁外观', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.muted }).setFontStyle('bold'));
-    layer.add(this.add.text(525, 384, weapon ? `${weapon.name} · ${this.weaponAppearanceLabel(weapon)}` : '病院刀 · 基础外观', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setFixedSize(390, 22));
-    layer.add(this.add.text(525, 416, '武器外观随武器等级变化；皮肤外观只改变角色颜色和套装加成。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 390 } }).setFixedSize(390, 42));
-    layer.add(this.add.text(525, 454, '已解锁皮肤', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
+    layer.add(this.add.text(525 + layoutShift, 230, '当前装备', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.muted }).setFontStyle('bold'));
+    layer.add(this.add.text(525 + layoutShift, 270, weapon ? `${weapon.name}  Lv.${weapon.level}` : '病院刀  Lv.1', { fontFamily: 'Microsoft YaHei', fontSize: '22px', color: palette.amber }).setFixedSize(390, 34));
+    layer.add(this.add.text(525 + layoutShift, 314, weapon ? `武器数量 ×${weapon.copies} · ${this.currentWeaponDamage(weapon)} 伤害` : '武器数量 ×1 · 24 伤害', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setFixedSize(390, 22));
+    layer.add(this.add.text(525 + layoutShift, 348, '已解锁外观', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.muted }).setFontStyle('bold'));
+    layer.add(this.add.text(525 + layoutShift, 384, weapon ? `${weapon.name} · ${this.weaponAppearanceLabel(weapon)}` : '病院刀 · 基础外观', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setFixedSize(390, 22));
+    layer.add(this.add.text(525 + layoutShift, 416, '武器外观随武器等级变化；皮肤外观只改变角色颜色和套装加成。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 390 } }).setFixedSize(390, 42));
+    layer.add(this.add.text(525 + layoutShift, 454, '已解锁皮肤', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
     this.skins.forEach((skin, index) => {
       const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
       const y = 482 + index * 50;
       const setText = skin.setName ? ` · ${skin.setName}（${skin.setBuff}）` : '';
-      layer.add(this.add.text(525, y, unlocked ? `${skin.name}${setText}` : '??? 未解锁', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: unlocked ? (skin.id === this.progress.equippedSkinId ? palette.amber : palette.cream) : palette.muted }).setFixedSize(245, 20));
+      layer.add(this.add.text(525 + layoutShift, y, unlocked ? `${skin.name}${setText}` : '??? 未解锁', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: unlocked ? (skin.id === this.progress.equippedSkinId ? palette.amber : palette.cream) : palette.muted }).setFixedSize(245, 20));
       if (unlocked) {
-        this.addButton(layer, 780, y + 2, 96, 24, skin.id === this.progress.equippedSkinId ? '已装备' : '装备', () => this.equipSkin(skin.id), skin.id === this.progress.equippedSkinId ? 'muted' : 'primary', 10);
+        this.addButton(layer, 780 + layoutShift, y + 2, 96, 24, skin.id === this.progress.equippedSkinId ? '已装备' : '装备', () => this.equipSkin(skin.id), skin.id === this.progress.equippedSkinId ? 'muted' : 'primary', 10);
       } else if (skin.id !== 'scarlet-night') {
         const cost = this.skinPurchaseCost(skin.id);
-        this.addButton(layer, 780, y + 2, 96, 24, `购买 ${cost}`, () => this.buySkin(skin.id), 'primary', 10);
+        this.addButton(layer, 780 + layoutShift, y + 2, 96, 24, `购买 ${cost}`, () => this.buySkin(skin.id), 'primary', 10);
       }
     });
-    layer.add(this.add.text(525, 652, `病例残页 ${this.progress.metaCoins} · 套装加成在进入战斗时生效`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setFixedSize(390, 14));
+    layer.add(this.add.text(525 + layoutShift, this.safeBottomY(652, 18), `病例残页 ${this.progress.metaCoins} · 套装加成在进入战斗时生效`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setFixedSize(390, 14));
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
@@ -1838,11 +2187,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.56);
     this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 640, 360, 1120, 620, 0x101b24, 0xf2bf62);
-    layer.add(this.add.text(640, 86, '病历档案', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 119, 'PATIENT FILE / WARD 07', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.text(1166, 87, `创游货币  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
-    layer.add(this.add.rectangle(640, 148, 1000, 1, 0x46636a, 0.75));
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 360, 1120, 620, 0x101b24, 0xf2bf62);
+    layer.add(this.add.text(centerX, this.safeTopY(86, 8), '病历档案', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(119, 8), 'PATIENT FILE / WARD 07', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(safe.right - 8, this.safeTopY(87, 8), `创游货币  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
+    layer.add(this.add.rectangle(centerX, this.safeTopY(148, 8), 1000, 1, 0x46636a, 0.75));
 
     const previewSkin = this.skins.find((skin) => skin.id === this.profilePreviewSkinId) ?? this.skins[0];
     const categories: Array<{ id: ProfileSkinCategory; label: string }> = [
@@ -1856,7 +2208,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (categorySkins.length > 0 && !categorySkins.some((skin) => skin.id === this.profilePreviewSkinId)) this.profilePreviewSkinId = categorySkins[0].id;
       this.showProfile();
     };
-    const preview = this.add.container(444, 302);
+    const preview = this.add.container(444 + layoutShift, 302);
     preview.add(this.add.rectangle(0, 0, 480, 300, 0x0a141b, 0.98).setStrokeStyle(2, previewSkin.color, 0.9));
     preview.add(this.add.rectangle(0, 0, 472, 292, 0x0a141b, 0).setStrokeStyle(1, 0x46636a, 0.75));
     preview.add(this.add.text(-218, -125, '患者本人', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.amber }).setFontStyle('bold'));
@@ -1869,7 +2221,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     preview.add(this.add.text(0, 139, previewSkin.name, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
     layer.add(preview);
 
-    const detail = this.add.container(444, 560);
+    const detail = this.add.container(444 + layoutShift, this.safeBottomY(560, 96));
     detail.add(this.add.rectangle(0, 0, 480, 192, 0x0a141b, 0.98).setStrokeStyle(2, previewSkin.color, 0.9));
     detail.add(this.add.text(-218, -67, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '20px', color: palette.cream }).setFontStyle('bold'));
     detail.add(this.add.text(-218, -33, previewSkin.setName ? `${previewSkin.setName} · ${previewSkin.setBuff}` : '基础病号服 · 无套装加成', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan, wordWrap: { width: 265 } }));
@@ -1883,25 +2235,26 @@ export class HospitalBattleScene extends Phaser.Scene {
     detail.add(this.add.text(-218, 8, previewStatus, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: previewUnlocked ? palette.green : palette.amber, wordWrap: { width: 265 } }));
     layer.add(detail);
     if (previewUnlocked) {
-      this.addButton(layer, 605, 580, 108, 32, previewEquipped ? '已装备' : '装备', () => this.equipSkin(previewSkin.id), previewEquipped ? 'muted' : 'primary', 8);
+        this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, previewEquipped ? '已装备' : '装备', () => this.equipSkin(previewSkin.id), previewEquipped ? 'muted' : 'primary', 8);
     } else if (previewSkin.id === 'scarlet-night') {
-      this.addButton(layer, 605, 580, 108, 32, '前往挑战', () => this.showDailyChallenge(), 'muted', 8);
+      this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, '前往挑战', () => this.showDailyChallenge(), 'muted', 8);
     } else {
-      this.addButton(layer, 605, 580, 108, 32, `购买 ${this.skinPurchaseCost(previewSkin.id)}`, () => this.buySkin(previewSkin.id), 'primary', 8);
+      this.addButton(layer, 605 + layoutShift, this.safeBottomY(580, 54), 108, 32, `购买 ${this.skinPurchaseCost(previewSkin.id)}`, () => this.buySkin(previewSkin.id), 'primary', 8);
     }
 
     const visibleSkins = this.skins.filter((skin) => this.profileSkinCategory === 'all' || this.profileSkinCategoryFor(skin) === this.profileSkinCategory);
-    this.addPixelFrame(layer, 970, 410, 540, 500, 0x0a141b, 0x46636a);
-    layer.add(this.add.text(725, 190, '皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
-    layer.add(this.add.text(1212, 190, `${visibleSkins.length} 套`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
-    categories.forEach((category, index) => {
-      this.addButton(layer, 820 + index * 112, 190, index === 0 ? 94 : index === 1 ? 104 : 88, 30, category.label, () => setCategory(category.id), this.profileSkinCategory === category.id ? 'primary' : 'muted', 7);
-    });
+     const skinPanelX = clamp(970 + layoutShift, safe.left + 270, safe.right - 270);
+     this.addPixelFrame(layer, skinPanelX, this.safeBottomY(410, 250), 540, 500, 0x0a141b, 0x46636a);
+     layer.add(this.add.text(skinPanelX - 245, this.safeTopY(190, 8), '皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
+     layer.add(this.add.text(skinPanelX + 242, this.safeTopY(190, 8), `${visibleSkins.length} 套`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
+     categories.forEach((category, index) => {
+       this.addButton(layer, skinPanelX - 150 + index * 112, this.safeTopY(190, 8), index === 0 ? 94 : index === 1 ? 104 : 88, 30, category.label, () => setCategory(category.id), this.profileSkinCategory === category.id ? 'primary' : 'muted', 7);
+     });
     visibleSkins.forEach((skin, index) => {
       const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
       const column = index % 3;
       const row = Math.floor(index / 3);
-      const x = 807 + column * 165;
+       const x = skinPanelX - 163 + column * 165;
       const y = 286 + row * 180;
       const card = this.add.container(x, y);
       const selected = skin.id === this.profilePreviewSkinId;
@@ -2013,15 +2366,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v1', 0.56);
-    this.addPixelFrame(layer, 640, 350, 820, 560, 0x101b24, 0xb798e2);
-    layer.add(this.add.text(640, 104, '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    this.addPixelFrame(layer, 640, 330, 610, 250, 0x0a141b, 0x46636a);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 350, 820, 560, 0x101b24, 0xb798e2);
+    layer.add(this.add.text(centerX, this.safeTopY(104, 18), '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    this.addPixelFrame(layer, centerX, 330, 610, 250, 0x0a141b, 0x46636a);
     const completed = this.isDailyCompleted();
-    layer.add(this.add.text(640, 266, completed ? '今日挑战已锁定' : '今日挑战可进入', { fontFamily: 'Microsoft YaHei', fontSize: '24px', color: completed ? palette.muted : palette.violet }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 312, completed ? '每日只能完成一次，明日刷新挑战资格。' : '选择主线已解锁的武器，完成 50 波挑战。', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setOrigin(0.5));
-    layer.add(this.add.text(640, 360, '挑战规则：选定武器后不可更换。每次升级三选一，银色、金色、棱彩卡牌会组合出不同战斗流派。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 510 } }).setOrigin(0.5));
-    if (!completed) this.addButton(layer, 640, 474, 220, 44, '选择武器并开始', () => this.showWeaponSelect('daily', 1), 'primary');
-    if (toast) layer.add(this.add.text(640, 448, toast, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
+    layer.add(this.add.text(centerX, 266, completed ? '今日挑战已锁定' : '今日挑战可进入', { fontFamily: 'Microsoft YaHei', fontSize: '24px', color: completed ? palette.muted : palette.violet }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, 312, completed ? '每日只能完成一次，明日刷新挑战资格。' : '选择主线已解锁的武器，完成 50 波挑战。', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cream }).setOrigin(0.5));
+    layer.add(this.add.text(centerX, 360, '挑战规则：选定武器后不可更换。每次升级三选一，银色、金色、棱彩卡牌会组合出不同战斗流派。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 510 } }).setOrigin(0.5));
+    if (!completed) this.addButton(layer, centerX, this.safeBottomY(474, 74), 220, 44, '选择武器并开始', () => this.showWeaponSelect('daily', 1), 'primary');
+    if (toast) layer.add(this.add.text(centerX, this.safeBottomY(448, 94), toast, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
   }
@@ -2032,6 +2388,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v2', 0.28);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
 
     const completed = this.isDailyCompleted();
     const attempts = this.dailyAttemptsUsed();
@@ -2042,10 +2401,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       stroke: '#050b10',
       strokeThickness: Math.max(2, Math.round(size / 7)),
     }).setOrigin(0.5).setFontStyle('bold');
-    const title = cthulhuText(640, 42, '每日挑战', 26);
+    const title = cthulhuText(centerX, this.safeTopY(42, 8), '每日挑战', 26);
     layer.add(title);
 
-    const bossX = 205;
+    const bossX = clamp(205 + layoutShift, safe.left + 165, safe.right - 165);
     const bossPanel = this.addDailyPanelFrame(layer, bossX, 220, 330, 250);
     layer.add(cthulhuText(bossX, 79, '本月首领', 15, palette.violet));
     if (this.textures.exists('boss-moon-wolf')) {
@@ -2062,7 +2421,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       { texture: 'relic-hood', label: '夜巡兜帽' },
     ];
     dropItems.forEach((item, index) => {
-      const x = 95 + index * 110;
+      const x = 95 + layoutShift + index * 110;
       const panel = this.addDailyPanelFrame(layer, x, 500, 100, 150);
       if (this.textures.exists(item.texture)) panel.add(this.add.image(0, -5, item.texture).setOrigin(0.5).setDisplaySize(58, 58));
       layer.add(this.add.text(x, 590, item.label, {
@@ -2081,7 +2440,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       strokeThickness: 2,
     }).setOrigin(0.5));
 
-    const infoX = 645;
+    const infoX = centerX + 5;
     layer.add(cthulhuText(infoX, 168, completed ? '本月挑战已完成' : '今晚的病区正在等待', 19, completed ? palette.green : palette.cream));
     layer.add(this.add.text(infoX, 220, '通关最快记录', {
       fontFamily: 'Courier New, Microsoft YaHei',
@@ -2089,21 +2448,22 @@ export class HospitalBattleScene extends Phaser.Scene {
       color: palette.muted,
     }).setOrigin(0.5));
     layer.add(cthulhuText(infoX, 252, this.formatDailyTime(this.progress.dailyBestSeconds), 24, this.progress.dailyBestSeconds ? palette.green : palette.danger));
-    if (!completed) this.addDailyImageButton(layer, 640, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
-    layer.add(this.add.text(640, 700, '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
+    const dailyActionY = this.safeBottomY(635, 52);
+    if (!completed) this.addDailyImageButton(layer, centerX, dailyActionY, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    layer.add(this.add.text(centerX, this.safeBottomY(700, 10), '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '11px',
       color: attempts >= 3 ? palette.amber : palette.cyan,
     }).setOrigin(0.5));
-    if (toast) layer.add(this.add.text(640, 611, toast, {
+    if (toast) layer.add(this.add.text(centerX, this.safeBottomY(611, 28), toast, {
       fontFamily: 'Microsoft YaHei',
       fontSize: '10px',
       color: palette.amber,
       wordWrap: { width: 300 },
     }).setOrigin(0.5));
 
-    const rankingX = 1080;
-    const rankingY = 370;
+    const rankingX = clamp(1080 + layoutShift, safe.left + 180, safe.right - 180);
+    const rankingY = this.safeBottomY(370, 282);
     const boardPanel = this.addDailyRankingFrame(layer, rankingX, rankingY, 360, 560);
     boardPanel.add(cthulhuText(0, -248, '排行榜', 18));
     boardPanel.add(this.add.text(-143, -218, '排名', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
@@ -2140,7 +2500,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       color: this.progress.dailyBestSeconds ? palette.green : palette.danger,
     }).setOrigin(1, 0));
     layer.add(boardPanel);
-    this.addButton(layer, 76, 38, 100, 34, '返回', () => this.showStart(), 'muted', 8);
+    this.addButton(layer, 88, 38, 100, 34, '返回', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
     const pendingIdentity = !this.playerIdentityLoaded;
     const pendingBoard = !this.dailyBoardLoaded;
@@ -2157,13 +2517,17 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'daily-challenge-background-v2', 0.28);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
 
     const completed = this.isDailyCompleted();
     const attempts = this.dailyAttemptsUsed();
-    const title = this.add.text(640, 42, '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '26px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold');
+    const title = this.add.text(centerX, this.safeTopY(42, 8), '每日挑战', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '26px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold');
     layer.add(title);
 
-    const bossPanel = this.addDailyPanelFrame(layer, 205, 215, 310, 255);
+    const bossX = clamp(205 + layoutShift, safe.left + 155, safe.right - 155);
+    const bossPanel = this.addDailyPanelFrame(layer, bossX, 215, 310, 255);
     bossPanel.add(this.add.text(-116, -101, '本月首领', { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.violet }).setFontStyle('bold'));
     if (this.textures.exists('boss-moon-wolf')) {
       bossPanel.add(this.add.image(0, -8, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(210, 142));
@@ -2175,7 +2539,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     bossPanel.add(this.add.text(0, 105, '范围攻击  /  追踪爆裂', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
     layer.add(bossPanel);
 
-    const dropPanel = this.addDailyPanelFrame(layer, 205, 492, 310, 175);
+    const dropPanel = this.addDailyPanelFrame(layer, bossX, 492, 310, 175);
     dropPanel.add(this.add.text(-116, -65, '掉落装备', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.violet }).setFontStyle('bold'));
     const dropItems = [
       { texture: 'relic-crown', label: '月蚀王冠' },
@@ -2191,7 +2555,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(dropPanel);
 
     const entryWeapon = this.createWeaponRoster().find((weapon) => weapon.id === this.selectedWeaponId) ?? this.createWeaponRoster()[0];
-    const weaponPanel = this.addDailyPanelFrame(layer, 535, 492, 310, 175);
+    const weaponPanel = this.addDailyPanelFrame(layer, 535 + layoutShift, 492, 310, 175);
     weaponPanel.add(this.add.text(-116, -65, '入场武器', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.cyan }).setFontStyle('bold'));
     if (entryWeapon && this.textures.exists(this.weaponAssetKey(entryWeapon))) {
       weaponPanel.add(this.add.image(-72, 8, this.weaponAssetKey(entryWeapon)).setOrigin(0.5).setDisplaySize(68, 68));
@@ -2201,16 +2565,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     weaponPanel.add(this.add.text(8, 51, '进入战斗后不可更换', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber }).setOrigin(0, 0.5));
     layer.add(weaponPanel);
 
-    const infoX = 655;
+    const infoX = centerX + 15;
     layer.add(this.add.text(infoX, 176, completed ? '本月挑战已完成' : '今晚的病区正在等待', { fontFamily: 'Microsoft YaHei', fontSize: '19px', color: completed ? palette.green : palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(this.add.text(infoX, 214, '选定武器后完成 50 波战斗，升级卡牌会改变攻击节奏。', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted, wordWrap: { width: 300 } }).setOrigin(0.5));
     layer.add(this.add.text(infoX, 286, '通关最快记录', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
     layer.add(this.add.text(infoX, 315, this.formatDailyTime(this.progress.dailyBestSeconds), { fontFamily: 'Courier New', fontSize: '24px', color: this.progress.dailyBestSeconds ? palette.green : palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    if (!completed) this.addDailyImageButton(layer, 640, 635, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
-    layer.add(this.add.text(640, 700, `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
-    if (toast) layer.add(this.add.text(640, 611, toast, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber, wordWrap: { width: 300 } }).setOrigin(0.5));
+    if (!completed) this.addDailyImageButton(layer, centerX, this.safeBottomY(635, 52), 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    layer.add(this.add.text(centerX, this.safeBottomY(700, 10), `剩余免费次数 ${Math.max(0, 3 - attempts)} / 3`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: attempts >= 3 ? palette.amber : palette.cyan }).setOrigin(0.5));
+    if (toast) layer.add(this.add.text(centerX, this.safeBottomY(611, 28), toast, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.amber, wordWrap: { width: 300 } }).setOrigin(0.5));
 
-    const boardPanel = this.addDailyRankingFrame(layer, 1080, 370, 350, 600);
+    const boardPanel = this.addDailyRankingFrame(layer, clamp(1080 + layoutShift, safe.left + 175, safe.right - 175), this.safeBottomY(370, 282), 350, 600);
     boardPanel.add(this.add.text(-125, -268, '排行榜', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.cream }).setFontStyle('bold'));
     boardPanel.add(this.add.text(-137, -228, '名次', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
     boardPanel.add(this.add.text(-65, -228, '昵称', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
@@ -2259,9 +2623,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.58);
     this.drawMenuMotif(layer);
-    this.addPixelFrame(layer, 640, 350, 980, 570, 0x101b24, 0x7ab9d0);
-    layer.add(this.add.text(640, 92, '病历档案 / ARCHIVE', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 128, '遇到异常体后解锁记录；未遇到的条目保留为问号剪影。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 350, 980, 570, 0x101b24, 0x7ab9d0);
+    layer.add(this.add.text(centerX, this.safeTopY(92, 18), '病历档案 / ARCHIVE', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(128, 18), '遇到异常体后解锁记录；未遇到的条目保留为问号剪影。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
 
     const entries: Array<{ kind: EnemyKind; name: string; skill: string; wave: number }> = [
       { kind: 'chaser', name: '追猎异常体', skill: '近身追击，接触时造成伤害', wave: 1 },
@@ -2271,10 +2638,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       { kind: 'bomber', name: '爆裂病灶', skill: '锁定位置后延迟爆炸', wave: 12 },
       { kind: 'eye', name: '窥视之眼', skill: '直线激光，命中后造成重击', wave: 15 },
     ];
-    layer.add(this.add.text(640, 164, '异常体图鉴', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.cyan }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(164, 18), '异常体图鉴', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.cyan }).setOrigin(0.5).setFontStyle('bold'));
     entries.forEach((entry, index) => {
       const unlocked = this.archiveKindUnlocked(entry.kind);
-      const x = 350 + (index % 3) * 290;
+      const x = 350 + layoutShift + (index % 3) * 290;
       const y = 212 + Math.floor(index / 3) * 82;
       const color = unlocked ? this.enemyColor(entry.kind) : 0x46545a;
       const stats = enemyCombatStats(entry.kind, entry.wave);
@@ -2292,10 +2659,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       { kind: 'miniBoss', name: '第 7 波 · 小首领', skill: '冲击领域 + 追踪爆弹' },
       { kind: 'boss', name: '楼层首领', skill: '领域攻击 + 激光锁定 + 爆炸冲击' },
     ];
-    layer.add(this.add.text(640, 382, '首领图鉴', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, 382, '首领图鉴', { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
     bossEntries.forEach((entry, index) => {
       const unlocked = this.archiveKindUnlocked(entry.kind);
-      const x = 490 + index * 300;
+      const x = 490 + layoutShift + index * 300;
       const color = unlocked ? this.enemyColor(entry.kind) : 0x46545a;
       const stats = enemyCombatStats(entry.kind, entry.kind === 'boss' ? this.wavesPerFloor() : 7);
       const card = this.add.container(x, 430);
@@ -2308,8 +2675,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       layer.add(card);
     });
 
-    layer.add(this.add.text(640, 520, `已记录 ${this.progress.archiveKinds.length} 项 · 当前推进至第 ${this.floor} 层 / 共 ${TOTAL_FLOORS} 层`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
-    this.addButton(layer, 640, 590, 190, 44, '返回主界面', () => this.showStart(), 'muted');
+    layer.add(this.add.text(centerX, this.safeBottomY(520, 92), `已记录 ${this.progress.archiveKinds.length} 项 · 当前推进至第 ${this.floor} 层 / 共 ${TOTAL_FLOORS} 层`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    this.addButton(layer, centerX, this.safeBottomY(590, 52), 190, 44, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
   }
 
@@ -2319,17 +2686,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.58);
-    this.addPixelFrame(layer, 640, 350, 700, 500, 0x101b24, 0x8fd17c);
-    layer.add(this.add.text(640, 116, '夜班设置 / OPTIONS', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 154, '设置只影响表现，不改变本层战斗数值。', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 350, 700, 500, 0x101b24, 0x8fd17c);
+    layer.add(this.add.text(centerX, this.safeTopY(116, 18), '夜班设置 / OPTIONS', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, this.safeTopY(154, 18), '设置只影响表现，不改变本层战斗数值。', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setOrigin(0.5));
     const setting = (y: number, label: string, value: boolean, callback: () => void) => {
-      layer.add(this.add.text(430, y - 9, label, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '16px', color: palette.cream }));
-      this.addButton(layer, 770, y, 160, 38, value ? '开启' : '关闭', callback, value ? 'primary' : 'muted');
+      layer.add(this.add.text(430 + layoutShift, y - 9, label, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '16px', color: palette.cream }));
+      this.addButton(layer, 770 + layoutShift, y, 160, 38, value ? '开启' : '关闭', callback, value ? 'primary' : 'muted');
     };
     setting(234, '受击震动', this.screenShakeEnabled, () => { this.screenShakeEnabled = !this.screenShakeEnabled; this.showSettings(); });
     setting(302, '数字伤害', this.damageNumbersEnabled, () => { this.damageNumbersEnabled = !this.damageNumbersEnabled; this.showSettings(); });
-    layer.add(this.add.text(640, 414, '推荐横屏 16:9 · 支持触摸摇杆与键盘调试', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.cyan }).setOrigin(0.5));
-    this.addButton(layer, 640, 560, 190, 44, '返回主界面', () => this.showStart(), 'muted');
+    layer.add(this.add.text(centerX, 414, '推荐横屏 16:9 · 支持触摸摇杆与键盘调试', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.cyan }).setOrigin(0.5));
+    this.addButton(layer, centerX, this.safeBottomY(560, 52), 190, 44, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
   }
 
@@ -2339,8 +2709,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'menu-ward-night-v1', 0.58);
-    this.addPixelFrame(layer, 640, 350, 780, 500, 0x101b24, 0xf2bf62);
-    layer.add(this.add.text(640, 116, '夜班手册 / FIELD MANUAL', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
+    this.addPixelFrame(layer, centerX, 350, 780, 500, 0x101b24, 0xf2bf62);
+    layer.add(this.add.text(centerX, this.safeTopY(116, 18), '夜班手册 / FIELD MANUAL', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '25px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     const help = [
       ['移动', '在屏幕任意位置按住并拖动，松开手指即可停下。'],
       ['攻击', '武器会自动环绕并攻击，武器数越多覆盖越广。'],
@@ -2350,10 +2723,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     ];
     help.forEach(([title, detail], index) => {
       const y = 198 + index * 52;
-      layer.add(this.add.text(424, y, title, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '16px', color: palette.amber }).setFontStyle('bold'));
-      layer.add(this.add.text(536, y, detail, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.cream, wordWrap: { width: 400 } }));
+      layer.add(this.add.text(424 + layoutShift, y, title, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '16px', color: palette.amber }).setFontStyle('bold'));
+      layer.add(this.add.text(536 + layoutShift, y, detail, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.cream, wordWrap: { width: 400 } }));
     });
-    this.addButton(layer, 640, 566, 190, 44, '返回主界面', () => this.showStart(), 'muted');
+    this.addButton(layer, centerX, this.safeBottomY(566, 52), 190, 44, '返回主界面', () => this.showStart(), 'muted');
     this.overlay = layer;
   }
 
@@ -2362,8 +2735,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearOverlay();
     this.clearRunObjects();
     this.runMode = mode;
-    this.tutorialRun = mode === 'mainline' && Math.round(targetFloor) === 1 && this.progress.maxFloor === 1;
-    this.floor = mode === 'daily' ? 1 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
+    this.tutorialRun = mode === 'mainline' && Math.round(targetFloor) === 0;
+    this.floor = mode === 'daily' ? 1 : this.tutorialRun ? 1 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
     this.selectedWeaponId = weaponId;
     this.phase = 'dialogue';
     this.dialogueIndex = 0;
@@ -3750,11 +4123,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui?.setVisible(false);
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
+    const layoutShift = centerX - W / 2;
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
-    this.addPixelFrame(layer, 640, 350, 940, 560, 0x101b24, 0xb798e2);
-    layer.add(this.add.text(640, 84, `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    this.addPixelFrame(layer, centerX, 350, 940, 560, 0x101b24, 0xb798e2);
+    layer.add(this.add.text(centerX, this.safeTopY(84, 8), `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     const tier = this.upgradeCardTier();
-    layer.add(this.add.text(640, 122, `随机三选一 · 卡牌等级 Lv.${tier} · 选择后继续战斗`, { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
+    layer.add(this.add.text(centerX, this.safeTopY(122, 8), `随机三选一 · 卡牌等级 Lv.${tier} · 选择后继续战斗`, { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
     const damageAmount = [8, 14, 22][tier - 1];
     const sustainAmount = [20, 32, 48][tier - 1];
@@ -3927,7 +4303,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (special) choices[2] = special;
     }
     choices.forEach((choice, index) => {
-      const x = 390 + index * 250;
+      const x = 390 + layoutShift + index * 250;
       const cardWidth = 228;
       const cardHeight = 342;
       const card = this.add.container(x, 325).setSize(cardWidth, cardHeight).setInteractive({ useHandCursor: true });
@@ -4000,10 +4376,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? '刷新卡牌 · 平台付费'
         : `刷新卡牌 · 免费（剩 ${FREE_UPGRADE_REFRESHES - this.upgradeRefreshCount} 次）`;
     const refreshStyle = paidRefresh ? 'danger' : 'muted';
-    this.addButton(layer, 475, 580, 280, 42, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, 4);
-    layer.add(this.add.text(805, 580, `未使用经验 ${Math.floor(this.xp)}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0, 0.5));
+    const upgradeActionY = this.safeBottomY(580, 22);
+    this.addButton(layer, 475 + layoutShift, upgradeActionY, 280, 42, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, 4);
+    layer.add(this.add.text(805 + layoutShift, upgradeActionY, `未使用经验 ${Math.floor(this.xp)}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0, 0.5));
     if (this.upgradePaymentMessage) {
-      layer.add(this.add.text(640, 612, this.upgradePaymentMessage, {
+      layer.add(this.add.text(centerX, this.safeBottomY(612, 8), this.upgradePaymentMessage, {
         fontFamily: 'Microsoft YaHei',
         fontSize: '12px',
         color: palette.amber,
@@ -4159,9 +4536,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui?.setVisible(false);
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(45).setScrollFactor(0);
+    const safe = this.pageSafeBounds(12);
+    const centerX = safe.centerX;
     if (!win) {
       layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000204, 1));
-      layer.add(this.add.text(640, 190, '你的大脑被大量怪物占据，失去意识...', {
+      layer.add(this.add.text(centerX, 190, '你的大脑被大量怪物占据，失去意识...', {
         fontFamily: 'Microsoft YaHei',
         fontSize: '27px',
         color: palette.cream,
@@ -4170,32 +4549,47 @@ export class HospitalBattleScene extends Phaser.Scene {
         align: 'center',
         wordWrap: { width: 760 },
       }).setOrigin(0.5).setFontStyle('bold'));
-      layer.add(this.add.text(640, 270, `第 ${this.floor} 层 · 第 ${this.wave} 波`, {
+      layer.add(this.add.text(centerX, 270, `第 ${this.floor} 层 · 第 ${this.wave} 波`, {
         fontFamily: 'Courier New, Microsoft YaHei',
         fontSize: '15px',
         color: palette.danger,
       }).setOrigin(0.5));
-      this.addMenuImageButton(layer, 640, 430, 330, 124, 'menu-button-mainline-v1', '重新挑战', () => {
+      const resultBottomY = this.safeBottomY(590, 74);
+      const resultRetryY = Math.min(430, resultBottomY - 160);
+      this.addMenuImageButton(layer, centerX, resultRetryY, 330, 124, 'menu-button-mainline-v1', '重新挑战', () => {
         this.startRun(this.floor, this.runMode, this.selectedWeaponId);
       });
-      this.addMenuImageButton(layer, 640, 590, 330, 124, 'menu-button-archive-v1', '回到标题', () => this.showStart());
+      this.addMenuImageButton(layer, centerX, resultBottomY, 330, 124, 'menu-button-archive-v1', '回到标题', () => this.showStart());
       this.overlay = layer;
       return;
     }
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.94));
-    this.addPixelFrame(layer, 640, 350, 650, 370, 0x101b24, win ? 0x8fd17c : 0xed716e);
+    this.addPixelFrame(layer, centerX, 350, 650, 370, 0x101b24, win ? 0x8fd17c : 0xed716e);
+    if (win && this.tutorialRun) {
+      layer.add(this.add.text(centerX, 206, '入口教程完成', { fontFamily: 'Microsoft YaHei', fontSize: '34px', color: palette.green }).setOrigin(0.5).setFontStyle('bold'));
+      layer.add(this.add.text(centerX, 264, '已掌握移动、自动攻击、经验升级和 SAN 异化。下一站是第 1 层。', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream, align: 'center', wordWrap: { width: 520 } }).setOrigin(0.5));
+      layer.add(this.add.text(centerX, 334, `击破 ${this.kills} · 等级 ${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.muted }).setOrigin(0.5));
+      this.addButton(layer, centerX, 438, 240, 52, '前往第 1 层', () => this.showMainline(1), 'primary', 10);
+      this.addButton(layer, centerX, 507, 160, 38, '返回主界面', () => this.showStart(), 'muted', 10);
+      this.overlay = layer;
+      return;
+    }
     const finalFloor = this.floor >= TOTAL_FLOORS;
-    const resultTitle = win
+    let resultTitle = win
       ? this.runMode === 'daily' ? '每日挑战完成' : finalFloor ? `全部 ${TOTAL_FLOORS} 层清除完成` : `第 ${this.floor} 层清除完成`
       : '失去意识';
-    const resultDetail = win
+    let resultDetail = win
       ? this.runMode === 'daily' ? '50 波挑战完成，已解锁首领专属外观。' : finalFloor ? `第 ${TOTAL_FLOORS} 层已清理完成。病区暂时恢复安静。` : `第 ${this.floor} 层已清理完成。准备进入第 ${this.floor + 1} 层。`
       : `你倒在第 ${this.floor} 层第 ${this.wave} 波。当前楼层会保留，重开从第 1 波开始。`;
-    layer.add(this.add.text(640, 206, resultTitle, { fontFamily: 'Microsoft YaHei', fontSize: '34px', color: win ? palette.green : palette.danger }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(640, 264, resultDetail, { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream, align: 'center', wordWrap: { width: 520 } }).setOrigin(0.5));
-    layer.add(this.add.text(640, 334, `击破 ${this.kills} · 等级 ${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.muted }).setOrigin(0.5));
-    this.addButton(layer, 640, 438, 240, 52, win ? (this.runMode === 'daily' ? '返回每日挑战' : finalFloor ? '从第 1 层再打一遍' : `进入第 ${this.floor + 1} 层`) : `从第 ${this.floor} 层第 1 波重开`, () => win && this.runMode === 'daily' ? this.showDailyChallenge() : this.startRun(win && !finalFloor ? this.floor + 1 : this.floor), 'primary', 10);
-    this.addButton(layer, 640, 507, 160, 38, '回到标题', () => this.showStart(), 'muted', 10);
+    if (win && this.tutorialRun) {
+      resultTitle = '入口教程完成';
+      resultDetail = '已掌握移动、自动攻击、经验升级和 SAN 异化。下一站是第 1 层。';
+    }
+    layer.add(this.add.text(centerX, 206, resultTitle, { fontFamily: 'Microsoft YaHei', fontSize: '34px', color: win ? palette.green : palette.danger }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, 264, resultDetail, { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream, align: 'center', wordWrap: { width: 520 } }).setOrigin(0.5));
+    layer.add(this.add.text(centerX, 334, `击破 ${this.kills} · 等级 ${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.muted }).setOrigin(0.5));
+    this.addButton(layer, centerX, 438, 240, 52, win ? (this.runMode === 'daily' ? '返回每日挑战' : finalFloor ? '从第 1 层再打一遍' : `进入第 ${this.floor + 1} 层`) : `从第 ${this.floor} 层第 1 波重开`, () => win && this.runMode === 'daily' ? this.showDailyChallenge() : this.startRun(win && !finalFloor ? this.floor + 1 : this.floor), 'primary', 10);
+    this.addButton(layer, centerX, 507, 160, 38, '回到标题', () => this.showStart(), 'muted', 10);
     this.overlay = layer;
   }
 
@@ -4213,6 +4607,11 @@ export class HospitalBattleScene extends Phaser.Scene {
         this.saveProgress();
         void this.submitDailyScore(this.elapsed);
       }
+      return;
+    }
+    if (this.tutorialRun) {
+      this.progress.maxFloor = Math.max(1, this.progress.maxFloor);
+      this.saveProgress();
       return;
     }
     this.progress.maxFloor = Math.max(this.progress.maxFloor, Math.min(TOTAL_FLOORS, this.floor + 1));
@@ -4261,9 +4660,15 @@ export class HospitalBattleScene extends Phaser.Scene {
   private clearOverlay() {
     this.releaseJoystick();
     this.releaseUiPointer();
+    this.releaseFloorScroll();
     document.getElementById('game-shell')?.classList.remove('menu-shell');
     this.overlay?.destroy(true);
     this.overlay = undefined;
+    this.tutorialGuide?.destroy(true);
+    this.tutorialGuide = undefined;
+    this.tutorialGuideTimer = 0;
+    this.floorScrollContent = undefined;
+    this.floorScrollRegions = [];
     this.uiActionRegions = [];
   }
 
@@ -4325,14 +4730,48 @@ export class HospitalBattleScene extends Phaser.Scene {
   private handleUiPointerDown(event: PointerEvent) {
     if (this.phase === 'battle' || this.pendingUiAction) return;
     const point = this.canvasPoint(event);
+    if (this.phase === 'mainline-select') {
+      this.floorScrollPointer = event.pointerId;
+      this.floorScrollStartY = point.y;
+      this.floorScrollStartOffset = this.floorScrollOffset;
+      this.floorScrollMoved = false;
+    }
     const region = this.findUiRegion(point.x, point.y);
-    if (!region) return;
-    this.pendingUiAction = { pointerId: event.pointerId, phase: this.phase, region };
-    region.setPressed(true);
+    if (region) {
+      this.pendingUiAction = { pointerId: event.pointerId, phase: this.phase, region };
+      region.setPressed(true);
+    }
     try { this.game.canvas.setPointerCapture(event.pointerId); } catch { /* capture can fail after browser gestures */ }
   }
 
+  private handleUiPointerMove(event: PointerEvent) {
+    if (this.phase !== 'mainline-select' || this.floorScrollPointer !== event.pointerId) return;
+    const point = this.canvasPoint(event);
+    const delta = point.y - this.floorScrollStartY;
+    if (!this.floorScrollMoved && Math.abs(delta) > 8) {
+      this.floorScrollMoved = true;
+      this.releaseUiPointer();
+    }
+    if (this.floorScrollMoved) {
+      this.setFloorScrollOffset(this.floorScrollStartOffset + delta);
+      event.preventDefault();
+    }
+  }
+
+  private handleUiWheel(event: WheelEvent) {
+    if (this.phase !== 'mainline-select') return;
+    this.setFloorScrollOffset(this.floorScrollOffset + event.deltaY * 0.82);
+    event.preventDefault();
+  }
+
   private handleUiPointerUp(event: PointerEvent) {
+    const scrollingFloor = this.phase === 'mainline-select' && this.floorScrollPointer === event.pointerId;
+    const movedFloor = this.floorScrollMoved;
+    if (scrollingFloor) this.releaseFloorScroll();
+    if (movedFloor) {
+      this.releaseUiPointer();
+      return;
+    }
     const pending = this.pendingUiAction;
     if (!pending || event.pointerId !== pending.pointerId) return;
     const point = this.canvasPoint(event);
@@ -4349,6 +4788,13 @@ export class HospitalBattleScene extends Phaser.Scene {
     const pending = this.pendingUiAction;
     this.pendingUiAction = undefined;
     pending?.region.setPressed(false);
+  }
+
+  private releaseFloorScroll() {
+    this.floorScrollPointer = undefined;
+    this.floorScrollMoved = false;
+    this.floorScrollStartY = 0;
+    this.floorScrollStartOffset = this.floorScrollOffset;
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {

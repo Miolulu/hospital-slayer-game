@@ -237,6 +237,12 @@
                                "status":  "done",
                                "implementedIn":  "src/main.ts",
                                "evidence":  ".game-dev/evidence/daily-layout-feedback-2026-08-27.png"
+                           },
+                           {
+                               "summary":  "主线楼层改为现代病院单列高楼，入口至第30层可上下滑动选择，并增加首次进入主线开场对白",
+                               "status":  "done",
+                               "implementedIn":  "src/main.ts, public/assets/art/mainline-building-v3.png",
+                               "evidence":  "本地 1280x720 主线开场与楼层滚动复测"
                            }
                        ],
     "pendingItems":  [
@@ -273,7 +279,7 @@
                              "summary":  "Builda 手机模拟预览横屏安全区居中、主菜单按钮居中",
                              "status":  "blocked",
                              "implementedIn":  "src/main.ts, src/style.css",
-                             "reason":  "本地 16:9 页面已按安全区居中；当前没有可用 Builda 外壳实例完成横屏重载和真机触摸复测。"
+                             "reason":  "本地 16:9 页面和 Builda 模拟外壳已完成横屏重载、安全区居中与主菜单可见性复测；真实 Builda 外壳及真机触摸复测仍不可用。"
                          }
                      ],
     "verification":  {
@@ -283,11 +289,12 @@
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
                          "documentFetch":  "passed: revision 2453；38 项已完成，5 项待处理",
                           "documentCheckboxUpdate":  "passed: 12 个已实现条目通过 block_replace 勾选，并逐次重新获取文档确认",
-                         "buildaBundleCheck":  "passed: bundle-pack dist builda-web.zip；bundle-check ok，HTML5 网页包 48,739,056 bytes；未上传",
+                          "buildaBundleCheck":  "passed: bundle-pack dist builda-web-20260828.zip；bundle-check ok，HTML5 网页包 104,073,763 bytes；体积提示不阻断上传",
+                          "buildaUpload":  "passed: upload-build 已上传构建 8b5f1aca8c503250d626c941cc7551d6；仅更新 H5 Bundle 与本地 manifest，未调用 publish、create-draft 或 update-draft",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
                          "mobileTouchAcceptance":  "blocked: 当前无独立真实触摸环境",
                           "buildaLandscapeAcceptance":  "blocked: 当前无可用 Builda 外壳真机/浏览器实例",
-                          "buildaLocalMockRetest":  "passed: 新独立目录启动 Builda 本地手机模拟外壳；横屏、刘海屏、主菜单、主线选层、武器选择、对白转场、战斗 HUD 和每日挑战入口均完成可见流程复测；正式真机仍待平台环境",
+                          "buildaLocalMockRetest":  "passed: Builda 本地手机模拟外壳 18100 端口冷启动复测；横屏、刘海屏、安全区 0,47,21,47、加载进度界面、主菜单和画布均可见，约 10 秒完成资源加载，控制台无错误；正式真机仍待平台环境",
                          "upgradeCardIconCheck":  "passed: 14 transparent 256x256 PNG icons loaded from public/assets/art/cards/icons; top card slot uses 128px display size to fill the card opening; mainline upgrade-weapon card removed",
                          "dialogueSceneVisual":  "passed: local 1280x720 preview shows ward-day-v1 full-screen, two characters centered at the same standing scale, only the active speaker has a compact head-top bubble, and the final line fades into ward-night-v1 battle HUD",
                           "dailyChallengeLayout":  "passed: local 1280x720 preview uses the supplied background, three separate supplied panel frames for boss, drops and entry weapon, the supplied tall ranking frame on the right, and the supplied start button; the button opens daily weapon selection",
