@@ -759,7 +759,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       (['first', 'second', 'third'] as const).forEach((rank) => image(`daily-rank-${rank}-v1`, `/assets/art/daily/daily-rank-${rank}-v1.png`));
       uiText(['daily', 'boss-month', 'ranking', 'boss-drop', 'start-challenge']);
       MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => image(key, path));
-      (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => image(relic, `/assets/art/${relic}.webp`));
+      (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => image(relic, `/assets/art/${relic}.png`));
     }
 
     if (group === 'weapon') {
