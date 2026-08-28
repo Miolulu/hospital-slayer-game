@@ -1878,11 +1878,9 @@ export class HospitalBattleScene extends Phaser.Scene {
           .setAlpha(unlocked ? 0.98 : 0.92));
       }
       this.floorScrollContent.add(card);
-      if (unlocked) {
-        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
-        this.uiActionRegions.push(region);
-        this.floorScrollRegions.push({ region, baseY: y });
-      }
+      const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
+      this.uiActionRegions.push(region);
+      this.floorScrollRegions.push({ region, baseY: y });
     }
     layer.add(this.floorScrollContent);
 
@@ -1897,11 +1895,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (selected === 0) {
       detail.add(this.add.text(-220, 170, '入口教程', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setFontStyle('bold'));
       detail.add(this.add.text(-220, 196, '满级体验：熟悉移动、自动攻击、经验升级与 SAN 异化。', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 430 } }));
+    } else if (selected > maxSelectable) {
+      detail.add(this.add.text(-220, 170, `完成${this.floorLabel(selected - 1)}后解锁当前楼层`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.amber }));
     } else {
       detail.add(this.add.text(-220, 170, `通关后解锁 ${selected < TOTAL_FLOORS ? this.floorLabel(selected + 1) : '终局档案'}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.green }));
     }
     layer.add(detail);
-    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12, true);
+    const canEnterFloor = selected === 0 || selected <= maxSelectable;
+    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, canEnterFloor ? (selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`) : '楼层未解锁', () => {
+      if (canEnterFloor) this.showWeaponSelect('mainline', selected);
+    }, canEnterFloor ? 'primary' : 'muted', 12, true);
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
