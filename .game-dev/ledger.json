@@ -306,6 +306,7 @@
                           "uiAssetInventory":  "passed: 已盘点战斗状态组、触摸摇杆、状态标记、伤害数字、攻击预警、分隔线和缺失立绘；替换清单见 .game-dev/reports/ui-asset-inventory-2026-08-27.md",
                           "godotMigrationEvaluation":  "passed: 当前试玩版保留 Phaser 3 + TypeScript + Vite；Godot 4.7.1 作为后续玩法和 UI 冻结后的独立主工程候选，评估记录见 .game-dev/reports/godot-migration-evaluation-2026-08-27.md",
                           "pendingAudit":  "revision 2453 后剩余 5 项：平台付费刷新、月度挑战线上支付与榜单闭环、首领攻击后期重做、Builda 外壳真机居中复测、非图片 UI 资源替换。",
-                          "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-27.md"
+                          "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-27.md",
+                          "playerHitAspectFix":  "passed: 移除人物受击时的非等比 squash/stretch 缩放；自定义皮肤在受击和死亡状态保持自身立绘比例；28 项测试与生产构建通过。"
                      }
 }
