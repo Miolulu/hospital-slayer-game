@@ -90,3 +90,4 @@ can be appended without redrawing the building:
 - `mainline-floor-locked-selected-v1.png` - locked, selected window.
 - `mainline-floor-unlocked-v1.png` - unlocked, unselected room perspective.
 - `mainline-floor-selected-v1.png` - unlocked, selected room perspective with lights on.
+- `mainline-floor-enemy-frame-v1.png` - reusable Cthulhu pixel frame for floor enemy previews.
