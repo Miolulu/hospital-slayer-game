@@ -40,6 +40,15 @@ import {
   playerSkinArtForId,
 } from './playerSkinArt';
 import { installUiTextTheme, UI_FONT_STACK } from './uiTheme';
+import {
+  UPGRADE_CARD_CONFIGS,
+  UPGRADE_ICON_KINDS,
+  upgradeCardColor,
+  type UpgradeAttackStatus,
+  type UpgradeCardConfig,
+  type UpgradeCardRarity,
+  type UpgradeIconKind,
+} from './upgradeCards';
 
 installUiTextTheme();
 
@@ -59,15 +68,9 @@ type WeaponEffect = 'slash' | 'spark' | 'burst' | 'beam' | 'tentacle' | 'laser' 
 type BuffKind = 'damage' | 'health' | 'shield';
 type RunMode = 'mainline' | 'daily';
 type WeaponClass = 'sword' | 'whip' | 'gun' | 'cannon';
-type AttackStatus = 'poison' | 'burn' | 'weaken';
+type AttackStatus = UpgradeAttackStatus;
 type PlayerDirection = 'left' | 'right' | 'up' | 'down';
 type PlayerAnimation = 'idle' | 'walk-left' | 'walk-right' | 'walk-up' | 'walk-down' | 'hit' | 'death';
-type UpgradeCardRarity = 'blue' | 'purple' | 'gold';
-type UpgradeIconKind = 'move' | 'damage' | 'sustain' | 'growth' | 'effect' | 'copies' | 'resonance' | 'shield' | 'magnet' | 'pulse' | 'mirror' | 'blood' | 'nova' | 'slow';
-const UPGRADE_ICON_KINDS: UpgradeIconKind[] = [
-  'move', 'damage', 'sustain', 'growth', 'effect', 'copies', 'resonance',
-  'shield', 'magnet', 'pulse', 'mirror', 'blood', 'nova', 'slow',
-];
 type ProfileSkinCategory = 'all' | 'basic' | 'store' | 'boss';
 
 interface SkinDef {
@@ -4281,6 +4284,143 @@ export class HospitalBattleScene extends Phaser.Scene {
     return frame;
   }
 
+  private upgradeDefinitionFromConfig(
+    config: UpgradeCardConfig,
+    tier: number,
+    status: AttackStatus,
+    weapon?: Weapon,
+  ): UpgradeDef {
+    const tierRarity: UpgradeCardRarity = tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue';
+    const statusNames: Record<AttackStatus, string> = { poison: '中毒', burn: '燃烧', weaken: '虚弱' };
+    const statusName = statusNames[status];
+    const titleTemplate = config.id === 'attack-effect' && this.activeAttackStatus
+      ? (config.activeTitle ?? config.title)
+      : config.title;
+    const title = titleTemplate.replace('{status}', statusName);
+    const base = {
+      title,
+      color: upgradeCardColor(config, status),
+      rarity: config.rarity ?? tierRarity,
+      icon: config.icon,
+    };
+
+    switch (config.id) {
+      case 'move-speed': {
+        const movePercent = [8, 12, 18][tier - 1];
+        return { ...base, detail: `移动速度 +${movePercent}%`, apply: () => { this.runSpeed *= 1 + movePercent / 100; } };
+      }
+      case 'weapon-damage': {
+        const damageAmount = [8, 14, 22][tier - 1];
+        return { ...base, detail: `当前武器伤害 +${damageAmount}，持续本层`, apply: () => this.applyRoundDamageBuff(damageAmount) };
+      }
+      case 'san-shield': {
+        const sustainAmount = [20, 32, 48][tier - 1];
+        return { ...base, detail: `SAN 不足时恢复 ${sustainAmount}；SAN 满时转为护盾`, apply: () => this.applyHealthShieldUpgrade(sustainAmount) };
+      }
+      case 'attack-speed': {
+        const growthPercent = [10, 15, 22][tier - 1];
+        return { ...base, detail: `当前武器转速 +${growthPercent}%`, apply: () => this.applyCardWeaponGrowth() };
+      }
+      case 'attack-effect': {
+        const statusGrowth = attackStatusGrowth(this.attackStatusLevel, tier);
+        const statusBaseDamage = status === 'burn' ? 3 : status === 'poison' ? 2 : 1.5;
+        const statusDamage = Math.round(((this.attackStatusLevel === 0 ? statusBaseDamage : this.attackStatusDamage) + statusGrowth.damageIncrease) * 10) / 10;
+        const statusDuration = Math.round(((this.attackStatusLevel === 0 ? 3 : this.attackStatusDuration) + statusGrowth.durationIncrease) * 10) / 10;
+        const tickDamage = Math.round((status === 'weaken' ? statusDamage * 0.5 : statusDamage) * 10) / 10;
+        const spreadDetail = statusGrowth.spreadTargets > 0
+          ? ` · 击败后传播 ${statusGrowth.spreadTargets} 个目标（范围 ${statusGrowth.spreadRadius}）`
+          : ' · 持续强化后解锁击杀传播';
+        const detail = `${status === 'weaken' ? '敌人伤害 -35% · ' : ''}每 0.8 秒 ${tickDamage} 伤害 · 持续 ${statusDuration} 秒${spreadDetail}`;
+        return { ...base, detail, apply: () => this.applyAttackEffectUpgrade(status) };
+      }
+      case 'infection-resonance':
+        return {
+          ...base,
+          detail: `攻击特效伤害 +${2 + tier}，状态持续时间 +1 秒`,
+          apply: () => {
+            this.applyAttackEffectUpgrade(status);
+            this.attackStatusDamage += 2 + tier;
+            this.attackStatusDuration += 1;
+            this.dailyStatusSynergy += 1;
+          },
+        };
+      case 'twin-echo':
+        return {
+          ...base,
+          detail: `武器数量 +1，攻击速度 +${6 + tier * 2}%`,
+          apply: () => {
+            this.applyWeaponCopiesUpgrade();
+            const currentWeapon = this.currentWeapon();
+            if (currentWeapon) this.applyRotationUpgrade(currentWeapon, 6 + tier * 2);
+          },
+        };
+      case 'shield-retaliation':
+        return {
+          ...base,
+          detail: `护盾吸收伤害时反击 ${4 + tier * 2} 点`,
+          apply: () => {
+            this.applyHealthShieldUpgrade(12 + tier * 8);
+            this.dailyShieldRetaliation += 4 + tier * 2;
+          },
+        };
+      case 'magnetic-harvest':
+        return {
+          ...base,
+          detail: '移动速度 +6%，拾取范围 +28，吸附速度提升',
+          apply: () => {
+            this.runSpeed *= 1.06;
+            this.pickupRadius += 28;
+            this.magnet += 36;
+            this.dailyMagnetSynergy += 1;
+          },
+        };
+      case 'rift-pulse':
+        return {
+          ...base,
+          detail: `每 ${Math.max(2.8, 6.2 - (this.dailyVoidPulse + 1) * 0.45).toFixed(1)} 秒释放虚空环，最多命中 ${6 + (this.dailyVoidPulse + 1) * 2} 个目标`,
+          apply: () => {
+            this.dailyVoidPulse += 1;
+            this.dailyVoidPulseTimer = 1.2;
+          },
+        };
+      case 'mirror-barrage':
+        return {
+          ...base,
+          detail: `远程每次齐射追加 ${this.dailyEchoShots + 1} 发；近战额外命中目标`,
+          apply: () => { this.dailyEchoShots += 1; },
+        };
+      case 'blood-moon-pact':
+        return {
+          ...base,
+          detail: `武器伤害 +16，受到伤害 +${(this.dailyBloodPact + 1) * 8}%`,
+          apply: () => {
+            this.dailyBloodPact += 1;
+            this.damageBonus += 16;
+          },
+        };
+      case 'hunt-nova':
+        return {
+          ...base,
+          detail: `每 ${Math.max(6, 12 - (this.dailyKillNova + 1) * 2)} 次击杀触发范围爆裂`,
+          apply: () => { this.dailyKillNova += 1; },
+        };
+      case 'stasis-field':
+        return {
+          ...base,
+          detail: `靠近主角的敌人减速 ${Math.min(56, 28 + (this.dailySlowField + 1) * 8)}%，范围扩大`,
+          apply: () => { this.dailySlowField += 1; },
+        };
+      case 'weapon-copies':
+        return {
+          ...base,
+          detail: weapon ? `当前武器数量 ${weapon.copies} → ${weapon.copies + 1}，围绕主角均匀旋转` : '增加当前武器数量',
+          apply: () => this.applyWeaponCopiesUpgrade(),
+        };
+      default:
+        throw new Error(`未知升级卡牌配置：${config.id}`);
+    }
+  }
+
   private showUpgrade(resetRefresh = true) {
     this.phase = 'upgrade';
     if (resetRefresh) {
@@ -4299,171 +4439,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     const tier = this.upgradeCardTier();
     layer.add(this.add.text(centerX, this.safeTopY(122, 8), '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
-    const damageAmount = [8, 14, 22][tier - 1];
-    const sustainAmount = [20, 32, 48][tier - 1];
-    const growthPercent = [10, 15, 22][tier - 1];
-    const movePercent = [8, 12, 18][tier - 1];
     const statusOptions: AttackStatus[] = ['poison', 'burn', 'weaken'];
     const status = this.activeAttackStatus ?? statusOptions[(this.level - 1) % statusOptions.length];
-    const statusNames: Record<AttackStatus, string> = { poison: '中毒', burn: '燃烧', weaken: '虚弱' };
-    const statusGrowth = attackStatusGrowth(this.attackStatusLevel, tier);
-    const statusBaseDamage = status === 'burn' ? 3 : status === 'poison' ? 2 : 1.5;
-    const statusDamage = Math.round(((this.attackStatusLevel === 0 ? statusBaseDamage : this.attackStatusDamage) + statusGrowth.damageIncrease) * 10) / 10;
-    const statusDuration = Math.round(((this.attackStatusLevel === 0 ? 3 : this.attackStatusDuration) + statusGrowth.durationIncrease) * 10) / 10;
-    const tickDamage = Math.round((status === 'weaken' ? statusDamage * 0.5 : statusDamage) * 10) / 10;
-    const spreadDetail = statusGrowth.spreadTargets > 0
-      ? ` · 击败后传播 ${statusGrowth.spreadTargets} 个目标（范围 ${statusGrowth.spreadRadius}）`
-      : ' · 持续强化后解锁击杀传播';
-    const statusDetail = `${status === 'weaken' ? '敌人伤害 -35% · ' : ''}每 0.8 秒 ${tickDamage} 伤害 · 持续 ${statusDuration} 秒${spreadDetail}`;
-    const pool: UpgradeDef[] = [
-      {
-        title: '移速提升',
-        detail: `移动速度 +${movePercent}%`,
-        color: 0x7ab9d0,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'move',
-        apply: () => { this.runSpeed *= 1 + movePercent / 100; },
-      },
-      {
-        title: '武器强化',
-        detail: `当前武器伤害 +${damageAmount}，持续本层`,
-        color: 0xed716e,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'damage',
-        apply: () => this.applyRoundDamageBuff(damageAmount),
-      },
-      {
-        title: 'SAN / 护盾',
-        detail: `SAN 不足时恢复 ${sustainAmount}；SAN 满时转为护盾`,
-        color: 0x8fd17c,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'sustain',
-        apply: () => this.applyHealthShieldUpgrade(sustainAmount),
-      },
-      {
-        title: '攻速提升',
-        detail: `当前武器转速 +${growthPercent}%`,
-        color: 0xb798e2,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'growth',
-        apply: () => this.applyCardWeaponGrowth(),
-      },
-      {
-        title: `${this.activeAttackStatus ? '强化' : '攻击特效：'}${statusNames[status]}`,
-        detail: statusDetail,
-        color: status === 'poison' ? 0x8fd17c : status === 'burn' ? 0xe78a57 : 0xb798e2,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'effect',
-        apply: () => this.applyAttackEffectUpgrade(status),
-      },
-    ];
-    if (this.runMode === 'daily') {
-      const synergyStatus = statusNames[status];
-      pool.push({
-        title: `感染共振 · ${synergyStatus}`,
-        detail: `攻击特效伤害 +${2 + tier}，状态持续时间 +1 秒`,
-        color: 0x8fd17c,
-        rarity: 'gold',
-        icon: 'resonance',
-        apply: () => {
-          this.applyAttackEffectUpgrade(status);
-          this.attackStatusDamage += 2 + tier;
-          this.attackStatusDuration += 1;
-          this.dailyStatusSynergy += 1;
-        },
-      });
-      pool.push({
-        title: '双生回响',
-        detail: `武器数量 +1，攻击速度 +${6 + tier * 2}%`,
-        color: 0xb798e2,
-        rarity: 'gold',
-        icon: 'copies',
-        apply: () => {
-          this.applyWeaponCopiesUpgrade();
-          this.applyRotationUpgrade(this.currentWeapon()!, 6 + tier * 2);
-        },
-      });
-      pool.push({
-        title: '护盾反击',
-        detail: `护盾吸收伤害时反击 ${4 + tier * 2} 点`,
-        color: 0x7ab9d0,
-        rarity: 'gold',
-        icon: 'shield',
-        apply: () => {
-          this.applyHealthShieldUpgrade(12 + tier * 8);
-          this.dailyShieldRetaliation += 4 + tier * 2;
-        },
-      });
-      pool.push({
-        title: '磁场收割',
-        detail: `移动速度 +6%，拾取范围 +28，吸附速度提升`,
-        color: 0xf2bf62,
-        rarity: 'purple',
-        icon: 'magnet',
-        apply: () => {
-          this.runSpeed *= 1.06;
-          this.pickupRadius += 28;
-          this.magnet += 36;
-          this.dailyMagnetSynergy += 1;
-        },
-      });
-      pool.push({
-        title: '裂隙脉冲',
-        detail: `每 ${Math.max(2.8, 6.2 - (this.dailyVoidPulse + 1) * 0.45).toFixed(1)} 秒释放虚空环，最多命中 ${6 + (this.dailyVoidPulse + 1) * 2} 个目标`,
-        color: 0xb798e2,
-        rarity: 'gold',
-        icon: 'pulse',
-        apply: () => {
-          this.dailyVoidPulse += 1;
-          this.dailyVoidPulseTimer = 1.2;
-        },
-      });
-      pool.push({
-        title: '镜像弹幕',
-        detail: `远程每次齐射追加 ${this.dailyEchoShots + 1} 发；近战额外命中目标`,
-        color: 0x7ab9d0,
-        rarity: 'gold',
-        icon: 'mirror',
-        apply: () => { this.dailyEchoShots += 1; },
-      });
-      pool.push({
-        title: '血月契约',
-        detail: `武器伤害 +16，受到伤害 +${(this.dailyBloodPact + 1) * 8}%`,
-        color: 0xed716e,
-        rarity: 'gold',
-        icon: 'blood',
-        apply: () => {
-          this.dailyBloodPact += 1;
-          this.damageBonus += 16;
-        },
-      });
-      pool.push({
-        title: '猎杀爆裂',
-        detail: `每 ${Math.max(6, 12 - (this.dailyKillNova + 1) * 2)} 次击杀触发范围爆裂`,
-        color: 0xf2bf62,
-        rarity: 'gold',
-        icon: 'nova',
-        apply: () => { this.dailyKillNova += 1; },
-      });
-      pool.push({
-        title: '静滞力场',
-        detail: `靠近主角的敌人减速 ${Math.min(56, 28 + (this.dailySlowField + 1) * 8)}%，范围扩大`,
-        color: 0x7ab9d0,
-        rarity: 'purple',
-        icon: 'slow',
-        apply: () => { this.dailySlowField += 1; },
-      });
-    }
-    if (weapon && weapon.copies < MAX_WEAPON_COPIES) {
-      pool.push({
-        title: '升级武器数',
-        detail: `当前武器数量 ${weapon.copies} → ${weapon.copies + 1}，围绕主角均匀旋转`,
-        color: 0x7ab9d0,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'copies',
-        apply: () => this.applyWeaponCopiesUpgrade(),
-      });
-    }
+    const pool: UpgradeDef[] = UPGRADE_CARD_CONFIGS
+      .filter((config) => !('dailyOnly' in config) || !config.dailyOnly || this.runMode === 'daily')
+      .filter((config) => !('requiresWeaponCopies' in config) || !config.requiresWeaponCopies || Boolean(weapon && weapon.copies < MAX_WEAPON_COPIES))
+      .map((config) => this.upgradeDefinitionFromConfig(config, tier, status, weapon));
     const choices = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
     if (this.runMode === 'daily' && choices.every((choice) => choice.rarity === 'blue')) {
       const special = Phaser.Utils.Array.GetRandom(pool.filter((choice) => choice.rarity === 'purple' || choice.rarity === 'gold'));
