@@ -43,6 +43,9 @@ import { installUiTextTheme, UI_FONT_STACK } from './uiTheme';
 import {
   UPGRADE_CARD_CONFIGS,
   UPGRADE_ICON_KINDS,
+  formatUpgradeCardDescription,
+  rollUpgradeCardRarity,
+  upgradeCardTierForRarity,
   upgradeCardColor,
   type UpgradeAttackStatus,
   type UpgradeCardConfig,
@@ -465,6 +468,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.png');
+    this.load.image('profile-case-sheet-v1', '/assets/art/profile-case-sheet-v1.png');
+    this.load.image('profile-evidence-corridor-v1', '/assets/art/profile-evidence-corridor-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
     this.load.image('menu-title-v2', '/assets/art/menu/menu-title-v2.png');
     this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.png');
@@ -1801,16 +1806,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floorScrollRegions = [];
     // Every floor uses the same 16:9 raster window; the vertical gap keeps
     // the tower readable while allowing all thirty floors to scroll.
-    const floorCardWidth = 420;
-    const floorCardHeight = 132;
+    const floorSlotWidth = 560;
+    const floorSlotHeight = 392;
     const floorShellWidth = 560;
-    const floorShellHeight = 178;
-    const floorCardGap = 190;
+    const floorShellHeight = Math.round(floorShellWidth * 941 / 1672);
+    const floorRoomMaxWidth = 500;
+    const floorRoomMaxHeight = 375;
+    const floorCardGap = 430;
     const floorCardX = leftColumnX;
-    const baseYForFloor = (floor: number) => 596 - floor * floorCardGap;
-    this.floorScrollMin = Math.min(0, this.floorScrollViewport.bottom - baseYForFloor(0));
-    this.floorScrollMax = Math.max(0, this.floorScrollViewport.top - baseYForFloor(TOTAL_FLOORS));
-    this.floorScrollOffset = clamp(408 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
+    const baseYForFloor = (floor: number) => 400 - floor * floorCardGap;
+    this.floorScrollMin = 0;
+    this.floorScrollMax = Math.max(0, this.floorScrollViewport.bottom - (baseYForFloor(TOTAL_FLOORS) + floorSlotHeight / 2));
+    this.floorScrollOffset = clamp((this.floorScrollViewport.top + this.floorScrollViewport.bottom) / 2 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
     this.floorScrollContent.setY(this.floorScrollOffset);
     for (let floor = 0; floor <= TOTAL_FLOORS; floor += 1) {
       const unlocked = floor === 0 || floor <= this.progress.maxFloor;
@@ -2358,26 +2365,52 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.rectangle(centerX, this.safeTopY(118, 8), 1080, 1, 0x46636a, 0.78));
 
     const previewSkin = this.skins.find((skin) => skin.id === this.profilePreviewSkinId) ?? this.skins[0];
-    const certificate = this.add.container(335 + layoutShift, 270);
-    certificate.add(this.add.rectangle(0, 0, 500, 270, 0x0a141b, 0.98).setStrokeStyle(2, previewSkin.color, 0.92));
-    certificate.add(this.add.rectangle(0, 0, 488, 258, 0x0a141b, 0).setStrokeStyle(1, 0x46636a, 0.76));
-    certificate.add(this.add.text(-225, -108, '\u75c5\u4f8b\u8bc1', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.amber }).setFontStyle('bold'));
-    certificate.add(this.add.text(-225, -72, `\u6635\u79f0  ${this.playerNickname}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream, wordWrap: { width: 220 } }));
-    certificate.add(this.add.text(-225, -42, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
-    certificate.add(this.add.text(-225, -12, `\u6863\u6848\u7f16\u53f7  W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.muted }));
-    const portrait = this.addPatientSprite(certificate, 112, 12, 166, previewSkin);
-    if (portrait && previewSkin.id !== 'patient-default' && !this.skinHasCustomArt(previewSkin)) portrait.setTint(previewSkin.color);
-    certificate.add(this.add.rectangle(112, 93, 126, 2, previewSkin.color, 0.72));
-    certificate.add(this.add.text(112, 111, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    certificate.add(this.add.text(112, 132, '\u5f53\u524d\u88c5\u5907\u76ae\u80a4', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.green }).setOrigin(0.5));
-    layer.add(certificate);
-
-    if (this.textures.exists('profile-hospital-photo-v1')) {
-      layer.add(this.add.image(335 + layoutShift, 510, 'profile-hospital-photo-v1').setOrigin(0.5).setDisplaySize(500, 170).setAlpha(0.92));
+    // The archive is built as a stack of physical case materials. The sheet
+    // gives the page its silhouette while the two photos and portrait remain
+    // independent, so each record can be replaced without redrawing the page.
+    const boardX = 335 + layoutShift;
+    const boardY = 394;
+    const board = this.add.container(boardX, boardY);
+    board.add(this.add.rectangle(6, 7, 630, 424, 0x02060a, 0.92));
+    if (this.textures.exists('profile-case-sheet-v1')) {
+      board.add(this.add.image(0, 0, 'profile-case-sheet-v1').setOrigin(0.5).setDisplaySize(620, 413).setAlpha(0.98));
+    } else {
+      board.add(this.add.rectangle(0, 0, 620, 413, 0x101b24, 0.98).setStrokeStyle(2, previewSkin.color, 0.92));
     }
-    layer.add(this.add.text(95 + layoutShift, 612, '\u75c5\u9662\u5f71\u50cf\u8bb0\u5f55  /  \u591c\u95f4\u89c2\u5bdf\u7167\u7247', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.amber }));
-    layer.add(this.add.text(95 + layoutShift, 634, '\u75c7\u72b6\uff1a\u5931\u7720\u3001\u542c\u89c1\u4f4e\u8bed\u3001\u5bf9\u7ea2\u5149\u4ea7\u751f\u8fc7\u5ea6\u53cd\u5e94\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream }));
-    layer.add(this.add.text(95 + layoutShift, 656, '\u5907\u6ce8\uff1a\u591c\u95f4\u75c5\u533a\u5b58\u5728\u672a\u77e5\u6ce2\u52a8\uff0c\u8bf7\u52ff\u5355\u72ec\u79bb\u5f00\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    board.add(this.add.text(0, -188, '\u75c5\u4f8b\u8bc1  /  PATIENT CASE SHEET', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
+    board.add(this.add.text(-263, -166, `\u6635\u79f0  ${this.playerNickname}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 218 } }));
+    board.add(this.add.text(-263, -145, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }));
+    board.add(this.add.text(263, -166, `W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: 'Courier New', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
+
+    const addEvidencePhoto = (x: number, y: number, key: string, label: string, accent: number) => {
+      board.add(this.add.rectangle(x + 2, y + 3, 132, 96, 0x02060a, 0.95));
+      if (this.textures.exists(key)) board.add(this.add.image(x, y, key).setOrigin(0.5).setDisplaySize(122, 84).setAlpha(0.98));
+      board.add(this.add.rectangle(x, y, 128, 90, 0x000000, 0).setStrokeStyle(1, accent, 0.82));
+      board.add(this.add.text(x, y + 53, label, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '8px', color: palette.cream, backgroundColor: '#071117', padding: { left: 4, right: 4, top: 2, bottom: 2 } }).setOrigin(0.5));
+    };
+    addEvidencePhoto(-164, -92, 'profile-hospital-photo-v1', '\u4e3b\u9662\u533a / 01', previewSkin.color);
+    addEvidencePhoto(208, -92, 'profile-evidence-corridor-v1', '\u8d70\u5eca\u76d1\u63a7 / 02', paletteRgb.cyan);
+
+    const portrait = this.addPatientSprite(board, 22, 22, 176, previewSkin);
+    if (portrait && previewSkin.id !== 'patient-default' && !this.skinHasCustomArt(previewSkin)) portrait.setTint(previewSkin.color);
+    board.add(this.add.rectangle(22, 122, 156, 2, previewSkin.color, 0.76));
+    board.add(this.add.text(22, 140, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    board.add(this.add.text(22, 158, '\u5f53\u524d\u88c5\u5907\u76ae\u80a4', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.green }).setOrigin(0.5));
+
+    board.add(this.add.text(-263, 132, '\u75c7\u72b6\u8bb0\u5f55', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setFontStyle('bold'));
+    board.add(this.add.text(-263, 151, '\u5931\u7720 / \u4f4e\u8bed\u5e7b\u542c / \u7ea2\u5149\u8fc7\u5ea6\u53cd\u5e94', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.cream, wordWrap: { width: 165 } }));
+    board.add(this.add.text(263, 132, '\u884c\u52a8\u8bb0\u5f55', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setOrigin(1, 0).setFontStyle('bold'));
+    board.add(this.add.text(263, 151, `SAN  ${Math.ceil(this.san)} / 100  \u00b7  \u697c\u5c42  ${this.progress.maxFloor}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setOrigin(1, 0));
+    layer.add(board);
+
+    const evidenceTray = this.add.container(boardX, 647);
+    evidenceTray.add(this.add.rectangle(6, 5, 630, 58, 0x02060a, 0.88));
+    evidenceTray.add(this.add.rectangle(0, 0, 620, 54, 0x071117, 0.95).setStrokeStyle(1, previewSkin.color, 0.64));
+    evidenceTray.add(this.add.text(-292, -17, '\u89c2\u5bdf\u5907\u6ce8', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setFontStyle('bold'));
+    evidenceTray.add(this.add.text(-292, 4, '\u591c\u95f4\u75c5\u533a\u5b58\u5728\u672a\u77e5\u6ce2\u52a8\uff0c\u8bf7\u52ff\u5355\u72ec\u79bb\u5f00\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.cream, wordWrap: { width: 320 } }));
+    evidenceTray.add(this.add.text(292, -17, '\u8d44\u6599\u72b6\u6001  /  ARCHIVED', { fontFamily: 'Courier New', fontSize: '9px', color: palette.cyan }).setOrigin(1, 0).setFontStyle('bold'));
+    evidenceTray.add(this.add.text(292, 5, `\u5df2\u5f52\u6863 ${this.progress.archiveKinds.length} \u9879  \u00b7  \u5269\u4f59\u7a7a\u767d\u9879`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.muted }).setOrigin(1, 0));
+    layer.add(evidenceTray);
 
     const skinPanelX = clamp(965 + layoutShift, safe.left + 285, safe.right - 285);
     this.addPixelFrame(layer, skinPanelX, this.safeBottomY(405, 250), 560, 520, 0x0a141b, 0x46636a);
@@ -3654,9 +3687,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     else weapon.ammo += 1;
   }
 
-  private applyCardWeaponGrowth() {
+  private applyCardWeaponGrowth(percent = 15) {
     const weapon = this.currentWeapon();
-    if (weapon) this.applyRotationUpgrade(weapon, [10, 15, 22][this.upgradeCardTier() - 1]);
+    if (weapon) this.applyRotationUpgrade(weapon, percent);
   }
 
   private applyAttackStatus(enemy: Enemy, status?: AttackStatus) {
@@ -3672,12 +3705,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floatText(enemy.node.x, enemy.node.y - enemy.visualHeight / 2 - 26, `${status === 'poison' ? '中毒' : status === 'burn' ? '燃烧' : '虚弱'}`, colors[status]);
   }
 
-  private applyAttackEffectUpgrade(status: AttackStatus) {
+  private applyAttackEffectUpgrade(
+    status: AttackStatus,
+    tier: number,
+    configuredGrowth?: { damageIncrease?: number; durationIncrease?: number },
+  ) {
     const weapon = this.currentWeapon();
     if (!weapon) return;
     const nextStatus = this.activeAttackStatus ?? status;
-    const tier = this.upgradeCardTier();
-    const growth = attackStatusGrowth(this.attackStatusLevel, tier);
+    const growth = {
+      ...attackStatusGrowth(this.attackStatusLevel, tier),
+      ...configuredGrowth,
+    };
     if (this.attackStatusLevel === 0) {
       this.attackStatusDuration = 3;
       this.attackStatusDamage = nextStatus === 'burn' ? 3 : nextStatus === 'poison' ? 2 : 1.5;
@@ -4122,10 +4161,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.showUpgrade();
   }
 
-  private upgradeCardTier() {
-    return Math.min(3, 1 + Math.floor((this.level - 1) / 5));
-  }
-
   private upgradeCardTexture(rarity: UpgradeCardRarity) {
     return `upgrade-card-${rarity}-v1`;
   }
@@ -4286,11 +4321,18 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private upgradeDefinitionFromConfig(
     config: UpgradeCardConfig,
-    tier: number,
+    rarity: UpgradeCardRarity,
     status: AttackStatus,
     weapon?: Weapon,
   ): UpgradeDef {
-    const tierRarity: UpgradeCardRarity = tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue';
+    const tier = upgradeCardTierForRarity(rarity);
+    const tierConfig = config.tiers?.[rarity];
+    const tierValue = tierConfig?.value;
+    const requireTierValue = () => {
+      if (tierValue === undefined) throw new Error(`缺少升级卡牌数值配置：${config.id}/${rarity}`);
+      return tierValue;
+    };
+    const describe = (values: Readonly<Record<string, string | number>>) => formatUpgradeCardDescription(config.description, values);
     const statusNames: Record<AttackStatus, string> = { poison: '中毒', burn: '燃烧', weaken: '虚弱' };
     const statusName = statusNames[status];
     const titleTemplate = config.id === 'attack-effect' && this.activeAttackStatus
@@ -4300,54 +4342,55 @@ export class HospitalBattleScene extends Phaser.Scene {
     const base = {
       title,
       color: upgradeCardColor(config, status),
-      rarity: config.rarity ?? tierRarity,
+      rarity: config.rarity ?? rarity,
       icon: config.icon,
     };
 
     switch (config.id) {
       case 'move-speed': {
-        const movePercent = [8, 12, 18][tier - 1];
-        return { ...base, detail: `移动速度 +${movePercent}%`, apply: () => { this.runSpeed *= 1 + movePercent / 100; } };
+        const movePercent = requireTierValue();
+        return { ...base, detail: describe({ value: movePercent }), apply: () => { this.runSpeed *= 1 + movePercent / 100; } };
       }
       case 'weapon-damage': {
-        const damageAmount = [8, 14, 22][tier - 1];
-        return { ...base, detail: `当前武器伤害 +${damageAmount}，持续本层`, apply: () => this.applyRoundDamageBuff(damageAmount) };
+        const damageAmount = requireTierValue();
+        return { ...base, detail: describe({ value: damageAmount }), apply: () => this.applyRoundDamageBuff(damageAmount) };
       }
       case 'san-shield': {
-        const sustainAmount = [20, 32, 48][tier - 1];
-        return { ...base, detail: `SAN 不足时恢复 ${sustainAmount}；SAN 满时转为护盾`, apply: () => this.applyHealthShieldUpgrade(sustainAmount) };
+        const sustainAmount = requireTierValue();
+        return { ...base, detail: describe({ value: sustainAmount }), apply: () => this.applyHealthShieldUpgrade(sustainAmount) };
       }
       case 'attack-speed': {
-        const growthPercent = [10, 15, 22][tier - 1];
-        return { ...base, detail: `当前武器转速 +${growthPercent}%`, apply: () => this.applyCardWeaponGrowth() };
+        const growthPercent = requireTierValue();
+        return { ...base, detail: describe({ value: growthPercent }), apply: () => this.applyCardWeaponGrowth(growthPercent) };
       }
       case 'attack-effect': {
         const statusGrowth = attackStatusGrowth(this.attackStatusLevel, tier);
+        const damageIncrease = tierConfig?.damageIncrease ?? statusGrowth.damageIncrease;
+        const durationIncrease = tierConfig?.durationIncrease ?? statusGrowth.durationIncrease;
         const statusBaseDamage = status === 'burn' ? 3 : status === 'poison' ? 2 : 1.5;
-        const statusDamage = Math.round(((this.attackStatusLevel === 0 ? statusBaseDamage : this.attackStatusDamage) + statusGrowth.damageIncrease) * 10) / 10;
-        const statusDuration = Math.round(((this.attackStatusLevel === 0 ? 3 : this.attackStatusDuration) + statusGrowth.durationIncrease) * 10) / 10;
+        const statusDamage = Math.round(((this.attackStatusLevel === 0 ? statusBaseDamage : this.attackStatusDamage) + damageIncrease) * 10) / 10;
+        const statusDuration = Math.round(((this.attackStatusLevel === 0 ? 3 : this.attackStatusDuration) + durationIncrease) * 10) / 10;
         const tickDamage = Math.round((status === 'weaken' ? statusDamage * 0.5 : statusDamage) * 10) / 10;
         const spreadDetail = statusGrowth.spreadTargets > 0
           ? ` · 击败后传播 ${statusGrowth.spreadTargets} 个目标（范围 ${statusGrowth.spreadRadius}）`
           : ' · 持续强化后解锁击杀传播';
-        const detail = `${status === 'weaken' ? '敌人伤害 -35% · ' : ''}每 0.8 秒 ${tickDamage} 伤害 · 持续 ${statusDuration} 秒${spreadDetail}`;
-        return { ...base, detail, apply: () => this.applyAttackEffectUpgrade(status) };
-      }
-      case 'infection-resonance':
+        const detail = describe({
+          status: statusName,
+          weakenPrefix: status === 'weaken' ? '敌人伤害 -35% · ' : '',
+          tickDamage,
+          duration: statusDuration,
+          spread: spreadDetail,
+        });
         return {
           ...base,
-          detail: `攻击特效伤害 +${2 + tier}，状态持续时间 +1 秒`,
-          apply: () => {
-            this.applyAttackEffectUpgrade(status);
-            this.attackStatusDamage += 2 + tier;
-            this.attackStatusDuration += 1;
-            this.dailyStatusSynergy += 1;
-          },
+          detail,
+          apply: () => this.applyAttackEffectUpgrade(status, tier, { damageIncrease, durationIncrease }),
         };
+      }
       case 'twin-echo':
         return {
           ...base,
-          detail: `武器数量 +1，攻击速度 +${6 + tier * 2}%`,
+          detail: describe({ speed: 6 + tier * 2 }),
           apply: () => {
             this.applyWeaponCopiesUpgrade();
             const currentWeapon = this.currentWeapon();
@@ -4357,7 +4400,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       case 'shield-retaliation':
         return {
           ...base,
-          detail: `护盾吸收伤害时反击 ${4 + tier * 2} 点`,
+          detail: describe({ retaliation: 4 + tier * 2 }),
           apply: () => {
             this.applyHealthShieldUpgrade(12 + tier * 8);
             this.dailyShieldRetaliation += 4 + tier * 2;
@@ -4366,7 +4409,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       case 'magnetic-harvest':
         return {
           ...base,
-          detail: '移动速度 +6%，拾取范围 +28，吸附速度提升',
+          detail: describe({}),
           apply: () => {
             this.runSpeed *= 1.06;
             this.pickupRadius += 28;
@@ -4377,7 +4420,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       case 'rift-pulse':
         return {
           ...base,
-          detail: `每 ${Math.max(2.8, 6.2 - (this.dailyVoidPulse + 1) * 0.45).toFixed(1)} 秒释放虚空环，最多命中 ${6 + (this.dailyVoidPulse + 1) * 2} 个目标`,
+          detail: describe({
+            interval: Math.max(2.8, 6.2 - (this.dailyVoidPulse + 1) * 0.45).toFixed(1),
+            targets: 6 + (this.dailyVoidPulse + 1) * 2,
+          }),
           apply: () => {
             this.dailyVoidPulse += 1;
             this.dailyVoidPulseTimer = 1.2;
@@ -4386,13 +4432,13 @@ export class HospitalBattleScene extends Phaser.Scene {
       case 'mirror-barrage':
         return {
           ...base,
-          detail: `远程每次齐射追加 ${this.dailyEchoShots + 1} 发；近战额外命中目标`,
+          detail: describe({ shots: this.dailyEchoShots + 1 }),
           apply: () => { this.dailyEchoShots += 1; },
         };
       case 'blood-moon-pact':
         return {
           ...base,
-          detail: `武器伤害 +16，受到伤害 +${(this.dailyBloodPact + 1) * 8}%`,
+          detail: describe({ taken: (this.dailyBloodPact + 1) * 8 }),
           apply: () => {
             this.dailyBloodPact += 1;
             this.damageBonus += 16;
@@ -4401,19 +4447,19 @@ export class HospitalBattleScene extends Phaser.Scene {
       case 'hunt-nova':
         return {
           ...base,
-          detail: `每 ${Math.max(6, 12 - (this.dailyKillNova + 1) * 2)} 次击杀触发范围爆裂`,
+          detail: describe({ kills: Math.max(6, 12 - (this.dailyKillNova + 1) * 2) }),
           apply: () => { this.dailyKillNova += 1; },
         };
       case 'stasis-field':
         return {
           ...base,
-          detail: `靠近主角的敌人减速 ${Math.min(56, 28 + (this.dailySlowField + 1) * 8)}%，范围扩大`,
+          detail: describe({ slow: Math.min(56, 28 + (this.dailySlowField + 1) * 8) }),
           apply: () => { this.dailySlowField += 1; },
         };
       case 'weapon-copies':
         return {
           ...base,
-          detail: weapon ? `当前武器数量 ${weapon.copies} → ${weapon.copies + 1}，围绕主角均匀旋转` : '增加当前武器数量',
+          detail: weapon ? describe({ current: weapon.copies, next: weapon.copies + 1 }) : '增加当前武器数量',
           apply: () => this.applyWeaponCopiesUpgrade(),
         };
       default:
@@ -4436,7 +4482,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
     this.addPixelFrame(layer, centerX, 350, 940, 560, 0x101b24, 0xb798e2);
     layer.add(this.add.text(centerX, this.safeTopY(84, 8), `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    const tier = this.upgradeCardTier();
     layer.add(this.add.text(centerX, this.safeTopY(122, 8), '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
     const statusOptions: AttackStatus[] = ['poison', 'burn', 'weaken'];
@@ -4444,12 +4489,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     const pool: UpgradeDef[] = UPGRADE_CARD_CONFIGS
       .filter((config) => !('dailyOnly' in config) || !config.dailyOnly || this.runMode === 'daily')
       .filter((config) => !('requiresWeaponCopies' in config) || !config.requiresWeaponCopies || Boolean(weapon && weapon.copies < MAX_WEAPON_COPIES))
-      .map((config) => this.upgradeDefinitionFromConfig(config, tier, status, weapon));
+      .map((config) => {
+        const rarity = 'rarity' in config && config.rarity ? config.rarity : rollUpgradeCardRarity();
+        return this.upgradeDefinitionFromConfig(config, rarity, status, weapon);
+      });
     const choices = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
-    if (this.runMode === 'daily' && choices.every((choice) => choice.rarity === 'blue')) {
-      const special = Phaser.Utils.Array.GetRandom(pool.filter((choice) => choice.rarity === 'purple' || choice.rarity === 'gold'));
-      if (special) choices[2] = special;
-    }
     choices.forEach((choice, index) => {
       const x = 390 + layoutShift + index * 250;
       const cardWidth = 228;
