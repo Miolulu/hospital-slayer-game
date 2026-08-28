@@ -2307,6 +2307,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const accent = kind === 'boss' || kind === 'miniBoss' ? paletteRgb.danger : paletteRgb.cyan;
     const cardWidth = 150;
     const cardHeight = 128;
+    // The frame leaves its name strip below the portrait area. Keep normal
+    // enemy art centered in that inner window, while the full-height boss
+    // portraits stay a few pixels higher so they do not cover the name.
+    const portraitCenterY = kind === 'boss' || kind === 'miniBoss' ? -4 : 0;
     if (this.textures.exists('mainline-floor-enemy-frame-v1')) {
       card.add(this.add.image(0, 0, 'mainline-floor-enemy-frame-v1').setOrigin(0.5).setDisplaySize(cardWidth, cardHeight).setAlpha(0.98));
     } else {
@@ -2318,20 +2322,20 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? MOON_MOTH_QUEEN_ART.portraitKey
         : MAINLINE_BOSS_ART_VARIANT_LIST[Math.abs(Math.floor(floor)) % MAINLINE_BOSS_ART_VARIANT_LIST.length]?.portraitKey;
       if (this.textures.exists(key)) {
-        sprite = this.add.sprite(0, -10, key, 0).setOrigin(0.5);
+        sprite = this.add.sprite(0, portraitCenterY, key, 0).setOrigin(0.5);
         const targetHeight = 84;
         sprite.setDisplaySize(targetHeight * sprite.width / Math.max(1, sprite.height), targetHeight);
       }
     } else {
       const artKey = smallEnemyArtForFloor(kind as SmallEnemyKind, floor);
       if (artKey && this.textures.exists(artKey)) {
-        sprite = this.add.sprite(0, -10, artKey, 0).setOrigin(0.5);
+        sprite = this.add.sprite(0, portraitCenterY, artKey, 0).setOrigin(0.5);
         const targetHeight = 74;
         sprite.setDisplaySize(targetHeight * sprite.width / Math.max(1, sprite.height), targetHeight);
       }
     }
     if (sprite) card.add(sprite);
-    else card.add(this.add.circle(0, -10, 23, kind === 'boss' ? 0x7e2e51 : 0x315b68, 0.9).setStrokeStyle(2, accent, 0.8));
+    else card.add(this.add.circle(0, portraitCenterY, 23, kind === 'boss' ? 0x7e2e51 : 0x315b68, 0.9).setStrokeStyle(2, accent, 0.8));
     card.add(this.add.text(0, 47, this.enemyPreviewLabel(kind), { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream, align: 'center', wordWrap: { width: 128 } }).setOrigin(0.5));
     parent.add(card);
     return card;
