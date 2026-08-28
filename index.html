@@ -13,11 +13,28 @@
   </head>
   <body>
     <main id="app" aria-label="我在精神病院斩神 30 层克苏鲁像素风试玩">
-      <div id="loading-screen" aria-live="polite">
-        <img src="/assets/art/ui/loading-octopus-v1.png" alt="" class="loading-octopus" />
-        <div class="loading-title">正在进入病区...</div>
-        <div id="loading-progress-ring" class="loading-progress-ring" style="--progress: 0%" aria-hidden="true"></div>
-        <div id="loading-progress-value" class="loading-progress-value">0%</div>
+      <div id="loading-screen" aria-live="polite" aria-busy="true">
+        <div class="loading-panel" role="status">
+          <div class="loading-panel-mark" aria-hidden="true">01</div>
+          <div class="loading-character-column">
+            <div class="loading-character-halo" aria-hidden="true"></div>
+            <img src="/assets/art/ui/loading-octopus-v1.png" alt="" class="loading-octopus" />
+            <div class="loading-character-label">病区观察记录</div>
+          </div>
+          <div class="loading-copy">
+            <div class="loading-kicker">精神病院 · 夜间接入</div>
+            <div class="loading-title">正在进入病区...</div>
+            <div id="loading-status" class="loading-status">正在加载病区资源  0%</div>
+            <div class="loading-progress-cluster">
+              <div id="loading-progress-ring" class="loading-progress-ring" style="--progress: 0%" aria-hidden="true"></div>
+              <div id="loading-progress-value" class="loading-progress-value">0%</div>
+            </div>
+            <div class="loading-progress-track" aria-hidden="true">
+              <div id="loading-progress-fill" class="loading-progress-fill"></div>
+            </div>
+            <div class="loading-progress-caption">正在同步病区记录</div>
+          </div>
+        </div>
       </div>
       <div id="game-shell"></div>
       <section id="orientation-guard" aria-live="polite">

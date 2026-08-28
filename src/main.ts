@@ -90,6 +90,7 @@ interface SkinDef {
 interface ProgressSave {
   maxFloor: number;
   mainlineIntroSeen?: boolean;
+  tutorialCompleted?: boolean;
   unlockedWeaponIds: string[];
   unlockedWeaponSkinIds: string[];
   equippedWeaponSkinIds: Partial<Record<WeaponClass, string>>;
@@ -268,6 +269,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private progress: ProgressSave = {
     maxFloor: 1,
     mainlineIntroSeen: false,
+    tutorialCompleted: false,
     unlockedWeaponIds: ['knife', 'ward-lantern'],
     unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'],
     equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' },
@@ -392,6 +394,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private dialogueIndex = 0;
   private dialogueTransitioning = false;
   private tutorialRun = false;
+  private tutorialDialogueStage: 'intro' | 'outro' = 'intro';
   private tutorialGuide?: Phaser.GameObjects.Container;
   private tutorialGuideTimer = 0;
   private floorScrollContent?: Phaser.GameObjects.Container;
@@ -457,23 +460,31 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.on('progress', (value: number) => {
       this.loadingProgress?.clear()
         .fillStyle(0x6bd3c1, 1)
-        .fillRect(W / 2 - 210, H / 2 + 35, 420 * clamp(value, 0, 1), 10);
+        .fillRect(W / 2 - 210, H / 2 + 42, 420 * clamp(value, 0, 1), 8);
       this.loadingStatus?.setText(`正在加载病区资源  ${Math.round(value * 100)}%`);
       const progress = Math.round(clamp(value, 0, 1) * 100);
       document.getElementById('loading-progress-ring')?.style.setProperty('--progress', `${progress}%`);
+      document.getElementById('loading-progress-fill')?.style.setProperty('width', `${progress}%`);
       const progressLabel = document.getElementById('loading-progress-value');
       if (progressLabel) progressLabel.textContent = `${progress}%`;
+      const htmlStatus = document.getElementById('loading-status');
+      if (htmlStatus) htmlStatus.textContent = `正在加载病区资源  ${progress}%`;
     });
     this.load.on('loaderror', (file: { key?: string }) => {
       const key = file.key || '未知资源';
       this.loadingStatus?.setText(`资源加载失败：${key}`.slice(0, 42)).setColor(palette.danger);
+      const htmlStatus = document.getElementById('loading-status');
+      if (htmlStatus) htmlStatus.textContent = `资源加载失败：${key}`.slice(0, 42);
+      htmlStatus?.setAttribute('data-error', 'true');
     });
     this.load.once('complete', () => {
       this.loadingLayer?.destroy(true);
       this.loadingLayer = undefined;
       this.loadingProgress = undefined;
       this.loadingStatus = undefined;
-      document.getElementById('loading-screen')?.classList.add('hidden');
+      const loadingScreen = document.getElementById('loading-screen');
+      loadingScreen?.setAttribute('aria-busy', 'false');
+      loadingScreen?.classList.add('hidden');
     });
     this.load.image('patient-boy', '/assets/art/patient-boy.png');
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
@@ -575,21 +586,21 @@ export class HospitalBattleScene extends Phaser.Scene {
   private createLoadingScreen() {
     const layer = this.add.container(0, 0).setDepth(1000).setScrollFactor(0);
     const backdrop = this.add.rectangle(W / 2, H / 2, W, H, palette.bg, 1);
-    const frame = this.add.rectangle(W / 2, H / 2, 560, 188, 0x101b24, 0.98)
-      .setStrokeStyle(2, 0x6bd3c1, 0.92);
-    const title = this.add.text(W / 2, H / 2 - 46, '正在进入病区', {
+    const frame = this.add.rectangle(W / 2, H / 2, 660, 250, 0x071117, 0.98)
+      .setStrokeStyle(1, 0x6bd3c1, 0.68);
+    const title = this.add.text(W / 2, H / 2 - 58, '正在进入病区...', {
       fontFamily: UI_FONT_STACK,
-      fontSize: '24px',
+      fontSize: '28px',
       color: palette.cream,
       stroke: '#071015',
       strokeThickness: 3,
     }).setOrigin(0.5).setFontStyle('bold');
-    const status = this.add.text(W / 2, H / 2 - 8, '正在加载病区资源  0%', {
+    const status = this.add.text(W / 2, H / 2 - 10, '正在加载病区资源  0%', {
       fontFamily: UI_FONT_STACK,
       fontSize: '13px',
       color: palette.muted,
     }).setOrigin(0.5);
-    const track = this.add.graphics().fillStyle(0x26383f, 1).fillRect(W / 2 - 210, H / 2 + 35, 420, 10);
+    const track = this.add.graphics().fillStyle(0x26383f, 1).fillRect(W / 2 - 210, H / 2 + 42, 420, 8);
     const progress = this.add.graphics();
     layer.add([backdrop, frame, title, status, track, progress]);
     this.loadingLayer = layer;
@@ -602,7 +613,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.loadProgress();
     this.createPlayerAnimations();
     this.createEnemyAnimations();
-    this.floor = clamp(this.progress.maxFloor, 1, TOTAL_FLOORS);
+    this.floor = this.progress.tutorialCompleted ? clamp(this.progress.maxFloor, 1, TOTAL_FLOORS) : 0;
     this.weapons = this.createWeaponRoster();
     this.requestLandscapeLock();
     this.world = this.add.container(0, 0);
@@ -1232,6 +1243,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.progress = {
         maxFloor: clamp(Number(parsed.maxFloor) || 1, 1, TOTAL_FLOORS),
         mainlineIntroSeen: parsed.mainlineIntroSeen === true,
+        tutorialCompleted: parsed.tutorialCompleted === true || Number(parsed.maxFloor) > 1,
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
@@ -1260,7 +1272,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (!this.progress.unlockedSkinIds.includes('investigator-normal')) this.progress.unlockedSkinIds.splice(1, 0, 'investigator-normal');
       if (!this.progress.unlockedSkinIds.includes(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
     } catch {
-      this.progress = { maxFloor: 1, mainlineIntroSeen: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default', 'investigator-normal'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
+      this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default', 'investigator-normal'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
     }
   }
 
@@ -1548,7 +1560,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const lastButtonY = safe.bottom - buttonHeight / 2 - 12;
     const firstButtonY = lastButtonY - (buttonHeight + buttonGap) * 2;
     this.addMenuImageButton(layer, safe.centerX, firstButtonY, 330, buttonHeight, 'menu-button-archive-v1', '病历档案', () => this.showProfile());
-    this.addMenuImageButton(layer, safe.centerX, firstButtonY + buttonHeight + buttonGap, 330, buttonHeight, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
+    this.addMenuImageButton(layer, safe.centerX, firstButtonY + buttonHeight + buttonGap, 330, buttonHeight, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.progress.tutorialCompleted ? this.floor : 0));
     this.addMenuImageButton(layer, safe.centerX, lastButtonY, 330, buttonHeight, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
     this.overlay = layer;
   }
@@ -1810,8 +1822,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.phase = 'mainline-select';
     this.runMode = 'mainline';
     this.ui?.setVisible(false);
-    const maxSelectable = clamp(this.progress.maxFloor, 1, TOTAL_FLOORS);
-    this.selectedStartFloor = clamp(Math.round(targetFloor), 0, TOTAL_FLOORS);
+    const maxSelectable = this.progress.tutorialCompleted ? clamp(this.progress.maxFloor, 1, TOTAL_FLOORS) : 0;
+    this.selectedStartFloor = this.progress.tutorialCompleted
+      ? clamp(Math.round(targetFloor), 0, TOTAL_FLOORS)
+      : 0;
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'mainline-floor-select-background-v1', 0.18);
@@ -1852,7 +1866,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floorScrollOffset = clamp((this.floorScrollViewport.top + this.floorScrollViewport.bottom) / 2 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
     this.floorScrollContent.setY(this.floorScrollOffset);
     for (let floor = 0; floor <= TOTAL_FLOORS; floor += 1) {
-      const unlocked = floor === 0 || floor <= this.progress.maxFloor;
+      const unlocked = floor === 0 || (this.progress.tutorialCompleted === true && floor <= this.progress.maxFloor);
       const isSelected = floor === selected;
       // Every floor maps to the tower's single vertical window column.
       const x = floorCardX;
@@ -1901,7 +1915,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       detail.add(this.add.text(-220, 170, `通关后解锁 ${selected < TOTAL_FLOORS ? this.floorLabel(selected + 1) : '终局档案'}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.green }));
     }
     layer.add(detail);
-    const canEnterFloor = selected === 0 || selected <= maxSelectable;
+    const canEnterFloor = selected === 0 || (this.progress.tutorialCompleted === true && selected <= maxSelectable);
     this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, canEnterFloor ? (selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`) : '楼层未解锁', () => {
       if (canEnterFloor) this.showWeaponSelect('mainline', selected);
     }, canEnterFloor ? 'primary' : 'muted', 12, true);
@@ -2081,10 +2095,16 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private dialogueLines() {
     if (this.tutorialRun) {
+      if (this.tutorialDialogueStage === 'outro') {
+        return [
+          { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '果然又是梦吗？...' },
+          { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '我昨夜的力量真是强得可怕，好想再试一试。' },
+          { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '总有一天我能变得同梦里那么强大，斩杀深渊里的诡神！' },
+        ];
+      }
       return [
-        { speaker: '深渊使者', role: '梦境来客', glyph: '渊', color: 0xb798e2, text: '病院已经被诡异污染。找到并击败源头，你才能从梦里醒来。' },
-        { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '我会记住这条路。刀、枪和异化的力量，都交给我试试。' },
-        { speaker: '深渊使者', role: '梦境来客', glyph: '渊', color: 0xb798e2, text: '去吧，少年。等你睁眼时，真正的夜班才刚刚开始。' },
+        { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '又来到了这里吗？这次竟然是白天的病房？！！' },
+        { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '这一次我一定要打败所有诡异，彻底净化这里！！' },
       ];
     }
     return [
@@ -2106,8 +2126,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layoutShift = safe.centerX - W / 2;
     const line = this.dialogueLines()[this.dialogueIndex];
     const playerActive = line.speaker === '小男孩';
-    const npcLine = playerActive ? this.dialogueLines().find((entry) => entry.speaker !== '小男孩') ?? this.dialogueLines()[0] : line;
-    const npcData = { color: npcLine.color, role: npcLine.role, glyph: npcLine.glyph };
+    const npcLine = playerActive
+      ? this.dialogueLines().find((entry) => entry.speaker !== '小男孩')
+      : line;
+    const hasNpcLine = Boolean(npcLine);
+    const npcData = npcLine ?? { color: 0x5d5c53, role: '', glyph: '' };
     const progressLabel = this.add.text(safe.left, this.safeTopY(34, 8), `${String(this.dialogueIndex + 1).padStart(2, '0')} / ${String(this.dialogueLines().length).padStart(2, '0')}`, {
       fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.cream, stroke: '#1b1413', strokeThickness: 4,
     }).setOrigin(0, 0.5);
@@ -2124,7 +2147,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     const npcX = 500;
     const playerX = 780;
     const actorY = this.safeBottomY(515, 108);
-    this.addDialogueCharacter(stage, npcX, actorY - 28, npcLine.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
+    if (hasNpcLine) {
+      this.addDialogueCharacter(stage, npcX, actorY - 28, npcLine!.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
+    }
     const playerShadow = this.add.graphics();
     playerShadow.fillStyle(0x05090f, 0.24).fillEllipse(playerX, actorY + 112, 126, 22);
     stage.add(playerShadow);
@@ -2133,9 +2158,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       playerSprite.setAlpha(1).clearTint();
     }
 
-    const npcBubble = this.addDialogueBubble(stage, npcX, 345, 270, 96, '', !playerActive ? line.text : '', 'left', !playerActive ? line.color : 0x5d5c53);
+    const npcBubble = this.addDialogueBubble(stage, npcX, 345, 270, 96, '', !playerActive && hasNpcLine ? line.text : '', 'left', !playerActive ? line.color : 0x5d5c53);
     const playerBubble = this.addDialogueBubble(stage, playerX, 345, 270, 96, '', playerActive ? line.text : '', 'right', playerActive ? line.color : 0x5d5c53);
-    npcBubble.setVisible(!playerActive);
+    npcBubble.setVisible(!playerActive && hasNpcLine);
     playerBubble.setVisible(playerActive);
     layer.add(stage);
 
@@ -2245,7 +2270,15 @@ export class HospitalBattleScene extends Phaser.Scene {
       alpha: 1,
       duration: 1250,
       ease: 'Sine.easeIn',
-      onComplete: () => this.beginBattle(),
+      onComplete: () => {
+        if (this.tutorialRun && this.tutorialDialogueStage === 'outro') {
+          this.tutorialRun = false;
+          this.tutorialDialogueStage = 'intro';
+          this.showMainline(1);
+        } else {
+          this.beginBattle();
+        }
+      },
     });
   }
 
@@ -3019,7 +3052,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearRunObjects();
     this.runMode = mode;
     this.tutorialRun = mode === 'mainline' && Math.round(targetFloor) === 0;
-    this.floor = mode === 'daily' ? 1 : this.tutorialRun ? 1 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
+    this.floor = mode === 'daily' ? 1 : this.tutorialRun ? 0 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
     this.selectedWeaponId = weaponId;
     this.phase = 'battle';
     this.dialogueIndex = 0;
@@ -3106,7 +3139,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.cameras.main.setBounds(WORLD_BOUNDS.left, WORLD_BOUNDS.top, WORLD_BOUNDS.right - WORLD_BOUNDS.left, WORLD_BOUNDS.bottom - WORLD_BOUNDS.top);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.updateHud();
-    this.beginBattle();
+    if (this.tutorialRun) this.showDialogue();
+    else this.beginBattle();
   }
 
   private createPlayer() {
@@ -3249,18 +3283,21 @@ export class HospitalBattleScene extends Phaser.Scene {
   private spawnWaveEnemy() {
     if (this.waveTimer >= this.waveLength || this.waveSpawned >= this.spawnBudgetForWave()) return;
     const available: EnemyKind[] = ['chaser'];
-    if (this.wave >= 3) available.push('shooter');
-    if (this.wave >= 6) available.push('disruptor');
-    if (this.wave >= 9) available.push('tentacle');
-    if (this.wave >= 12) available.push('bomber');
-    if (this.wave >= 15) available.push('eye');
     if (this.tutorialRun) {
-      (['shooter', 'disruptor', 'tentacle', 'bomber', 'eye'] as EnemyKind[]).forEach((kind) => {
-        if (!available.includes(kind)) available.push(kind);
-      });
+      const tutorialKinds: EnemyKind[] = ['chaser', 'shooter', 'disruptor', 'tentacle', 'bomber'];
+      available.splice(0, available.length, ...tutorialKinds.slice(0, Math.min(this.wave, tutorialKinds.length)));
+    } else {
+      if (this.wave >= 3) available.push('shooter');
+      if (this.wave >= 6) available.push('disruptor');
+      if (this.wave >= 9) available.push('tentacle');
+      if (this.wave >= 12) available.push('bomber');
+      if (this.wave >= 15) available.push('eye');
     }
     let kind: EnemyKind = Phaser.Utils.Array.GetRandom(available);
-    if (this.isMiniBossWave() && !this.waveBossSpawned) {
+    if (this.isTutorialBossWave() && !this.waveBossSpawned) {
+      kind = 'boss';
+      this.waveBossSpawned = true;
+    } else if (this.isMiniBossWave() && !this.waveBossSpawned) {
       kind = 'miniBoss';
       this.waveBossSpawned = true;
     }
@@ -3360,6 +3397,9 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private spawnBudgetForWave() {
+    if (this.tutorialRun) {
+      return [10, 20, 30, 40, 50, 1][clamp(this.wave, 1, 6) - 1];
+    }
     const paceBudget = Math.ceil(this.durationForWave() / Math.max(0.1, this.spawnIntervalForWave() * this.spawnRateMultiplier()));
     if (this.runMode === 'daily') {
       const scaling = dailyWaveScaling(this.wave);
@@ -3370,11 +3410,16 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private wavesPerFloor() {
+    if (this.tutorialRun) return 6;
     return this.runMode === 'daily' ? 50 : wavesPerFloorForFloor(this.floor);
   }
 
   private isMiniBossWave() {
-    return this.runMode === 'mainline' && this.wave === 7;
+    return this.runMode === 'mainline' && !this.tutorialRun && this.wave === 7;
+  }
+
+  private isTutorialBossWave() {
+    return this.tutorialRun && this.wave === 6;
   }
 
   private isFloorBossWave() {
@@ -4809,6 +4854,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private durationForWave() {
     const waves = this.wavesPerFloor();
+    if (this.tutorialRun) return this.wave === waves ? 34 : 18;
     if (this.runMode === 'daily') {
       if (this.wave === waves) return 52;
       if (this.isMiniBossWave()) return 38;
@@ -4821,6 +4867,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.playerDeathPending = false;
     this.playerDeathTimer = 0;
     if (win) this.recordRunReward();
+    if (win && this.tutorialRun) {
+      this.tutorialDialogueStage = 'outro';
+      this.dialogueIndex = 0;
+      this.showDialogue();
+      return;
+    }
     this.phase = 'result';
     this.ui?.setVisible(false);
     this.clearOverlay();
@@ -4900,6 +4952,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     if (this.tutorialRun) {
       this.progress.maxFloor = Math.max(1, this.progress.maxFloor);
+      this.progress.tutorialCompleted = true;
       this.saveProgress();
       return;
     }
