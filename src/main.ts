@@ -52,6 +52,7 @@ import {
 import {
   monthlyChallengeForMonth,
   monthlyRewardIdsForRank,
+  rollMonthlyBossDrops,
   type MonthlyChallengeConfig,
 } from './dailyChallenge';
 import {
@@ -230,7 +231,7 @@ interface WeaponSkinDef {
   textureKey: string;
   assetPath?: string;
   dropOnly?: boolean;
-  category?: SkinAcquisitionCategory;
+  category: SkinAcquisitionCategory;
   unlockFloor?: number;
 }
 
@@ -356,6 +357,10 @@ export class HospitalBattleScene extends Phaser.Scene {
   private skinPaymentPending = false;
   private skinAdPending = false;
   private skinAdMessage = '';
+  private weaponSkinPaymentPending = false;
+  private weaponSkinAdPending = false;
+  private weaponSkinAdMessage = '';
+  private lastDailyBossDropIds: string[] = [];
   private dailyBoard: DailyBoardEntry[] = [];
   private dailySelfRank?: DailySelfRank;
   private dailyBoardLoaded = false;
@@ -554,6 +559,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('profile-skin-panel-frame-v1', '/assets/art/profile-skin-panel-frame-v1.png');
     this.load.spritesheet('profile-skin-frame-v1', '/assets/art/profile-skin-frame-v1.png', { frameWidth: 512, frameHeight: 1024 });
     this.load.image('profile-evidence-corridor-v1', '/assets/art/profile-evidence-corridor-v1.png');
+    this.load.image('ad-reward-v1', '/assets/art/ui/ad-reward-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
     this.load.image('menu-title-v2', '/assets/art/menu/menu-title-v2.png');
     this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.png');
@@ -1643,7 +1649,9 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private isTemporaryUnlockActive(trials: Record<string, number> | undefined, id: string) {
     const expiresAt = trials?.[id];
-    return Number.isFinite(expiresAt) && expiresAt > Date.now();
+    return typeof expiresAt === 'number'
+      && Number.isFinite(expiresAt)
+      && expiresAt > Date.now();
   }
 
   private isSkinAvailable(id: string) {
@@ -1818,6 +1826,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     return monthlyChallengeForMonth(this.monthKey());
   }
 
+  private rewardNameForId(id: string) {
+    return this.skins.find((skin) => skin.id === id)?.name
+      ?? this.weaponSkins.find((skin) => skin.id === id)?.name
+      ?? id;
+  }
+
   private applyMonthlyRankReward(rank: number) {
     const config = this.monthlyChallenge();
     const ids = monthlyRewardIdsForRank(config, rank);
@@ -1916,6 +1930,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private showWeaponSelect(mode: RunMode, targetFloor = this.floor) {
+    this.normalizeTemporaryUnlocks();
     this.phase = 'weapon-select';
     this.runMode = mode;
     this.selectedStartFloor = clamp(Math.round(targetFloor), mode === 'mainline' ? 0 : 1, TOTAL_FLOORS);
@@ -1944,7 +1959,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.weaponSelectPreviewSkinId = this.equippedWeaponSkin(selectedWeapon.weaponClass).id;
     }
     const selectedSkin = this.weaponSkins.find((skin) => skin.id === this.weaponSelectPreviewSkinId) ?? this.equippedWeaponSkin(selectedWeapon.weaponClass);
-    const selectedSkinUnlocked = this.progress.unlockedWeaponSkinIds.includes(selectedSkin.id);
+    const selectedSkinUnlocked = this.isWeaponSkinAvailable(selectedSkin.id);
     const equippedSkin = this.equippedWeaponSkin(selectedWeapon.weaponClass);
     const accent = mode === 'daily' ? 0xb798e2 : 0x6bd3c1;
 
@@ -2008,7 +2023,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       const row = Math.floor(index / 3);
       const x = skinPanelX - 134 + column * 134;
       const y = 270 + row * 120;
-      const unlocked = this.progress.unlockedWeaponSkinIds.includes(skin.id);
+      const unlocked = this.isWeaponSkinAvailable(skin.id);
       const selected = skin.id === selectedSkin.id;
       const card = this.add.container(x, y);
       card.add(this.add.image(0, 0, 'weapon-select-frame-skin-card-v1').setOrigin(0.5).setDisplaySize(120, 112).setAlpha(unlocked ? 0.98 : 0.64));
@@ -2033,12 +2048,31 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const actionY = this.safeBottomY(520, 28);
     if (!selectedSkinUnlocked) {
-      if (selectedSkin.dropOnly) {
+      if (selectedSkin.category === 'boss') {
         this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', '首领掉落', () => undefined, 0x46636a);
       } else {
         this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', `购买 ${selectedSkin.cost}`, () => this.buyWeaponSkin(selectedSkin.id, mode), accent);
       }
       this.addWeaponSelectImageButton(layer, 615 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
+      if (this.textures.exists('ad-reward-v1')) {
+        this.addImageAction(layer, 842 + layoutShift, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
+      }
+      layer.add(this.add.text(842 + layoutShift, actionY + 34, '可以看广告免费体验1天', {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '9px',
+        color: palette.amber,
+        stroke: '#071015',
+        strokeThickness: 2,
+      }).setOrigin(0.5));
+      if (this.weaponSkinAdMessage) layer.add(this.add.text(842 + layoutShift, actionY + 54, this.weaponSkinAdMessage, {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '9px',
+        color: palette.danger,
+        stroke: '#071015',
+        strokeThickness: 2,
+        wordWrap: { width: 170 },
+        align: 'center',
+      }).setOrigin(0.5));
     } else {
       this.addWeaponSelectImageButton(layer, 390 + layoutShift, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', selectedSkin.id === equippedSkin.id ? '已装备' : '装备皮肤', () => {
         this.equipWeaponSkin(selectedSkin.id);
@@ -2907,7 +2941,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.text(525 + layoutShift, 416, '武器外观随武器等级变化；皮肤外观只改变角色颜色和套装加成。', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted, wordWrap: { width: 390 } }).setFixedSize(390, 42));
     layer.add(this.add.text(525 + layoutShift, 454, '已解锁皮肤', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
     this.skins.forEach((skin, index) => {
-      const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
+      const unlocked = this.isSkinAvailable(skin.id);
       const y = 482 + index * 50;
       const setText = skin.setName ? ` · ${skin.setName}（${skin.setBuff}）` : '';
       layer.add(this.add.text(525 + layoutShift, y, unlocked ? `${skin.name}${setText}` : '??? 未解锁', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: unlocked ? (skin.id === this.progress.equippedSkinId ? palette.amber : palette.cream) : palette.muted }).setFixedSize(245, 20));
@@ -2970,7 +3004,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     detail.add(this.add.rectangle(0, 0, 480, 192, 0x0a141b, 0.98).setStrokeStyle(2, previewSkin.color, 0.9));
     detail.add(this.add.text(-218, -67, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '20px', color: palette.cream }).setFontStyle('bold'));
     detail.add(this.add.text(-218, -33, previewSkin.setName ? `${previewSkin.setName} · ${previewSkin.setBuff}` : '基础病号服 · 无套装加成', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan, wordWrap: { width: 265 } }));
-    const previewUnlocked = this.progress.unlockedSkinIds.includes(previewSkin.id);
+    const previewUnlocked = this.isSkinAvailable(previewSkin.id);
     const previewEquipped = previewSkin.id === this.progress.equippedSkinId;
     const previewStatus = previewUnlocked
       ? (previewEquipped ? '当前已装备' : '已解锁，可装备')
@@ -2999,7 +3033,7 @@ export class HospitalBattleScene extends Phaser.Scene {
        this.addButton(layer, skinPanelX - 150 + index * 112, this.safeTopY(190, 8), index === 0 ? 94 : index === 1 ? 104 : 88, 30, category.label, () => setCategory(category.id), this.profileSkinCategory === category.id ? 'primary' : 'muted', 7);
      });
     visibleSkins.forEach((skin, index) => {
-      const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
+      const unlocked = this.isSkinAvailable(skin.id);
       const column = index % 3;
       const row = Math.floor(index / 3);
        const x = skinPanelX - 163 + column * 165;
@@ -3027,6 +3061,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private showProfile() {
+    this.normalizeTemporaryUnlocks();
     this.phase = 'start';
     this.ui?.setVisible(false);
     this.clearOverlay();
@@ -3068,18 +3103,43 @@ export class HospitalBattleScene extends Phaser.Scene {
     board.add(this.add.text(164, 111, previewSkin.name, { fontFamily: UI_FONT_STACK, fontSize: '12px', color: caseInk, stroke: '#ead9b8', strokeThickness: 1 }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(board);
 
-    const previewUnlocked = this.progress.unlockedSkinIds.includes(previewSkin.id);
+    const previewUnlocked = this.isSkinAvailable(previewSkin.id);
     const previewEquipped = previewSkin.id === this.progress.equippedSkinId;
     const previewAction = previewUnlocked
       ? (previewEquipped ? '已装备' : '装备')
       : previewSkin.category === 'boss'
         ? '去挑战'
-        : `购买 ${this.skinPurchaseCost(previewSkin.id)}`;
-    this.addButton(layer, boardX + 164 * caseSheetScale, boardY + 136 * caseSheetScale, 88 * caseSheetScale, 26 * caseSheetScale, previewAction, () => {
+        : previewSkin.category === 'basic'
+          ? `第 ${previewSkin.unlockFloor ?? '?'} 层解锁`
+          : `购买 ${this.skinPurchaseCost(previewSkin.id)}`;
+    const previewActionX = boardX + 164 * caseSheetScale;
+    const previewActionY = boardY + 136 * caseSheetScale;
+    this.addButton(layer, previewActionX, previewActionY, 88 * caseSheetScale, 26 * caseSheetScale, previewAction, () => {
       if (previewUnlocked) this.equipSkin(previewSkin.id);
       else if (previewSkin.category === 'boss') this.showDailyChallenge();
-      else void this.buySkin(previewSkin.id);
-    }, previewEquipped ? 'muted' : 'primary', 8);
+      else if (previewSkin.category === 'store') void this.buySkin(previewSkin.id);
+    }, previewEquipped || previewSkin.category === 'basic' ? 'muted' : 'primary', 8);
+    const previewAdEligible = !previewUnlocked && (previewSkin.category === 'boss' || previewSkin.category === 'store');
+    if (previewAdEligible) {
+      const adX = boardX + 250 * caseSheetScale;
+      if (this.textures.exists('ad-reward-v1')) this.addImageAction(layer, adX, previewActionY, 40, 40, 'ad-reward-v1', () => { void this.watchSkinAd(previewSkin.id); }, 8);
+      layer.add(this.add.text(adX, previewActionY + 30, '可以看广告免费体验1天', {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '8px',
+        color: palette.amber,
+        stroke: '#071015',
+        strokeThickness: 2,
+      }).setOrigin(0.5));
+    }
+    if (this.skinAdMessage) layer.add(this.add.text(previewActionX, previewActionY + 32, this.skinAdMessage, {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: '9px',
+      color: palette.danger,
+      stroke: '#071015',
+      strokeThickness: 2,
+      wordWrap: { width: 170 },
+      align: 'center',
+    }).setOrigin(0.5));
 
     const skinPanelX = clamp(965 + layoutShift, safe.left + 285, safe.right - 285);
     const skinPanelY = this.safeBottomY(405, 250);
@@ -3133,7 +3193,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const skinGridGapY = 148;
     this.profileSkinViewport = { left: skinPanelX - 280, right: skinPanelX + 280, top: 232, bottom: 612 };
     pageSkins.forEach((skin, index) => {
-      const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
+      const unlocked = this.isSkinAvailable(skin.id);
       const selected = skin.id === this.profilePreviewSkinId;
       const column = index % 3;
       const row = Math.floor(index / 3);
@@ -3164,7 +3224,9 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? () => this.equipSkin(skin.id)
         : skin.category === 'boss'
           ? () => this.showDailyChallenge()
-          : () => { void this.buySkin(skin.id); };
+          : skin.category === 'store'
+            ? () => { void this.buySkin(skin.id); }
+            : () => undefined;
       this.uiActionRegions.push({
         phase: this.phase,
         x: x + 30,
@@ -3209,7 +3271,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private equipSkin(id: string) {
-    if (!this.progress.unlockedSkinIds.includes(id)) return;
+    if (!this.isSkinAvailable(id)) return;
     this.progress.equippedSkinId = id;
     this.saveProgress();
     this.showProfile();
@@ -3220,35 +3282,35 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private async buySkin(id: string) {
-    if (this.progress.unlockedSkinIds.includes(id)) {
+    if (this.isSkinAvailable(id)) {
       this.equipSkin(id);
       return;
     }
-    if (skinDefForId(id)?.category === 'boss') return;
+    if (skinDefForId(id)?.category !== 'store') return;
     if (this.skinPaymentPending) return;
     this.skinPaymentPending = true;
+    this.skinAdMessage = '';
     try {
       const cost = this.skinPurchaseCost(id);
-      if (cost <= 0) {
-        this.progress.unlockedSkinIds.push(id);
-        this.progress.equippedSkinId = id;
-        this.profilePreviewSkinId = id;
-        this.saveProgress();
-        this.showProfile();
-        return;
-      }
       const sdk = window.Builda;
       if (sdk?.pay?.showPayPanel) {
         const saleId = this.configuredSkinSaleId(id);
-        if (!saleId) return;
+        if (!saleId) {
+          this.skinAdMessage = '该皮肤暂未配置支付商品';
+          return;
+        }
         const result = await sdk.pay.showPayPanel(saleId, { timeoutMs: 15000 });
-        if (!result.ok || !result.data.success) return;
+        if (!result.ok || !result.data?.success) return;
       } else {
         if (this.progress.metaCoins < cost) return;
         this.progress.metaCoins -= cost;
       }
     } finally {
       this.skinPaymentPending = false;
+    }
+    if (this.skinAdMessage) {
+      this.showProfile();
+      return;
     }
     this.progress.unlockedSkinIds.push(id);
     this.progress.equippedSkinId = id;
@@ -3257,8 +3319,45 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.showProfile();
   }
 
+  private async watchSkinAd(id: string) {
+    const skin = skinDefForId(id);
+    if (!skin || skin.category === 'basic' || this.isSkinAvailable(id) || this.skinAdPending) return;
+    this.skinAdPending = true;
+    this.skinAdMessage = '';
+    let success = false;
+    try {
+      const sdk = window.Builda;
+      if (!sdk?.ad?.showRewardAd) {
+        this.skinAdMessage = '当前环境未接入激励广告';
+      } else {
+        const result = await sdk.ad.showRewardAd(`skin_trial_${id}`, { timeoutMs: 15000 });
+        if (!result.ok || !result.data?.success) this.skinAdMessage = '广告未完成，本次未解锁体验';
+        else success = true;
+      }
+    } catch {
+      this.skinAdMessage = '激励广告暂不可用，请稍后再试';
+    } finally {
+      this.skinAdPending = false;
+    }
+    if (success) {
+      this.progress.skinTrialExpiresAt ??= {};
+      this.progress.skinTrialExpiresAt[id] = Date.now() + SKIN_TRIAL_DURATION_MS;
+      this.progress.equippedSkinId = id;
+      this.profilePreviewSkinId = id;
+      this.skinAdMessage = '';
+      this.saveProgress();
+    }
+    this.showProfile();
+  }
+
   private configuredSkinSaleId(id: string) {
     const config = (window as Window & { __BUILDA_SKIN_SALE_IDS__?: Record<string, unknown> }).__BUILDA_SKIN_SALE_IDS__;
+    const saleId = config?.[id];
+    return typeof saleId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(saleId) ? saleId : '';
+  }
+
+  private configuredWeaponSkinSaleId(id: string) {
+    const config = (window as Window & { __BUILDA_WEAPON_SKIN_SALE_IDS__?: Record<string, unknown> }).__BUILDA_WEAPON_SKIN_SALE_IDS__;
     const saleId = config?.[id];
     return typeof saleId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(saleId) ? saleId : '';
   }
@@ -3269,20 +3368,72 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private equipWeaponSkin(id: string) {
     const skin = this.weaponSkins.find((candidate) => candidate.id === id);
-    if (!skin || !this.progress.unlockedWeaponSkinIds.includes(id)) return;
+    if (!skin || !this.isWeaponSkinAvailable(id)) return;
     this.progress.equippedWeaponSkinIds[skin.weaponClass] = id;
     this.saveProgress();
   }
 
-  private buyWeaponSkin(id: string, mode: RunMode) {
+  private async buyWeaponSkin(id: string, mode: RunMode) {
     const skin = this.weaponSkins.find((candidate) => candidate.id === id);
-    if (!skin || skin.cost <= 0 || this.progress.unlockedWeaponSkinIds.includes(id)) return;
-    if (this.progress.metaCoins < skin.cost) return;
-    this.progress.metaCoins -= skin.cost;
+    if (!skin || skin.category !== 'store' || this.isWeaponSkinAvailable(id) || this.weaponSkinPaymentPending) return;
+    this.weaponSkinPaymentPending = true;
+    this.weaponSkinAdMessage = '';
+    try {
+      const sdk = window.Builda;
+      if (sdk?.pay?.showPayPanel) {
+        const saleId = this.configuredWeaponSkinSaleId(id);
+        if (!saleId) {
+          this.weaponSkinAdMessage = '该武器皮肤暂未配置支付商品';
+          return;
+        }
+        const result = await sdk.pay.showPayPanel(saleId, { timeoutMs: 15000 });
+        if (!result.ok || !result.data?.success) return;
+      } else {
+        if (this.progress.metaCoins < skin.cost) return;
+        this.progress.metaCoins -= skin.cost;
+      }
+    } finally {
+      this.weaponSkinPaymentPending = false;
+    }
+    if (this.weaponSkinAdMessage) {
+      this.showWeaponSelect(mode, this.selectedStartFloor);
+      return;
+    }
     this.progress.unlockedWeaponSkinIds.push(id);
     this.progress.equippedWeaponSkinIds[skin.weaponClass] = id;
     this.weaponSelectPreviewSkinId = id;
     this.saveProgress();
+    this.showWeaponSelect(mode, this.selectedStartFloor);
+  }
+
+  private async watchWeaponSkinAd(id: string, mode: RunMode) {
+    const skin = this.weaponSkins.find((candidate) => candidate.id === id);
+    if (!skin || skin.category === 'basic' || this.isWeaponSkinAvailable(id) || this.weaponSkinAdPending) return;
+    this.weaponSkinAdPending = true;
+    this.weaponSkinAdMessage = '';
+    let success = false;
+    try {
+      const sdk = window.Builda;
+      if (!sdk?.ad?.showRewardAd) {
+        this.weaponSkinAdMessage = '当前环境未接入激励广告';
+      } else {
+        const result = await sdk.ad.showRewardAd(`weapon_skin_trial_${id}`, { timeoutMs: 15000 });
+        if (!result.ok || !result.data?.success) this.weaponSkinAdMessage = '广告未完成，本次未解锁体验';
+        else success = true;
+      }
+    } catch {
+      this.weaponSkinAdMessage = '激励广告暂不可用，请稍后再试';
+    } finally {
+      this.weaponSkinAdPending = false;
+    }
+    if (success) {
+      this.progress.weaponSkinTrialExpiresAt ??= {};
+      this.progress.weaponSkinTrialExpiresAt[id] = Date.now() + SKIN_TRIAL_DURATION_MS;
+      this.progress.equippedWeaponSkinIds[skin.weaponClass] = id;
+      this.weaponSelectPreviewSkinId = id;
+      this.weaponSkinAdMessage = '';
+      this.saveProgress();
+    }
     this.showWeaponSelect(mode, this.selectedStartFloor);
   }
 
@@ -3678,10 +3829,12 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private startRun(targetFloor = this.floor, mode: RunMode = this.runMode, weaponId = this.selectedWeaponId) {
+    this.normalizeTemporaryUnlocks();
     this.releaseJoystick();
     this.clearOverlay();
     this.clearRunObjects();
     this.runMode = mode;
+    this.lastDailyBossDropIds = [];
     this.tutorialRun = mode === 'mainline' && Math.round(targetFloor) === 0;
     this.floor = mode === 'daily' ? 1 : this.tutorialRun ? 0 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
     this.selectedWeaponId = weaponId;
@@ -5565,7 +5718,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     layer.add(this.add.text(centerX, 206, resultTitle, { fontFamily: 'Microsoft YaHei', fontSize: '34px', color: win ? palette.green : palette.danger }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(this.add.text(centerX, 264, resultDetail, { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream, align: 'center', wordWrap: { width: 520 } }).setOrigin(0.5));
-    layer.add(this.add.text(centerX, 334, `击破 ${this.kills} · 等级 ${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.muted }).setOrigin(0.5));
+    const resultStatsY = win && this.runMode === 'daily' ? 362 : 334;
+    if (win && this.runMode === 'daily') {
+      const dropText = this.lastDailyBossDropIds.length > 0
+        ? `BOSS掉落：${this.lastDailyBossDropIds.map((id) => this.rewardNameForId(id)).join('、')}`
+        : '本次未掉落BOSS遗物';
+      layer.add(this.add.text(centerX, 316, dropText, {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '13px',
+        color: this.lastDailyBossDropIds.length > 0 ? palette.violet : palette.muted,
+        wordWrap: { width: 520 },
+        align: 'center',
+      }).setOrigin(0.5));
+    }
+    layer.add(this.add.text(centerX, resultStatsY, `击破 ${this.kills} · 等级 ${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '15px', color: palette.muted }).setOrigin(0.5));
     this.addButton(layer, centerX, 438, 240, 52, win ? (this.runMode === 'daily' ? '返回每日挑战' : finalFloor ? '从第 1 层再打一遍' : `进入第 ${this.floor + 1} 层`) : `从第 ${this.floor} 层第 1 波重开`, () => win && this.runMode === 'daily' ? this.showDailyChallenge() : this.startRun(win && !finalFloor ? this.floor + 1 : this.floor), 'primary', 10);
     this.addButton(layer, centerX, 507, 160, 38, '回到标题', () => this.showStart(), 'muted', 10);
     this.overlay = layer;
@@ -5575,6 +5741,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.runMode === 'daily') {
       if (!this.dailyBossRewardGranted) {
         this.dailyBossRewardGranted = true;
+        const monthly = this.monthlyChallenge();
+        this.lastDailyBossDropIds = rollMonthlyBossDrops(monthly);
+        this.lastDailyBossDropIds.forEach((id) => {
+          if (this.skins.some((skin) => skin.id === id) && !this.progress.unlockedSkinIds.includes(id)) this.progress.unlockedSkinIds.push(id);
+          if (this.weaponSkins.some((skin) => skin.id === id) && !this.progress.unlockedWeaponSkinIds.includes(id)) this.progress.unlockedWeaponSkinIds.push(id);
+        });
         const alreadyCompletedThisMonth = this.isDailyCompleted();
         this.progress.dailyCompletedDate = this.todayKey();
         this.progress.dailyBestSeconds = alreadyCompletedThisMonth && this.progress.dailyBestSeconds
@@ -5593,6 +5765,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       return;
     }
     this.progress.maxFloor = Math.max(this.progress.maxFloor, Math.min(TOTAL_FLOORS, this.floor + 1));
+    this.syncFloorUnlocks(this.floor);
     if (this.floor >= 3 && !this.progress.unlockedWeaponIds.includes('thorn')) this.progress.unlockedWeaponIds.push('thorn');
     if (this.floor >= 5 && !this.progress.unlockedWeaponIds.includes('echo')) this.progress.unlockedWeaponIds.push('echo');
     this.saveProgress();

@@ -326,7 +326,7 @@
                             "documentFetch":  "passed: revision 3623；53 项已完成，6 项待处理（2026-08-28 22:03）",
                             "documentCheckboxUpdate":  "passed: revision 3623；已勾选调查员女正常版白色毛刺处理项，文档剩余 6 项待处理",
                            "buildaBundleCheck":  "blocked: 线上版本 9f7f0cf471d120f6458a07a925168de8 使用了错误的 WebP 压缩包；入口和脚本仍引用 .png，主背景、角色、卡牌及加载图在创游世界返回 404。",
-                           "buildaUpload":  "passed: 修复包已上传并更新现有创游世界草稿；Builda 构建 b1f0e49df58f2bb15edbbf215beb42c8，未执行公开发布。",
+                           "buildaUpload":  "passed: PNG-only 优化包已上传并更新现有创游世界草稿；Builda 构建 b92665db868c07202f51e6416732e312，未执行公开发布。",
                          "directLandscapeVisual":  "passed: direct-landscape-centered2.png shows centered 16:9 menu with dark side letterbox and lowered buttons",
                          "mobileTouchAcceptance":  "blocked: 当前无独立真实触摸环境",
                           "buildaLandscapeAcceptance":  "blocked: 当前无可用 Builda 外壳真机/浏览器实例",
@@ -353,10 +353,12 @@
                            "openingDialogueBubbleRetest":  "passed: local 1280x720 and 1024x576 previews show the generated dialogue frame at native 3:1 ratio, the tutorial guide panel is absent, and the day-ward to night-battle transition fades continuously."
                            ,"dailyRepeatChallenge":  "passed: 通关后每日挑战入口保持可用；同月再次挑战会消耗当日次数并只刷新更快的本月记录，首领奖励仅在当月首次通关发放。"
                             ,"profileLayoutFinal":  "passed: local 1280x720 回归中病历档案三排皮肤卡片、分类标签和操作文字均留在右侧图片框内，第三排未被画布裁切。",
-                             "compressedBundle":  "blocked: 旧压缩包把 PNG 改为 WebP 却没有同步入口和脚本引用，静态 bundle-check 无法覆盖运行时 404；已在本地生成修复包 builda-web-fixed-webp-files-20260828.zip，包体 193121819 字节，引用检查通过。",
+                             "compressedBundle":  "blocked: 历史 WebP 压缩包曾出现入口引用不一致；当前草稿已改用 PNG-only 优化包，保留 .png 文件名和代码引用。",
+                             "pngOptimizedBundle":  "passed: 在临时部署目录对 265 个大 PNG 做调色板压缩并保留透明通道；PNG 资源由 236464846 字节降至 70721734 字节，完整包 88492903 字节，bundle-check 通过；未改动 public 原图和源码路径。",
+                             "buildaBundleCheckLatest":  "passed: 最新 PNG-only H5 包根目录含 index.html，bundle-check 通过；bundleVersion b92665db868c07202f51e6416732e312，包体 85908878 字节。",
                              "buildaRuntimeDiagnosis":  "passed: 线上入口和 manifest 返回 200；对 10 个关键资源抽样确认 .png 全部 404、对应 .webp 返回 200，确认失败来自压缩包扩展名与运行时代码不一致。",
                              "buildaFixedBundleLocal":  "passed: 当前 dist 重新构建；仅保留一份 index-CEDYJxlD.js，PNG 全部转为同名 WebP 并同步 index.html/脚本引用；299 个 WebP、0 个 PNG、0 个目录条目，bundle-check 通过，包体 193121819 字节；未上传或发布。",
-                             "buildaDraftUpload":  "passed: 创游世界草稿同步完成，gameId GD:48356599:1，currentVersionId f8ebf40f-c7e2-5010-92e1-dd6465e412e1，bundleVersion b1f0e49df58f2bb15edbbf215beb42c8；cysjSyncStatus=synced，公开发布待用户操作。",
+                             "buildaDraftUpload":  "passed: 创游世界草稿同步完成，gameId GD:48356599:1，currentVersionId cbafab05-fdcc-5677-b1f6-c174dd980b94，bundleVersion b92665db868c07202f51e6416732e312；cysjSyncStatus=synced，公开发布待用户操作。",
                              "floorEnemyPreviewRotation":  "passed: addFloorEnemyPreview 按楼层稳定选择同类敌人变体，npm.cmd test 与 npm.cmd run build 通过。",
                              "investigatorFemaleEdgeCleanup":  "passed: 调查员女正常版静态图和四向行走序列使用 edge_artifact 清理并归一化为 192 像素帧，npm.cmd test 与 npm.cmd run build 通过。"
                      }
