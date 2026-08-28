@@ -326,6 +326,7 @@
                       ],
     "verification":  {
                          "upgradeCardMobileLayout":  "passed: 升级页三张卡牌按横屏安全区放大，图标随卡牌比例同步，标题/说明提高字号、行距和描边，选择按钮改为卡牌下方独立文字热区；npm.cmd test（38 项）与 npm.cmd run build 通过。",
+                         "buildaDraftUploadLatest":  "passed: 最新升级卡牌代码与 PNG-only 构建包已同步创游世界草稿；gameId GD:48356599:1，currentVersionId 9cfa639c-9601-5787-a669-9431ab74f6ff，bundleVersion 02a7901fbda368cee1587150857c5c8d，cysjSyncStatus=synced，公开发布待用户操作。",
                          "tests":  "passed: 7 个测试文件，38 项全部通过（2026-08-28 22:53）",
                          "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:54）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",

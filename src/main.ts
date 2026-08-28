@@ -2164,11 +2164,14 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     layer.add(this.add.text(centerX, this.safeTopY(48, 8), '武器库', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '29px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
 
+    const categoryStartX = 232 + layoutShift;
+    const categoryGap = 144;
+    const categoryY = 112;
     baseWeapons.forEach((weapon, index) => {
       const meta = categoryMeta[weapon.weaponClass];
       const unlocked = this.isWeaponUnlocked(weapon.id) || (mode === 'mainline' && weapon.id === 'knife');
-      const x = 112 + layoutShift;
-      const y = 170 + index * 132;
+      const x = categoryStartX + index * categoryGap;
+      const y = categoryY;
       const button = this.add.container(x, y);
       const selected = weapon.id === selectedWeapon.id;
       if (this.textures.exists(meta.icon)) {
@@ -2198,22 +2201,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
 
     const mainX = 450 + layoutShift;
-    const mainFrame = this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5);
-    const mainFrameWidth = 520;
-    const mainFrameScale = mainFrameWidth / Math.max(1, mainFrame.width);
-    const mainFrameHeight = mainFrame.height * mainFrameScale;
-    // The sword category is the first-row anchor. Both large frames start on
-    // that same horizontal line instead of floating at unrelated heights.
+    const mainPreviewWidth = 520;
     const frameTopY = 170;
-    const main = this.add.container(mainX, frameTopY + mainFrameHeight / 2);
-    main.add(mainFrame.setScale(mainFrameScale).setAlpha(0.98));
-    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(230, 230);
-    main.add(mainImage);
-    layer.add(main);
+    const mainPreviewY = 365;
+    const mainActionY = 584;
+    const mainImage = this.add.image(mainX, mainPreviewY, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(230, 230);
+    layer.add(mainImage);
 
     const skinPanelGap = 18;
-    const mainFrameRight = mainX + mainFrameWidth / 2;
-    const skinPanelWidth = Math.min(540, Math.max(320, safe.right - mainFrameRight - skinPanelGap));
+    const mainPreviewRight = mainX + mainPreviewWidth / 2;
+    const skinPanelWidth = Math.min(540, Math.max(320, safe.right - mainPreviewRight - skinPanelGap));
     const skinPanelX = safe.right - skinPanelWidth / 2;
     const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
     const skinPanelFrameImage = hasSkinPanelFrame
@@ -2286,7 +2283,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setFontStyle('bold'));
     }
 
-    const actionY = this.safeBottomY(frameTopY + mainFrameHeight + 24, 40);
+    const actionY = this.safeBottomY(mainActionY, 40);
     const actionLeftX = mainX - 154;
     const actionRightX = mainX + 154;
     const adActionX = mainX;
@@ -5767,15 +5764,23 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     const safe = this.pageSafeBounds(12);
     const centerX = safe.centerX;
-    const frameWidth = Math.min(1040, safe.width - 48);
+    const upgradeFrameTexture = this.textures.exists('profile-skin-panel-frame-v1') ? 'profile-skin-panel-frame-v1' : undefined;
+    const frameAspect = upgradeFrameTexture ? 1536 / 1024 : 1040 / 612;
     const frameHeight = Math.min(612, safe.height - 40);
+    const frameWidth = upgradeFrameTexture
+      ? Math.min(safe.width - 48, Math.round(frameHeight * frameAspect))
+      : Math.min(1040, safe.width - 48);
     const frameY = clamp(safe.centerY - 2, safe.top + frameHeight / 2 + 8, safe.bottom - frameHeight / 2 - 8);
     const frameTop = frameY - frameHeight / 2;
     const frameBottom = frameY + frameHeight / 2;
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
-    this.addPixelFrame(layer, centerX, frameY, frameWidth, frameHeight, 0x101b24, 0xb798e2);
-    layer.add(this.add.text(centerX, frameTop + 14, `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(centerX, frameTop + 52, '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
+    if (upgradeFrameTexture) {
+      layer.add(this.add.image(centerX, frameY, upgradeFrameTexture).setOrigin(0.5).setDisplaySize(frameWidth, frameHeight).setAlpha(0.98));
+    } else {
+      this.addPixelFrame(layer, centerX, frameY, frameWidth, frameHeight, 0x101b24, 0xb798e2);
+    }
+    layer.add(this.add.text(centerX, frameTop + 40, `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(centerX, frameTop + 76, '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
     const statusOptions: AttackStatus[] = ['poison', 'burn', 'weaken'];
     const status = this.activeAttackStatus ?? statusOptions[(this.level - 1) % statusOptions.length];
