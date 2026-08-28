@@ -36,11 +36,51 @@ const INVESTIGATOR_NORMAL_ART: PlayerSkinArtSpec = {
   },
 };
 
+const INVESTIGATOR_FEMALE_NORMAL_ART: PlayerSkinArtSpec = {
+  portraitKey: 'investigator-female-normal-idle-down',
+  idleKeys: {
+    down: 'investigator-female-normal-idle-down',
+    up: 'investigator-female-normal-idle-up',
+    left: 'investigator-female-normal-idle-left',
+    right: 'investigator-female-normal-idle-right',
+  },
+  walkKeys: {
+    down: 'investigator-female-normal-walk-down',
+    up: 'investigator-female-normal-walk-up',
+    left: 'investigator-female-normal-walk-left',
+    right: 'investigator-female-normal-walk-right',
+  },
+};
+
+const INVESTIGATOR_MUTATED_ART: PlayerSkinArtSpec = {
+  portraitKey: 'investigator-mutated-idle-down',
+  idleKeys: {
+    down: 'investigator-mutated-idle-down',
+    up: 'investigator-mutated-idle-up',
+    left: 'investigator-mutated-idle-left',
+    right: 'investigator-mutated-idle-right',
+  },
+  walkKeys: {
+    down: 'investigator-mutated-walk-down',
+    up: 'investigator-mutated-walk-up',
+    left: 'investigator-mutated-walk-left',
+    right: 'investigator-mutated-walk-right',
+  },
+};
+
 export const PLAYER_SKIN_ART_IMAGES: PlayerSkinArtImageSpec[] = [
   { key: INVESTIGATOR_NORMAL_ART.portraitKey, path: assetUrl('/assets/art/player-skins/investigator-normal/idle-down.png') },
   { key: INVESTIGATOR_NORMAL_ART.idleKeys.up, path: assetUrl('/assets/art/player-skins/investigator-normal/idle-up.png') },
   { key: INVESTIGATOR_NORMAL_ART.idleKeys.left, path: assetUrl('/assets/art/player-skins/investigator-normal/idle-left.png') },
   { key: INVESTIGATOR_NORMAL_ART.idleKeys.right, path: assetUrl('/assets/art/player-skins/investigator-normal/idle-right.png') },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.portraitKey, path: assetUrl('/assets/art/player-skins/investigator-female-normal/idle-down.png') },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.idleKeys.up, path: assetUrl('/assets/art/player-skins/investigator-female-normal/idle-up.png') },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.idleKeys.left, path: assetUrl('/assets/art/player-skins/investigator-female-normal/idle-left.png') },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.idleKeys.right, path: assetUrl('/assets/art/player-skins/investigator-female-normal/idle-right.png') },
+  { key: INVESTIGATOR_MUTATED_ART.portraitKey, path: assetUrl('/assets/art/player-skins/investigator-mutated/idle-down.png') },
+  { key: INVESTIGATOR_MUTATED_ART.idleKeys.up, path: assetUrl('/assets/art/player-skins/investigator-mutated/idle-up.png') },
+  { key: INVESTIGATOR_MUTATED_ART.idleKeys.left, path: assetUrl('/assets/art/player-skins/investigator-mutated/idle-left.png') },
+  { key: INVESTIGATOR_MUTATED_ART.idleKeys.right, path: assetUrl('/assets/art/player-skins/investigator-mutated/idle-right.png') },
 ];
 
 export const PLAYER_SKIN_ART_SHEETS: PlayerSkinArtSheetSpec[] = [
@@ -48,8 +88,19 @@ export const PLAYER_SKIN_ART_SHEETS: PlayerSkinArtSheetSpec[] = [
   { key: INVESTIGATOR_NORMAL_ART.walkKeys.up, path: assetUrl('/assets/art/player-skins/investigator-normal/walk-up.png'), frameWidth: 513, frameHeight: 828 },
   { key: INVESTIGATOR_NORMAL_ART.walkKeys.left, path: assetUrl('/assets/art/player-skins/investigator-normal/walk-left.png'), frameWidth: 655, frameHeight: 940 },
   { key: INVESTIGATOR_NORMAL_ART.walkKeys.right, path: assetUrl('/assets/art/player-skins/investigator-normal/walk-right.png'), frameWidth: 655, frameHeight: 940 },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.walkKeys.down, path: assetUrl('/assets/art/player-skins/investigator-female-normal/walk-down.png'), frameWidth: 733, frameHeight: 946 },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.walkKeys.up, path: assetUrl('/assets/art/player-skins/investigator-female-normal/walk-up.png'), frameWidth: 733, frameHeight: 946 },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.walkKeys.left, path: assetUrl('/assets/art/player-skins/investigator-female-normal/walk-left.png'), frameWidth: 733, frameHeight: 946 },
+  { key: INVESTIGATOR_FEMALE_NORMAL_ART.walkKeys.right, path: assetUrl('/assets/art/player-skins/investigator-female-normal/walk-right.png'), frameWidth: 733, frameHeight: 946 },
+  { key: INVESTIGATOR_MUTATED_ART.walkKeys.down, path: assetUrl('/assets/art/player-skins/investigator-mutated/walk-down.png'), frameWidth: 513, frameHeight: 690 },
+  { key: INVESTIGATOR_MUTATED_ART.walkKeys.up, path: assetUrl('/assets/art/player-skins/investigator-mutated/walk-up.png'), frameWidth: 513, frameHeight: 732 },
+  { key: INVESTIGATOR_MUTATED_ART.walkKeys.left, path: assetUrl('/assets/art/player-skins/investigator-mutated/walk-left.png'), frameWidth: 655, frameHeight: 711 },
+  { key: INVESTIGATOR_MUTATED_ART.walkKeys.right, path: assetUrl('/assets/art/player-skins/investigator-mutated/walk-right.png'), frameWidth: 655, frameHeight: 791 },
 ];
 
 export function playerSkinArtForId(id: string): PlayerSkinArtSpec | undefined {
-  return id === 'investigator-normal' ? INVESTIGATOR_NORMAL_ART : undefined;
+  if (id === 'investigator-normal') return INVESTIGATOR_NORMAL_ART;
+  if (id === 'investigator-female-normal') return INVESTIGATOR_FEMALE_NORMAL_ART;
+  if (id === 'investigator-mutated') return INVESTIGATOR_MUTATED_ART;
+  return undefined;
 }

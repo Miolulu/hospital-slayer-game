@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { audio } from '../audio';
 import { addCoverImage, createAlchemyPanel, createCat, createTitlePlaque } from '../art';
+import { MOON_MOTH_QUEEN_ART_IMAGES, MOON_MOTH_QUEEN_ART_SHEETS } from '../moonMothQueenArt';
+import { MAINLINE_BOSS_ART_IMAGES, MAINLINE_BOSS_ART_SHEETS } from '../mainlineBossArt';
 import { COLORS, iconButton, soundButton, text, vignette } from '../ui';
 
 export class BootScene extends Phaser.Scene {
@@ -13,13 +15,16 @@ export class BootScene extends Phaser.Scene {
     this.load.image('cat-alchemist', '/assets/art/cat-alchemist.webp');
     this.load.image('armor-scarlet-string', '/assets/art/armor-scarlet-string.webp');
     this.load.image('armor-thorn-wolf', '/assets/art/armor-thorn-wolf.webp');
-    this.load.image('boss-moon-wolf', '/assets/art/boss-moon-wolf.webp');
+    MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => this.load.image(key, path));
+    MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => this.load.spritesheet(key, path, { frameWidth, frameHeight }));
     this.load.image('ui-command-frame', '/assets/art/ui-command-frame.webp');
     this.load.image('ui-alchemy-panel', '/assets/art/ui-alchemy-panel.webp');
     this.load.image('ui-title-plaque', '/assets/art/ui-title-plaque.webp');
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
     this.load.image('ui-cauldron', '/assets/art/ui-cauldron.webp');
     this.load.image('ui-potion-bottle', '/assets/art/ui-potion-bottle.webp');
+    MAINLINE_BOSS_ART_IMAGES.forEach(({ key, path }) => this.load.image(key, path));
+    MAINLINE_BOSS_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => this.load.spritesheet(key, path, { frameWidth, frameHeight }));
     for (const id of ['hood', 'heart', 'bean', 'fang', 'thread', 'crown', 'shoe']) {
       this.load.image(`relic-${id}`, `/assets/art/relic-${id}.webp`);
     }
