@@ -1948,10 +1948,10 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const baseWeapons = this.createWeaponRoster().slice(0, 4);
     const categoryMeta: Record<WeaponClass, { label: string; icon: string }> = {
-      sword: { label: '近战', icon: 'weapon-category-melee' },
-      gun: { label: '远程', icon: 'weapon-category-ranged' },
-      whip: { label: '法术', icon: 'weapon-category-magic' },
-      cannon: { label: '重型', icon: 'weapon-category-heavy' },
+      sword: { label: '剑', icon: 'weapon-category-melee' },
+      gun: { label: '枪', icon: 'weapon-category-ranged' },
+      whip: { label: '鞭', icon: 'weapon-category-magic' },
+      cannon: { label: '炮', icon: 'weapon-category-heavy' },
     };
     const selectedWeapon = baseWeapons.find((weapon) => weapon.id === this.selectedWeaponId) ?? baseWeapons[0];
     if (!selectedWeapon) return;
