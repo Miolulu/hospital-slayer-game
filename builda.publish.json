@@ -1,27 +1,28 @@
 {
-    "bundleEntry":  "index.html",
     "tagline":  "操控小男孩在精神病院中旋转武器斩灭异变。",
     "assetsManifestUrl":  "",
     "assetsVersion":  "",
-    "bundleSize":  0,
     "desc":  "横屏单人自动战斗 Roguelike 试玩。移动、吸收掉落、升级武器，在 30 层医院中面对逐渐失控的 SAN 值和 Boss；主线每层 20 波，每日挑战 50 波。",
     "coverKind":  "palette",
     "coverUrl":  "",
-    "buildSize":  0,
     "assetsBaseUrl":  "",
     "minChromeMajor":  80,
-    "bundleVersion":  "",
     "title":  "我在精神病院斩神",
     "orientation":  "landscape",
-    "bundleMd5":  "",
     "tags":  [
                  "h5"
              ],
     "category":  "survival",
-    "bundleUrl":  "",
-    "buildPrefix":  "",
-    "buildEntry":  "index.html",
     "engine":  "h5",
     "coverPalette":  "ember",
-    "minIOSMajor":  15
+    "minIOSMajor":  15,
+    "buildEntry":  "index.html",
+    "bundleSize":  104070544,
+    "buildSize":  106801042,
+    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/748c84884049dbbfba7e9931b9a3553b.zip",
+    "bundleEntry":  "index.html",
+    "buildPrefix":  "builds/748c84884049dbbfba7e9931b9a3553b",
+    "bundleVersion":  "748c84884049dbbfba7e9931b9a3553b",
+    "bundleMd5":  "96ac449ef5b1791c0555a76a765ca581",
+    "sdkVersion":  "0.4.36"
 }
