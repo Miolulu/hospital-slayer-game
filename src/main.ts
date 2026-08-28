@@ -1996,19 +1996,21 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     });
 
-    const mainX = 520 + layoutShift;
+    const mainX = 450 + layoutShift;
     const main = this.add.container(mainX, 280);
     const mainFrame = this.add.image(0, 0, 'weapon-select-frame-main-v1').setOrigin(0.5);
-    const mainFrameWidth = 560;
+    const mainFrameWidth = 520;
     main.add(mainFrame.setScale(mainFrameWidth / mainFrame.width).setAlpha(0.98));
-    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(240, 240);
+    const mainImage = this.add.image(0, 0, this.weaponSkinTextureKey(selectedSkin)).setOrigin(0.5).setDisplaySize(230, 230);
     main.add(mainImage);
     layer.add(main);
 
-    const skinPanelX = clamp(1020 + layoutShift, safe.left + 240, safe.right - 240);
-    layer.add(this.add.text(skinPanelX, this.safeTopY(112, 18), '武器皮肤', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    const skinPanelFrame = this.add.container(skinPanelX, 360);
-    const skinPanelWidth = 500;
+    const skinPanelGap = 18;
+    const mainFrameRight = mainX + mainFrameWidth / 2;
+    const skinPanelWidth = Math.min(540, Math.max(320, safe.right - mainFrameRight - skinPanelGap));
+    const skinPanelX = safe.right - skinPanelWidth / 2;
+    const skinPanelY = 388;
+    const skinPanelFrame = this.add.container(skinPanelX, skinPanelY);
     const hasSkinPanelFrame = this.textures.exists('weapon-select-frame-skin-panel-v1');
     const skinPanelFrameImage = hasSkinPanelFrame
       ? this.add.image(0, 0, 'weapon-select-frame-skin-panel-v1').setOrigin(0.5)
@@ -2022,41 +2024,45 @@ export class HospitalBattleScene extends Phaser.Scene {
       skinPanelFrame.add(this.add.rectangle(0, 0, skinPanelWidth, skinPanelHeight, 0x071117, 0).setStrokeStyle(2, accent, 0.9));
     }
     layer.add(skinPanelFrame);
+    const skinGridColumnGap = Math.min(146, skinPanelWidth * 0.27);
+    const skinGridTop = 312;
+    const skinGridRowGap = 150;
+    const skinCardImageHeight = 94;
     this.weaponSkinsFor(selectedWeapon.weaponClass).forEach((skin, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
-      const x = skinPanelX - 134 + column * 134;
-      const y = 270 + row * 120;
+      const x = skinPanelX - skinGridColumnGap + column * skinGridColumnGap;
+      const y = skinGridTop + row * skinGridRowGap;
       const unlocked = this.isWeaponSkinAvailable(skin.id);
       const selected = skin.id === selectedSkin.id;
       const card = this.add.container(x, y);
       const weaponImage = this.add.image(0, -5, this.weaponSkinTextureKey(skin))
         .setOrigin(0.5)
         .setAlpha(unlocked ? 0.98 : 0.42);
-      const targetHeight = 76;
+      const targetHeight = skinCardImageHeight;
       weaponImage.setDisplaySize(
         targetHeight * weaponImage.width / Math.max(1, weaponImage.height),
         targetHeight,
       );
       card.add(weaponImage);
       if (!unlocked) {
-        card.add(this.add.rectangle(0, -4, 106, 76, 0x05090f, 0.36));
+        card.add(this.add.rectangle(0, -4, 132, skinCardImageHeight, 0x05090f, 0.36));
         card.add(this.add.text(0, -4, '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5));
       }
-      card.add(this.add.text(0, 45, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: selected ? hex(accent) : unlocked ? palette.cream : palette.muted, wordWrap: { width: 104 }, align: 'center' }).setOrigin(0.5, 0.5));
+      card.add(this.add.text(0, skinCardImageHeight / 2 + 12, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: selected ? hex(accent) : unlocked ? palette.cream : palette.muted, wordWrap: { width: 148 }, align: 'center' }).setOrigin(0.5, 0.5));
       layer.add(card);
       this.uiActionRegions.push({
         phase: this.phase,
         x,
         y,
-        width: 126,
-        height: 118,
+        width: 164,
+        height: 142,
         callback: () => { this.weaponSelectPreviewSkinId = skin.id; this.showWeaponSelect(mode, this.selectedStartFloor); },
         setPressed: (pressed) => card.setScale(pressed ? 0.96 : 1),
       });
     });
 
-    const actionY = this.safeBottomY(560, 40);
+    const actionY = this.safeBottomY(620, 40);
     const actionLeftX = mainX - 108;
     const actionRightX = mainX + 108;
     if (!selectedSkinUnlocked) {
