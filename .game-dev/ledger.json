@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3623,
-                     "lastCheckedAt":  "2026-08-28T23:36:54+08:00",
+                     "lastCheckedAt":  "2026-08-29T00:27:21+08:00",
                      "completedCheckboxes":  53,
                      "pendingCheckboxes":  6
                  },
@@ -326,7 +326,7 @@
                       ],
     "verification":  {
                          "upgradeCardMobileLayout":  "passed: 升级页三张卡牌按横屏安全区放大，图标随卡牌比例同步，标题/说明提高字号、行距和描边，选择按钮改为卡牌下方独立文字热区；npm.cmd test（38 项）与 npm.cmd run build 通过。",
-                         "buildaDraftUploadLatest":  "passed: 最新升级卡牌代码与 PNG-only 构建包已同步创游世界草稿；gameId GD:48356599:1，currentVersionId 9cfa639c-9601-5787-a669-9431ab74f6ff，bundleVersion 02a7901fbda368cee1587150857c5c8d，cysjSyncStatus=synced，公开发布待用户操作。",
+                         "buildaDraftUploadLatest":  "passed: 最新升级卡牌与武器库代码、PNG-only 构建包已同步创游世界草稿；gameId GD:48356599:1，currentVersionId 1f8f0592-4677-59b4-bb4a-5b125b47f69e，bundleVersion 094234e8b0f349d83148a4b69255f93a，bundleSize 83836756 字节，cysjSyncStatus=synced，公开发布待用户操作。",
                          "tests":  "passed: 7 个测试文件，38 项全部通过（2026-08-28 22:53）",
                          "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:54）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
@@ -375,7 +375,7 @@
                          "weaponCategoryLabelRefactor":  "passed: 武器选择页四类入口标签改为对应武器名称剑、枪、鞭、炮，和实际可选武器数据保持一致；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "weaponSelectSkinPanelLayout":  "passed: 武器皮肤面板扩展为三列清晰网格，图片按原比例放大，面板和底部操作在 1280x720 与 1024x576 横屏预览中均未裁切或遮挡；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "weaponSkinAdActionLayout":  "passed: 武器皮肤页广告入口移至主预览下方居中位置，文案收紧并启用居中换行，避免横屏按钮区拥挤；npm.cmd test（38 项）与 npm.cmd run build 通过。",
-                         "weaponSelectFrameAlignment":  "passed: 武器选择页主预览框和皮肤面板按统一顶部基线定位，依据实际素材高度计算容器位置，避免面板错位或运行时变量未初始化；npm.cmd test（38 项）与 npm.cmd run build 通过。",
+                           "weaponSelectFrameAlignment":  "passed: 武器选择页主预览框和皮肤面板按统一顶部基线定位，依据实际素材高度计算容器位置，避免面板错位或运行时变量未初始化；最新横向分类、无主预览底框改动已合入；npm.cmd test（38 项）与 npm.cmd run build 通过。",
                          "floorEnemyPreviewPortraitAlignment":  "passed: 主线楼层敌人预览按首领与普通敌人分别设置立绘垂直中心，避免立绘覆盖名称栏并保持缺图兜底一致；npm.cmd test（38 项）与 npm.cmd run build 通过。"
                      }
 }
