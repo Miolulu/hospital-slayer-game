@@ -337,7 +337,7 @@ $RefreshPath = Join-Path $AuthDir "refresh-token"
 $Manifest = if ($env:BUILDA_MANIFEST) { $env:BUILDA_MANIFEST } else { "builda.publish.json" }
 $ProjectFile = if ($env:BUILDA_PROJECT_FILE) { $env:BUILDA_PROJECT_FILE } else { Join-Path $ProjectStateDir "game.json" }
 $LegacyProjectFile = if ($env:BUILDA_LEGACY_PROJECT_FILE) { $env:BUILDA_LEGACY_PROJECT_FILE } else { "builda.game.json" }
-$Version = "0.4.36"
+$Version = "0.4.37"
 $RuntimeVersionFile = Join-Path $Root "VERSION"
 $SdkVersionFile = Join-Path $ProjectStateDir "sdk-version"
 $DefaultBase = "https://builda-godot-api.poni.fun"
@@ -1186,7 +1186,7 @@ function Assert-ManifestRankBoards {
     throw "rankBoards must be an array; omit it to keep existing boards or use [] to clear all boards."
   }
   $Boards = @($Data.rankBoards)
-  if ($Boards.Count -gt 5) { throw "rankBoards supports at most 5 boards." }
+  if ($Boards.Count -gt 100) { throw "rankBoards supports at most 100 boards." }
   $Required = @("rankId", "displayName", "sortType", "cycleType", "minScore", "maxScore")
   $Seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
   for ($I = 0; $I -lt $Boards.Count; $I++) {
@@ -1704,7 +1704,6 @@ function Invoke-DevServer {
   $Candidates = if ($Port -eq 0) { @(0) } else { $Port..([Math]::Min($Port + 20, 65535)) }
   if ($UseHttpListener) {
     try { $Listener = New-Object System.Net.HttpListener } catch { $UseHttpListener = $false }
-    if (!$Listener) { $UseHttpListener = $false }
   }
   if ($UseHttpListener) {
     foreach ($Candidate in $Candidates) {
@@ -1842,22 +1841,15 @@ function Invoke-DevServer {
   }
 
   function Send-DevHttpListenerResponse($Context, $Reply, [bool]$HeadOnly) {
-    try {
-      $Context.Response.StatusCode = $Reply.Status
-      $Context.Response.ContentType = $Reply.ContentType
-      if ($Reply.Location) { $Context.Response.Headers["Location"] = $Reply.Location }
-      $Context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin"
-      $Context.Response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-      $Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-      $Context.Response.ContentLength64 = $Reply.Bytes.Length
-      if (!$HeadOnly) { $Context.Response.OutputStream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
-    } catch [System.IO.IOException] {
-      return
-    } catch [System.Net.HttpListenerException] {
-      return
-    } finally {
-      try { $Context.Response.Close() } catch {}
-    }
+    $Context.Response.StatusCode = $Reply.Status
+    $Context.Response.ContentType = $Reply.ContentType
+    if ($Reply.Location) { $Context.Response.Headers["Location"] = $Reply.Location }
+    $Context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    $Context.Response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    $Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    $Context.Response.ContentLength64 = $Reply.Bytes.Length
+    if (!$HeadOnly) { $Context.Response.OutputStream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
+    $Context.Response.Close()
   }
 
   function Send-DevTcpResponse($Client, $Reply, [bool]$HeadOnly) {
@@ -1865,18 +1857,11 @@ function Invoke-DevServer {
     $Headers = "HTTP/1.1 $($Reply.Status) $Reason`r`nContent-Type: $($Reply.ContentType)`r`nContent-Length: $($Reply.Bytes.Length)`r`nConnection: close`r`nCross-Origin-Opener-Policy: same-origin`r`nCross-Origin-Embedder-Policy: require-corp`r`nCross-Origin-Resource-Policy: cross-origin`r`n"
     if ($Reply.Location) { $Headers += "Location: $($Reply.Location)`r`n" }
     $Headers += "`r`n"
-    try {
-      $Stream = $Client.GetStream()
-      $HeaderBytes = [System.Text.Encoding]::ASCII.GetBytes($Headers)
-      $Stream.Write($HeaderBytes, 0, $HeaderBytes.Length)
-      if (!$HeadOnly) { $Stream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
-      $Stream.Flush()
-    } catch [System.IO.IOException] {
-      # Browsers routinely cancel superseded asset requests during iframe reloads.
-      return
-    } catch [System.ObjectDisposedException] {
-      return
-    }
+    $Stream = $Client.GetStream()
+    $HeaderBytes = [System.Text.Encoding]::ASCII.GetBytes($Headers)
+    $Stream.Write($HeaderBytes, 0, $HeaderBytes.Length)
+    if (!$HeadOnly) { $Stream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
+    $Stream.Flush()
   }
 
   $BaseUrl = "http://127.0.0.1:$ActualPort"
