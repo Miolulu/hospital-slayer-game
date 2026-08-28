@@ -116,16 +116,12 @@ html, body, #app, #game-shell {
 }
 
 .loading-progress-value {
-  position: relative;
-  z-index: 1;
-  color: var(--cream);
-  font: 700 13px/1 "HospitalPixel", "Noto Sans SC", sans-serif;
-  text-shadow: 2px 2px 0 #05090f;
+  display: none;
 }
 
 @keyframes loading-breathe {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  0%, 100% { transform: translateY(28px); }
+  50% { transform: translateY(23px); }
 }
 
 @keyframes loading-spin {
@@ -134,6 +130,10 @@ html, body, #app, #game-shell {
 
 @media (max-height: 500px) {
   .loading-octopus { width: min(190px, 29vw, 31vh); }
+  @keyframes loading-breathe {
+    0%, 100% { transform: translateY(20px); }
+    50% { transform: translateY(16px); }
+  }
   .loading-title-art { width: min(250px, 54vw); }
   .loading-progress-cluster { width: 72px; height: 72px; margin-top: 8px; }
 }
