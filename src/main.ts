@@ -2063,8 +2063,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
 
     const actionY = this.safeBottomY(620, 40);
-    const actionLeftX = mainX - 108;
-    const actionRightX = mainX + 108;
+    const actionLeftX = mainX - 154;
+    const actionRightX = mainX + 154;
+    const adActionX = mainX;
     if (!selectedSkinUnlocked) {
       if (selectedSkin.category === 'boss') {
         this.addWeaponSelectImageButton(layer, actionLeftX, actionY, 212, 46, 'weapon-select-frame-action-buy-v1', '首领掉落', () => undefined, 0x46636a);
@@ -2073,16 +2074,18 @@ export class HospitalBattleScene extends Phaser.Scene {
       }
       this.addWeaponSelectImageButton(layer, actionRightX, actionY, 212, 46, 'weapon-select-frame-action-equip-v1', '预览中', () => undefined, 0x46636a);
       if (this.textures.exists('ad-reward-v1')) {
-        this.addImageAction(layer, 842 + layoutShift, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
+        this.addImageAction(layer, adActionX, actionY, 44, 44, 'ad-reward-v1', () => { void this.watchWeaponSkinAd(selectedSkin.id, mode); }, 10);
       }
-      layer.add(this.add.text(842 + layoutShift, actionY + 34, '可以看广告免费体验1天', {
+      layer.add(this.add.text(adActionX, actionY + 34, '看广告免费体验一天', {
         fontFamily: 'Microsoft YaHei',
         fontSize: '9px',
         color: palette.amber,
         stroke: '#071015',
         strokeThickness: 2,
+        wordWrap: { width: 120 },
+        align: 'center',
       }).setOrigin(0.5));
-      if (this.weaponSkinAdMessage) layer.add(this.add.text(842 + layoutShift, actionY + 54, this.weaponSkinAdMessage, {
+      if (this.weaponSkinAdMessage) layer.add(this.add.text(adActionX, actionY + 54, this.weaponSkinAdMessage, {
         fontFamily: 'Microsoft YaHei',
         fontSize: '9px',
         color: palette.danger,
@@ -3147,7 +3150,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (previewAdEligible) {
       const adX = boardX + 250 * caseSheetScale;
       if (this.textures.exists('ad-reward-v1')) this.addImageAction(layer, adX, previewActionY, 40, 40, 'ad-reward-v1', () => { void this.watchSkinAd(previewSkin.id); }, 8);
-      layer.add(this.add.text(adX, previewActionY + 30, '可以看广告免费体验1天', {
+      layer.add(this.add.text(adX, previewActionY + 30, '看广告免费体验一天', {
         fontFamily: 'Microsoft YaHei',
         fontSize: '8px',
         color: palette.amber,
