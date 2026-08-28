@@ -40,6 +40,18 @@ import {
   playerSkinArtForId,
 } from './playerSkinArt';
 import { installUiTextTheme, UI_FONT_STACK } from './uiTheme';
+import {
+  UPGRADE_CARD_CONFIGS,
+  UPGRADE_ICON_KINDS,
+  formatUpgradeCardDescription,
+  rollUpgradeCardRarity,
+  upgradeCardTierForRarity,
+  upgradeCardColor,
+  type UpgradeAttackStatus,
+  type UpgradeCardConfig,
+  type UpgradeCardRarity,
+  type UpgradeIconKind,
+} from './upgradeCards';
 
 installUiTextTheme();
 
@@ -59,15 +71,9 @@ type WeaponEffect = 'slash' | 'spark' | 'burst' | 'beam' | 'tentacle' | 'laser' 
 type BuffKind = 'damage' | 'health' | 'shield';
 type RunMode = 'mainline' | 'daily';
 type WeaponClass = 'sword' | 'whip' | 'gun' | 'cannon';
-type AttackStatus = 'poison' | 'burn' | 'weaken';
+type AttackStatus = UpgradeAttackStatus;
 type PlayerDirection = 'left' | 'right' | 'up' | 'down';
 type PlayerAnimation = 'idle' | 'walk-left' | 'walk-right' | 'walk-up' | 'walk-down' | 'hit' | 'death';
-type UpgradeCardRarity = 'blue' | 'purple' | 'gold';
-type UpgradeIconKind = 'move' | 'damage' | 'sustain' | 'growth' | 'effect' | 'copies' | 'resonance' | 'shield' | 'magnet' | 'pulse' | 'mirror' | 'blood' | 'nova' | 'slow';
-const UPGRADE_ICON_KINDS: UpgradeIconKind[] = [
-  'move', 'damage', 'sustain', 'growth', 'effect', 'copies', 'resonance',
-  'shield', 'magnet', 'pulse', 'mirror', 'blood', 'nova', 'slow',
-];
 type ProfileSkinCategory = 'all' | 'basic' | 'store' | 'boss';
 
 interface SkinDef {
@@ -468,6 +474,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     });
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.png');
+    this.load.image('profile-case-sheet-v1', '/assets/art/profile-case-sheet-v1.png');
+    this.load.image('profile-evidence-corridor-v1', '/assets/art/profile-evidence-corridor-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
     this.load.image('menu-title-v2', '/assets/art/menu/menu-title-v2.png');
     this.load.image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.png');
@@ -477,6 +485,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ui-command-frame-v2', '/assets/art/ui/ui-command-frame-v2.png');
     this.load.image('ui-typography-kit-v1', '/assets/art/ui/ui-typography-kit-v1.png');
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
+    (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'boss-name', 'start-challenge'] as const).forEach((textAsset) => {
+      this.load.image(`ui-text-${textAsset}-v1`, `/assets/art/ui/text/ui-text-${textAsset}-v1.png`);
+    });
+    this.load.image('ui-stamp-uncompleted-v1', '/assets/art/ui/text/ui-stamp-uncompleted-v1.png');
+    this.load.image('ui-stamp-completed-v1', '/assets/art/ui/text/ui-stamp-completed-v1.png');
     this.load.image('back-icon-v1', '/assets/art/ui/back-icon-v1.png');
     this.load.image('daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png');
     this.load.image('daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png');
@@ -1576,18 +1589,26 @@ export class HospitalBattleScene extends Phaser.Scene {
     };
     const crop = crops[textureKey];
     if (crop) image.setCrop(crop.x, crop.y, crop.width, crop.height);
-    const text = this.add.text(0, 0, label, {
-      fontFamily: 'Microsoft YaHei',
-      fontSize: '23px',
-      color: palette.cream,
-      stroke: '#080d11',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setFontStyle('bold');
-    button.add([image, text]);
+    const textureLabels: Record<string, string> = {
+      'menu-button-archive-v1': 'ui-text-archive-v1',
+      'menu-button-mainline-v1': 'ui-text-mainline-v1',
+      'menu-button-daily-v1': 'ui-text-daily-v1',
+    };
+    const textTextureKey = textureLabels[textureKey];
+    const labelNode = textTextureKey && this.textures.exists(textTextureKey)
+      ? this.add.image(0, 0, textTextureKey).setOrigin(0.5).setDisplaySize(190, 76)
+      : this.add.text(0, 0, label, {
+        fontFamily: 'Microsoft YaHei',
+        fontSize: '23px',
+        color: palette.cream,
+        stroke: '#080d11',
+        strokeThickness: 5,
+      }).setOrigin(0.5).setFontStyle('bold');
+    button.add([image, labelNode]);
     const setPressed = (pressed: boolean) => {
       button.setScale(pressed ? 0.96 : 1);
       image.setTint(pressed ? 0xc6d8d0 : 0xffffff);
-      text.setAlpha(pressed ? 0.82 : 1);
+      labelNode.setAlpha(pressed ? 0.82 : 1);
     };
     parent.add(button);
     this.uiActionRegions.push({
@@ -1737,22 +1758,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       .setAlpha(0.98);
     layer.add(background);
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x02070b, 0.16));
-    const textShade = this.add.rectangle(panelX, 360, 450, 430, 0x02070b, 0.46)
-      .setStrokeStyle(1, 0x46636a, 0.52);
-    layer.add(textShade);
-    layer.add(this.add.rectangle(panelX, this.safeTopY(177, 18), 360, 2, paletteRgb.danger, 0.7));
-    layer.add(this.add.text(panelX, this.safeTopY(132, 18), '主线通关', {
-      fontFamily: 'Courier New, Microsoft YaHei',
-      fontSize: '30px',
-      color: palette.cream,
-      stroke: '#05090f',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(panelX, this.safeTopY(205, 18), '病历记录  ·  夜间再入院', {
-      fontFamily: 'Microsoft YaHei',
-      fontSize: '13px',
-      color: palette.cyan,
-    }).setOrigin(0.5));
     layer.add(this.add.text(panelX - 200, 270, '又来到了这座医院...\n难道还要和那群恶心的怪物战斗吗？', {
       fontFamily: 'Microsoft YaHei',
       fontSize: '24px',
@@ -1762,17 +1767,17 @@ export class HospitalBattleScene extends Phaser.Scene {
       stroke: '#05090f',
       strokeThickness: 4,
     }).setOrigin(0, 0.5));
-    layer.add(this.add.text(panelX - 200, 395, '楼层还在向上延伸。黑雾里没有尽头。', {
+    layer.add(this.add.text(panelX - 200, 395, '（本关为新手教学关卡）', {
       fontFamily: 'Microsoft YaHei',
       fontSize: '13px',
-      color: palette.muted,
+      color: palette.amber,
       wordWrap: { width: 390 },
     }));
     const continueIntro = () => {
       if (this.progress.mainlineIntroSeen) return;
       this.progress.mainlineIntroSeen = true;
       this.saveProgress();
-      this.showMainline(this.floor);
+      this.showMainline(0);
     };
     this.uiActionRegions.push({
       phase: this.phase,
@@ -1783,7 +1788,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       callback: continueIntro,
       setPressed: () => undefined,
     });
-    this.addButton(layer, panelX, this.safeBottomY(610, 40), 300, 54, '进入楼层档案', continueIntro, 'primary', 12);
+    this.addButton(layer, panelX, this.safeBottomY(610, 40), 300, 54, '进入楼层', continueIntro, 'primary', 12);
     this.overlay = layer;
     this.tweens.add({ targets: layer, alpha: 1, duration: 720, ease: 'Sine.easeOut' });
   }
@@ -1806,8 +1811,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
     const selected = this.selectedStartFloor;
-    layer.add(this.add.text(centerX, this.safeTopY(46, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(this.add.text(centerX, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(W / 2, this.safeTopY(46, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    layer.add(this.add.text(W / 2, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
     layer.add(this.add.text(safe.right - 8, this.safeTopY(52, 18), `已开放 ${this.progress.maxFloor} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.green }).setOrigin(1, 0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(104, 18), Math.min(1030, safe.width), 1, 0x46636a, 0.78));
 
@@ -1822,18 +1827,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(maskShape);
     this.floorScrollContent = this.add.container(0, 0).setMask(maskShape.createGeometryMask());
     this.floorScrollRegions = [];
-    // Every floor uses the same 16:9 raster window; the vertical gap keeps
-    // the tower readable while allowing all thirty floors to scroll.
-    const floorCardWidth = 420;
-    const floorCardHeight = 132;
+    // Keep the authored perspective ratio and space each floor as a large
+    // scrollable window so the tower remains readable at full size.
+    const floorSlotWidth = 560;
+    const floorSlotHeight = 392;
     const floorShellWidth = 560;
-    const floorShellHeight = 178;
-    const floorCardGap = 190;
+    const floorShellHeight = Math.round(floorShellWidth * 941 / 1672);
+    const floorRoomMaxWidth = 500;
+    const floorRoomMaxHeight = 375;
+    const floorCardGap = 430;
     const floorCardX = leftColumnX;
-    const baseYForFloor = (floor: number) => 596 - floor * floorCardGap;
-    this.floorScrollMin = Math.min(0, this.floorScrollViewport.bottom - baseYForFloor(0));
-    this.floorScrollMax = Math.max(0, this.floorScrollViewport.top - baseYForFloor(TOTAL_FLOORS));
-    this.floorScrollOffset = clamp(408 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
+    const baseYForFloor = (floor: number) => 400 - floor * floorCardGap;
+    this.floorScrollMin = 0;
+    this.floorScrollMax = Math.max(0, this.floorScrollViewport.bottom - (baseYForFloor(TOTAL_FLOORS) + floorSlotHeight / 2));
+    this.floorScrollOffset = clamp((this.floorScrollViewport.top + this.floorScrollViewport.bottom) / 2 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
     this.floorScrollContent.setY(this.floorScrollOffset);
     for (let floor = 0; floor <= TOTAL_FLOORS; floor += 1) {
       const unlocked = floor === 0 || floor <= this.progress.maxFloor;
@@ -1842,14 +1849,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       const x = floorCardX;
       const y = baseYForFloor(floor);
       const card = this.add.container(x, y);
-      const glow = this.add.rectangle(0, 0, 338, 56, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.16) : 0.035);
+      const glow = this.add.rectangle(0, 0, floorSlotWidth + 18, floorSlotHeight + 18, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.12) : 0.035);
       card.add(glow);
       if (unlocked) this.tweens.add({ targets: glow, alpha: isSelected ? 0.5 : 0.28, duration: 760, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      card.add(this.add.rectangle(0, 0, 320, 52, unlocked ? 0x0d1b22 : 0x11191e, 0.98).setStrokeStyle(isSelected ? 3 : 1, isSelected ? paletteRgb.amber : unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.96 : 0.7));
-      card.add(this.add.text(-112, 0, this.floorLabel(floor), { fontFamily: 'Microsoft YaHei', fontSize: floor === 0 ? '15px' : '14px', color: unlocked ? palette.cream : palette.muted }).setOrigin(0, 0.5).setFontStyle('bold'));
-      card.add(this.add.text(158, 0, unlocked ? (isSelected ? '当前选中' : '可进入') : '锁定', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: isSelected ? palette.amber : unlocked ? palette.danger : palette.muted }).setOrigin(1, 0.5));
-      if (!unlocked) card.add(this.add.text(0, 0, '锁', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
-      if (isSelected) card.add(this.add.rectangle(0, 0, 338, 62, 0x6bd3c1, 0).setStrokeStyle(1, 0x6bd3c1, 0.74));
+      card.add(this.add.rectangle(0, 0, floorSlotWidth, floorSlotHeight, unlocked ? 0x0d1b22 : 0x11191e, 0.18).setStrokeStyle(1, unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.72 : 0.7));
       if (this.textures.exists('mainline-building-floor-shell-v1')) {
         card.add(this.add.image(0, 0, 'mainline-building-floor-shell-v1')
           .setOrigin(0.5)
@@ -1859,34 +1862,19 @@ export class HospitalBattleScene extends Phaser.Scene {
       const textureKey = unlocked
         ? (isSelected ? 'mainline-floor-selected-v1' : 'mainline-floor-unlocked-v1')
         : (isSelected ? 'mainline-floor-locked-selected-v1' : 'mainline-floor-locked-v1');
-      if (isSelected && unlocked) {
-        const halo = this.add.rectangle(0, 0, floorCardWidth + 12, floorCardHeight + 12, paletteRgb.cyan, 0.1)
-          .setStrokeStyle(2, paletteRgb.amber, 0.82);
-        card.add(halo);
-        this.tweens.add({ targets: halo, alpha: 0.2, duration: 860, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      }
       if (this.textures.exists(textureKey)) {
+        const source = this.textures.get(textureKey).getSourceImage() as { width: number; height: number };
+        const sourceAspect = source.width / Math.max(1, source.height);
+        const displayWidth = Math.min(floorRoomMaxWidth, floorRoomMaxHeight * sourceAspect);
+        const displayHeight = displayWidth / sourceAspect;
         card.add(this.add.image(0, 0, textureKey)
           .setOrigin(0.5)
-          .setDisplaySize(floorCardWidth, floorCardHeight)
+          .setDisplaySize(displayWidth, displayHeight)
           .setAlpha(unlocked ? 0.98 : 0.92));
       }
-      const labelColor = unlocked ? palette.cream : palette.muted;
-      const stateColor = isSelected && unlocked ? palette.amber : unlocked ? palette.danger : palette.muted;
-      card.add(this.add.text(-floorShellWidth / 2 + 24, -floorShellHeight / 2 + 22, this.floorLabel(floor), {
-        fontFamily: 'Microsoft YaHei', fontSize: floor === 0 ? '15px' : '14px', color: labelColor,
-        stroke: '#061017', strokeThickness: 4,
-      }).setOrigin(0, 0.5).setFontStyle('bold'));
-      const stateLabel = unlocked
-        ? (isSelected ? '\u5f53\u524d\u9009\u4e2d' : '\u5df2\u89e3\u9501')
-        : '\u672a\u89e3\u9501';
-      card.add(this.add.text(floorShellWidth / 2 - 24, -floorShellHeight / 2 + 22, stateLabel, {
-        fontFamily: 'Microsoft YaHei', fontSize: '11px', color: stateColor,
-        stroke: '#061017', strokeThickness: 4,
-      }).setOrigin(1, 0.5));
       this.floorScrollContent.add(card);
       if (unlocked) {
-        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorShellWidth + 18, height: floorShellHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
+        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
         this.uiActionRegions.push(region);
         this.floorScrollRegions.push({ region, baseY: y });
       }
@@ -1897,8 +1885,6 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const detailX = clamp(940 + layoutShift, safe.left + 250, safe.right - 250);
     const detail = this.add.container(detailX, 382);
-    detail.add(this.add.rectangle(0, 0, 500, 470, 0x071117, 0.96).setStrokeStyle(2, selected === 0 ? paletteRgb.amber : paletteRgb.cyan, 0.9));
-    detail.add(this.add.rectangle(0, 0, 484, 454, 0x071117, 0).setStrokeStyle(1, 0x46636a, 0.66));
     detail.add(this.add.text(-220, -206, this.floorLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '25px', color: selected === 0 ? palette.amber : palette.cream }).setFontStyle('bold'));
     detail.add(this.add.text(220, -204, `${selected === 0 ? '教程' : `进度 ${selected} / ${TOTAL_FLOORS}`}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.green }).setOrigin(1, 0));
     detail.add(this.add.text(-220, -168, this.floorZoneLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
@@ -1912,7 +1898,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       detail.add(this.add.text(-220, 170, `通关后解锁 ${selected < TOTAL_FLOORS ? this.floorLabel(selected + 1) : '终局档案'}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.green }));
     }
     layer.add(detail);
-    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始入口教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12);
+    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12);
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
   }
@@ -2015,6 +2001,20 @@ export class HospitalBattleScene extends Phaser.Scene {
     parent.add(button);
     this.uiActionRegions.push({ phase: this.phase, x, y, width: width + 22, height: Math.max(48, height + 12), callback, setPressed });
     return button;
+  }
+
+  private addUiTextTexture(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, textureKey: string, fallback: string, fontSize: number, color = palette.cream) {
+    if (this.textures.exists(textureKey)) {
+      parent.add(this.add.image(x, y, textureKey).setOrigin(0.5).setDisplaySize(width, height));
+      return;
+    }
+    parent.add(this.add.text(x, y, fallback, {
+      fontFamily: 'Courier New, Microsoft YaHei',
+      fontSize: `${fontSize}px`,
+      color,
+      stroke: '#050b10',
+      strokeThickness: Math.max(2, Math.round(fontSize / 7)),
+    }).setOrigin(0.5).setFontStyle('bold'));
   }
 
   private dialogueLines() {
@@ -2375,32 +2375,58 @@ export class HospitalBattleScene extends Phaser.Scene {
     const safe = this.pageSafeBounds(12);
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
-    layer.add(this.add.text(centerX, this.safeTopY(58, 8), '\u75c5\u5386\u6863\u6848', { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    this.addUiTextTexture(layer, centerX, this.safeTopY(58, 8), 170, 68, 'ui-text-archive-v1', '病历档案', 28);
     layer.add(this.add.text(centerX, this.safeTopY(92, 8), 'PATIENT FILE  /  WARD 07', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
     layer.add(this.add.text(safe.right - 8, this.safeTopY(62, 8), `\u521b\u6e38\u8d27\u5e01  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(118, 8), 1080, 1, 0x46636a, 0.78));
 
     const previewSkin = this.skins.find((skin) => skin.id === this.profilePreviewSkinId) ?? this.skins[0];
-    const certificate = this.add.container(335 + layoutShift, 270);
-    certificate.add(this.add.rectangle(0, 0, 500, 270, 0x0a141b, 0.98).setStrokeStyle(2, previewSkin.color, 0.92));
-    certificate.add(this.add.rectangle(0, 0, 488, 258, 0x0a141b, 0).setStrokeStyle(1, 0x46636a, 0.76));
-    certificate.add(this.add.text(-225, -108, '\u75c5\u4f8b\u8bc1', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.amber }).setFontStyle('bold'));
-    certificate.add(this.add.text(-225, -72, `\u6635\u79f0  ${this.playerNickname}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream, wordWrap: { width: 220 } }));
-    certificate.add(this.add.text(-225, -42, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
-    certificate.add(this.add.text(-225, -12, `\u6863\u6848\u7f16\u53f7  W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.muted }));
-    const portrait = this.addPatientSprite(certificate, 112, 12, 166, previewSkin);
-    if (portrait && previewSkin.id !== 'patient-default' && !this.skinHasCustomArt(previewSkin)) portrait.setTint(previewSkin.color);
-    certificate.add(this.add.rectangle(112, 93, 126, 2, previewSkin.color, 0.72));
-    certificate.add(this.add.text(112, 111, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    certificate.add(this.add.text(112, 132, '\u5f53\u524d\u88c5\u5907\u76ae\u80a4', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.green }).setOrigin(0.5));
-    layer.add(certificate);
-
-    if (this.textures.exists('profile-hospital-photo-v1')) {
-      layer.add(this.add.image(335 + layoutShift, 510, 'profile-hospital-photo-v1').setOrigin(0.5).setDisplaySize(500, 170).setAlpha(0.92));
+    // The archive is built as a stack of physical case materials. The sheet
+    // gives the page its silhouette while the two photos and portrait remain
+    // independent, so each record can be replaced without redrawing the page.
+    const boardX = 335 + layoutShift;
+    const boardY = 394;
+    const board = this.add.container(boardX, boardY);
+    board.add(this.add.rectangle(6, 7, 630, 424, 0x02060a, 0.92));
+    if (this.textures.exists('profile-case-sheet-v1')) {
+      board.add(this.add.image(0, 0, 'profile-case-sheet-v1').setOrigin(0.5).setDisplaySize(620, 413).setAlpha(0.98));
+    } else {
+      board.add(this.add.rectangle(0, 0, 620, 413, 0x101b24, 0.98).setStrokeStyle(2, previewSkin.color, 0.92));
     }
-    layer.add(this.add.text(95 + layoutShift, 612, '\u75c5\u9662\u5f71\u50cf\u8bb0\u5f55  /  \u591c\u95f4\u89c2\u5bdf\u7167\u7247', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.amber }));
-    layer.add(this.add.text(95 + layoutShift, 634, '\u75c7\u72b6\uff1a\u5931\u7720\u3001\u542c\u89c1\u4f4e\u8bed\u3001\u5bf9\u7ea2\u5149\u4ea7\u751f\u8fc7\u5ea6\u53cd\u5e94\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream }));
-    layer.add(this.add.text(95 + layoutShift, 656, '\u5907\u6ce8\uff1a\u591c\u95f4\u75c5\u533a\u5b58\u5728\u672a\u77e5\u6ce2\u52a8\uff0c\u8bf7\u52ff\u5355\u72ec\u79bb\u5f00\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    board.add(this.add.text(0, -188, '\u75c5\u4f8b\u8bc1  /  PATIENT CASE SHEET', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
+    board.add(this.add.text(-263, -166, `\u6635\u79f0  ${this.playerNickname}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 218 } }));
+    board.add(this.add.text(-263, -145, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }));
+    board.add(this.add.text(263, -166, `W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: 'Courier New', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
+
+    const addEvidencePhoto = (x: number, y: number, key: string, label: string, accent: number) => {
+      board.add(this.add.rectangle(x + 2, y + 3, 132, 96, 0x02060a, 0.95));
+      if (this.textures.exists(key)) board.add(this.add.image(x, y, key).setOrigin(0.5).setDisplaySize(122, 84).setAlpha(0.98));
+      board.add(this.add.rectangle(x, y, 128, 90, 0x000000, 0).setStrokeStyle(1, accent, 0.82));
+      board.add(this.add.text(x, y + 53, label, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '8px', color: palette.cream, backgroundColor: '#071117', padding: { left: 4, right: 4, top: 2, bottom: 2 } }).setOrigin(0.5));
+    };
+    addEvidencePhoto(-164, -92, 'profile-hospital-photo-v1', '\u4e3b\u9662\u533a / 01', previewSkin.color);
+    addEvidencePhoto(208, -92, 'profile-evidence-corridor-v1', '\u8d70\u5eca\u76d1\u63a7 / 02', paletteRgb.cyan);
+
+    const portrait = this.addPatientSprite(board, 22, 22, 176, previewSkin);
+    if (portrait && previewSkin.id !== 'patient-default' && !this.skinHasCustomArt(previewSkin)) portrait.setTint(previewSkin.color);
+    board.add(this.add.rectangle(22, 122, 156, 2, previewSkin.color, 0.76));
+    board.add(this.add.text(22, 140, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    board.add(this.add.text(22, 158, '\u5f53\u524d\u88c5\u5907\u76ae\u80a4', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.green }).setOrigin(0.5));
+
+    board.add(this.add.text(-263, 132, '\u75c7\u72b6\u8bb0\u5f55', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setFontStyle('bold'));
+    board.add(this.add.text(-263, 151, '\u5931\u7720 / \u4f4e\u8bed\u5e7b\u542c / \u7ea2\u5149\u8fc7\u5ea6\u53cd\u5e94', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.cream, wordWrap: { width: 165 } }));
+    board.add(this.add.text(263, 132, '\u884c\u52a8\u8bb0\u5f55', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setOrigin(1, 0).setFontStyle('bold'));
+    board.add(this.add.text(263, 151, `SAN  ${Math.ceil(this.san)} / 100  \u00b7  \u697c\u5c42  ${this.progress.maxFloor}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setOrigin(1, 0));
+    layer.add(board);
+
+    const evidenceTray = this.add.container(boardX, 647);
+    evidenceTray.add(this.add.rectangle(6, 5, 630, 58, 0x02060a, 0.88));
+    evidenceTray.add(this.add.rectangle(0, 0, 620, 54, 0x071117, 0.95).setStrokeStyle(1, previewSkin.color, 0.64));
+    evidenceTray.add(this.add.text(-292, -17, '\u89c2\u5bdf\u5907\u6ce8', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setFontStyle('bold'));
+    evidenceTray.add(this.add.text(-292, 4, '\u591c\u95f4\u75c5\u533a\u5b58\u5728\u672a\u77e5\u6ce2\u52a8\uff0c\u8bf7\u52ff\u5355\u72ec\u79bb\u5f00\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.cream, wordWrap: { width: 320 } }));
+    evidenceTray.add(this.add.text(292, -17, '\u8d44\u6599\u72b6\u6001  /  ARCHIVED', { fontFamily: 'Courier New', fontSize: '9px', color: palette.cyan }).setOrigin(1, 0).setFontStyle('bold'));
+    evidenceTray.add(this.add.text(292, 5, `\u5df2\u5f52\u6863 ${this.progress.archiveKinds.length} \u9879  \u00b7  \u5269\u4f59\u7a7a\u767d\u9879`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.muted }).setOrigin(1, 0));
+    layer.add(evidenceTray);
 
     const skinPanelX = clamp(965 + layoutShift, safe.left + 285, safe.right - 285);
     this.addPixelFrame(layer, skinPanelX, this.safeBottomY(405, 250), 560, 520, 0x0a141b, 0x46636a);
@@ -3676,9 +3702,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     else weapon.ammo += 1;
   }
 
-  private applyCardWeaponGrowth() {
+  private applyCardWeaponGrowth(percent = 15) {
     const weapon = this.currentWeapon();
-    if (weapon) this.applyRotationUpgrade(weapon, [10, 15, 22][this.upgradeCardTier() - 1]);
+    if (weapon) this.applyRotationUpgrade(weapon, percent);
   }
 
   private applyAttackStatus(enemy: Enemy, status?: AttackStatus) {
@@ -3694,12 +3720,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floatText(enemy.node.x, enemy.node.y - enemy.visualHeight / 2 - 26, `${status === 'poison' ? '中毒' : status === 'burn' ? '燃烧' : '虚弱'}`, colors[status]);
   }
 
-  private applyAttackEffectUpgrade(status: AttackStatus) {
+  private applyAttackEffectUpgrade(
+    status: AttackStatus,
+    tier: number,
+    configuredGrowth?: { damageIncrease?: number; durationIncrease?: number },
+  ) {
     const weapon = this.currentWeapon();
     if (!weapon) return;
     const nextStatus = this.activeAttackStatus ?? status;
-    const tier = this.upgradeCardTier();
-    const growth = attackStatusGrowth(this.attackStatusLevel, tier);
+    const growth = {
+      ...attackStatusGrowth(this.attackStatusLevel, tier),
+      ...configuredGrowth,
+    };
     if (this.attackStatusLevel === 0) {
       this.attackStatusDuration = 3;
       this.attackStatusDamage = nextStatus === 'burn' ? 3 : nextStatus === 'poison' ? 2 : 1.5;
@@ -4144,10 +4176,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.showUpgrade();
   }
 
-  private upgradeCardTier() {
-    return Math.min(3, 1 + Math.floor((this.level - 1) / 5));
-  }
-
   private upgradeCardTexture(rarity: UpgradeCardRarity) {
     return `upgrade-card-${rarity}-v1`;
   }
@@ -4306,6 +4334,154 @@ export class HospitalBattleScene extends Phaser.Scene {
     return frame;
   }
 
+  private upgradeDefinitionFromConfig(
+    config: UpgradeCardConfig,
+    rarity: UpgradeCardRarity,
+    status: AttackStatus,
+    weapon?: Weapon,
+  ): UpgradeDef {
+    const tier = upgradeCardTierForRarity(rarity);
+    const tierConfig = config.tiers?.[rarity];
+    const tierValue = tierConfig?.value;
+    const requireTierValue = () => {
+      if (tierValue === undefined) throw new Error(`缺少升级卡牌数值配置：${config.id}/${rarity}`);
+      return tierValue;
+    };
+    const describe = (values: Readonly<Record<string, string | number>>) => formatUpgradeCardDescription(config.description, values);
+    const statusNames: Record<AttackStatus, string> = { poison: '中毒', burn: '燃烧', weaken: '虚弱' };
+    const statusName = statusNames[status];
+    const titleTemplate = config.id === 'attack-effect' && this.activeAttackStatus
+      ? (config.activeTitle ?? config.title)
+      : config.title;
+    const title = titleTemplate.replace('{status}', statusName);
+    const base = {
+      title,
+      color: upgradeCardColor(config, status),
+      rarity: config.rarity ?? rarity,
+      icon: config.icon,
+    };
+
+    switch (config.id) {
+      case 'move-speed': {
+        const movePercent = requireTierValue();
+        return { ...base, detail: describe({ value: movePercent }), apply: () => { this.runSpeed *= 1 + movePercent / 100; } };
+      }
+      case 'weapon-damage': {
+        const damageAmount = requireTierValue();
+        return { ...base, detail: describe({ value: damageAmount }), apply: () => this.applyRoundDamageBuff(damageAmount) };
+      }
+      case 'san-shield': {
+        const sustainAmount = requireTierValue();
+        return { ...base, detail: describe({ value: sustainAmount }), apply: () => this.applyHealthShieldUpgrade(sustainAmount) };
+      }
+      case 'attack-speed': {
+        const growthPercent = requireTierValue();
+        return { ...base, detail: describe({ value: growthPercent }), apply: () => this.applyCardWeaponGrowth(growthPercent) };
+      }
+      case 'attack-effect': {
+        const statusGrowth = attackStatusGrowth(this.attackStatusLevel, tier);
+        const damageIncrease = tierConfig?.damageIncrease ?? statusGrowth.damageIncrease;
+        const durationIncrease = tierConfig?.durationIncrease ?? statusGrowth.durationIncrease;
+        const statusBaseDamage = status === 'burn' ? 3 : status === 'poison' ? 2 : 1.5;
+        const statusDamage = Math.round(((this.attackStatusLevel === 0 ? statusBaseDamage : this.attackStatusDamage) + damageIncrease) * 10) / 10;
+        const statusDuration = Math.round(((this.attackStatusLevel === 0 ? 3 : this.attackStatusDuration) + durationIncrease) * 10) / 10;
+        const tickDamage = Math.round((status === 'weaken' ? statusDamage * 0.5 : statusDamage) * 10) / 10;
+        const spreadDetail = statusGrowth.spreadTargets > 0
+          ? ` · 击败后传播 ${statusGrowth.spreadTargets} 个目标（范围 ${statusGrowth.spreadRadius}）`
+          : ' · 持续强化后解锁击杀传播';
+        const detail = describe({
+          status: statusName,
+          weakenPrefix: status === 'weaken' ? '敌人伤害 -35% · ' : '',
+          tickDamage,
+          duration: statusDuration,
+          spread: spreadDetail,
+        });
+        return {
+          ...base,
+          detail,
+          apply: () => this.applyAttackEffectUpgrade(status, tier, { damageIncrease, durationIncrease }),
+        };
+      }
+      case 'twin-echo':
+        return {
+          ...base,
+          detail: describe({ speed: 6 + tier * 2 }),
+          apply: () => {
+            this.applyWeaponCopiesUpgrade();
+            const currentWeapon = this.currentWeapon();
+            if (currentWeapon) this.applyRotationUpgrade(currentWeapon, 6 + tier * 2);
+          },
+        };
+      case 'shield-retaliation':
+        return {
+          ...base,
+          detail: describe({ retaliation: 4 + tier * 2 }),
+          apply: () => {
+            this.applyHealthShieldUpgrade(12 + tier * 8);
+            this.dailyShieldRetaliation += 4 + tier * 2;
+          },
+        };
+      case 'magnetic-harvest':
+        return {
+          ...base,
+          detail: describe({}),
+          apply: () => {
+            this.runSpeed *= 1.06;
+            this.pickupRadius += 28;
+            this.magnet += 36;
+            this.dailyMagnetSynergy += 1;
+          },
+        };
+      case 'rift-pulse':
+        return {
+          ...base,
+          detail: describe({
+            interval: Math.max(2.8, 6.2 - (this.dailyVoidPulse + 1) * 0.45).toFixed(1),
+            targets: 6 + (this.dailyVoidPulse + 1) * 2,
+          }),
+          apply: () => {
+            this.dailyVoidPulse += 1;
+            this.dailyVoidPulseTimer = 1.2;
+          },
+        };
+      case 'mirror-barrage':
+        return {
+          ...base,
+          detail: describe({ shots: this.dailyEchoShots + 1 }),
+          apply: () => { this.dailyEchoShots += 1; },
+        };
+      case 'blood-moon-pact':
+        return {
+          ...base,
+          detail: describe({ taken: (this.dailyBloodPact + 1) * 8 }),
+          apply: () => {
+            this.dailyBloodPact += 1;
+            this.damageBonus += 16;
+          },
+        };
+      case 'hunt-nova':
+        return {
+          ...base,
+          detail: describe({ kills: Math.max(6, 12 - (this.dailyKillNova + 1) * 2) }),
+          apply: () => { this.dailyKillNova += 1; },
+        };
+      case 'stasis-field':
+        return {
+          ...base,
+          detail: describe({ slow: Math.min(56, 28 + (this.dailySlowField + 1) * 8) }),
+          apply: () => { this.dailySlowField += 1; },
+        };
+      case 'weapon-copies':
+        return {
+          ...base,
+          detail: weapon ? describe({ current: weapon.copies, next: weapon.copies + 1 }) : '增加当前武器数量',
+          apply: () => this.applyWeaponCopiesUpgrade(),
+        };
+      default:
+        throw new Error(`未知升级卡牌配置：${config.id}`);
+    }
+  }
+
   private showUpgrade(resetRefresh = true) {
     this.phase = 'upgrade';
     if (resetRefresh) {
@@ -4321,179 +4497,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
     this.addPixelFrame(layer, centerX, 350, 940, 560, 0x101b24, 0xb798e2);
     layer.add(this.add.text(centerX, this.safeTopY(84, 8), `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    const tier = this.upgradeCardTier();
     layer.add(this.add.text(centerX, this.safeTopY(122, 8), '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
-    const damageAmount = [8, 14, 22][tier - 1];
-    const sustainAmount = [20, 32, 48][tier - 1];
-    const growthPercent = [10, 15, 22][tier - 1];
-    const movePercent = [8, 12, 18][tier - 1];
     const statusOptions: AttackStatus[] = ['poison', 'burn', 'weaken'];
     const status = this.activeAttackStatus ?? statusOptions[(this.level - 1) % statusOptions.length];
-    const statusNames: Record<AttackStatus, string> = { poison: '中毒', burn: '燃烧', weaken: '虚弱' };
-    const statusGrowth = attackStatusGrowth(this.attackStatusLevel, tier);
-    const statusBaseDamage = status === 'burn' ? 3 : status === 'poison' ? 2 : 1.5;
-    const statusDamage = Math.round(((this.attackStatusLevel === 0 ? statusBaseDamage : this.attackStatusDamage) + statusGrowth.damageIncrease) * 10) / 10;
-    const statusDuration = Math.round(((this.attackStatusLevel === 0 ? 3 : this.attackStatusDuration) + statusGrowth.durationIncrease) * 10) / 10;
-    const tickDamage = Math.round((status === 'weaken' ? statusDamage * 0.5 : statusDamage) * 10) / 10;
-    const spreadDetail = statusGrowth.spreadTargets > 0
-      ? ` · 击败后传播 ${statusGrowth.spreadTargets} 个目标（范围 ${statusGrowth.spreadRadius}）`
-      : ' · 持续强化后解锁击杀传播';
-    const statusDetail = `${status === 'weaken' ? '敌人伤害 -35% · ' : ''}每 0.8 秒 ${tickDamage} 伤害 · 持续 ${statusDuration} 秒${spreadDetail}`;
-    const pool: UpgradeDef[] = [
-      {
-        title: '移速提升',
-        detail: `移动速度 +${movePercent}%`,
-        color: 0x7ab9d0,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'move',
-        apply: () => { this.runSpeed *= 1 + movePercent / 100; },
-      },
-      {
-        title: '武器强化',
-        detail: `当前武器伤害 +${damageAmount}，持续本层`,
-        color: 0xed716e,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'damage',
-        apply: () => this.applyRoundDamageBuff(damageAmount),
-      },
-      {
-        title: 'SAN / 护盾',
-        detail: `SAN 不足时恢复 ${sustainAmount}；SAN 满时转为护盾`,
-        color: 0x8fd17c,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'sustain',
-        apply: () => this.applyHealthShieldUpgrade(sustainAmount),
-      },
-      {
-        title: '攻速提升',
-        detail: `当前武器转速 +${growthPercent}%`,
-        color: 0xb798e2,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'growth',
-        apply: () => this.applyCardWeaponGrowth(),
-      },
-      {
-        title: `${this.activeAttackStatus ? '强化' : '攻击特效：'}${statusNames[status]}`,
-        detail: statusDetail,
-        color: status === 'poison' ? 0x8fd17c : status === 'burn' ? 0xe78a57 : 0xb798e2,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'effect',
-        apply: () => this.applyAttackEffectUpgrade(status),
-      },
-    ];
-    if (this.runMode === 'daily') {
-      const synergyStatus = statusNames[status];
-      pool.push({
-        title: `感染共振 · ${synergyStatus}`,
-        detail: `攻击特效伤害 +${2 + tier}，状态持续时间 +1 秒`,
-        color: 0x8fd17c,
-        rarity: 'gold',
-        icon: 'resonance',
-        apply: () => {
-          this.applyAttackEffectUpgrade(status);
-          this.attackStatusDamage += 2 + tier;
-          this.attackStatusDuration += 1;
-          this.dailyStatusSynergy += 1;
-        },
+    const pool: UpgradeDef[] = UPGRADE_CARD_CONFIGS
+      .filter((config) => !('dailyOnly' in config) || !config.dailyOnly || this.runMode === 'daily')
+      .filter((config) => !('requiresWeaponCopies' in config) || !config.requiresWeaponCopies || Boolean(weapon && weapon.copies < MAX_WEAPON_COPIES))
+      .map((config) => {
+        const rarity = 'rarity' in config && config.rarity ? config.rarity : rollUpgradeCardRarity();
+        return this.upgradeDefinitionFromConfig(config, rarity, status, weapon);
       });
-      pool.push({
-        title: '双生回响',
-        detail: `武器数量 +1，攻击速度 +${6 + tier * 2}%`,
-        color: 0xb798e2,
-        rarity: 'gold',
-        icon: 'copies',
-        apply: () => {
-          this.applyWeaponCopiesUpgrade();
-          this.applyRotationUpgrade(this.currentWeapon()!, 6 + tier * 2);
-        },
-      });
-      pool.push({
-        title: '护盾反击',
-        detail: `护盾吸收伤害时反击 ${4 + tier * 2} 点`,
-        color: 0x7ab9d0,
-        rarity: 'gold',
-        icon: 'shield',
-        apply: () => {
-          this.applyHealthShieldUpgrade(12 + tier * 8);
-          this.dailyShieldRetaliation += 4 + tier * 2;
-        },
-      });
-      pool.push({
-        title: '磁场收割',
-        detail: `移动速度 +6%，拾取范围 +28，吸附速度提升`,
-        color: 0xf2bf62,
-        rarity: 'purple',
-        icon: 'magnet',
-        apply: () => {
-          this.runSpeed *= 1.06;
-          this.pickupRadius += 28;
-          this.magnet += 36;
-          this.dailyMagnetSynergy += 1;
-        },
-      });
-      pool.push({
-        title: '裂隙脉冲',
-        detail: `每 ${Math.max(2.8, 6.2 - (this.dailyVoidPulse + 1) * 0.45).toFixed(1)} 秒释放虚空环，最多命中 ${6 + (this.dailyVoidPulse + 1) * 2} 个目标`,
-        color: 0xb798e2,
-        rarity: 'gold',
-        icon: 'pulse',
-        apply: () => {
-          this.dailyVoidPulse += 1;
-          this.dailyVoidPulseTimer = 1.2;
-        },
-      });
-      pool.push({
-        title: '镜像弹幕',
-        detail: `远程每次齐射追加 ${this.dailyEchoShots + 1} 发；近战额外命中目标`,
-        color: 0x7ab9d0,
-        rarity: 'gold',
-        icon: 'mirror',
-        apply: () => { this.dailyEchoShots += 1; },
-      });
-      pool.push({
-        title: '血月契约',
-        detail: `武器伤害 +16，受到伤害 +${(this.dailyBloodPact + 1) * 8}%`,
-        color: 0xed716e,
-        rarity: 'gold',
-        icon: 'blood',
-        apply: () => {
-          this.dailyBloodPact += 1;
-          this.damageBonus += 16;
-        },
-      });
-      pool.push({
-        title: '猎杀爆裂',
-        detail: `每 ${Math.max(6, 12 - (this.dailyKillNova + 1) * 2)} 次击杀触发范围爆裂`,
-        color: 0xf2bf62,
-        rarity: 'gold',
-        icon: 'nova',
-        apply: () => { this.dailyKillNova += 1; },
-      });
-      pool.push({
-        title: '静滞力场',
-        detail: `靠近主角的敌人减速 ${Math.min(56, 28 + (this.dailySlowField + 1) * 8)}%，范围扩大`,
-        color: 0x7ab9d0,
-        rarity: 'purple',
-        icon: 'slow',
-        apply: () => { this.dailySlowField += 1; },
-      });
-    }
-    if (weapon && weapon.copies < MAX_WEAPON_COPIES) {
-      pool.push({
-        title: '升级武器数',
-        detail: `当前武器数量 ${weapon.copies} → ${weapon.copies + 1}，围绕主角均匀旋转`,
-        color: 0x7ab9d0,
-        rarity: tier >= 3 ? 'gold' : tier >= 2 ? 'purple' : 'blue',
-        icon: 'copies',
-        apply: () => this.applyWeaponCopiesUpgrade(),
-      });
-    }
     const choices = Phaser.Utils.Array.Shuffle(pool).slice(0, 3);
-    if (this.runMode === 'daily' && choices.every((choice) => choice.rarity === 'blue')) {
-      const special = Phaser.Utils.Array.GetRandom(pool.filter((choice) => choice.rarity === 'purple' || choice.rarity === 'gold'));
-      if (special) choices[2] = special;
-    }
     choices.forEach((choice, index) => {
       const x = 390 + layoutShift + index * 250;
       const cardWidth = 228;
@@ -4510,9 +4525,13 @@ export class HospitalBattleScene extends Phaser.Scene {
         card.add(this.add.rectangle(0, 0, cardWidth, cardHeight, palette.panel, 1).setStrokeStyle(2, rarityColor, 0.95));
       }
       const selectionFrame = this.upgradeCardSelectionFrame(card, cardWidth, cardHeight, rarityColor);
-      const iconHalo = this.add.circle(0, -22, 64, choice.color, 0.08).setStrokeStyle(2, choice.color, 0.72);
+      // The source card opening sits above the card midpoint. Keep the halo
+      // and raster icon on the same measured center so every type lands in
+      // the circular opening instead of drifting into the text panel.
+      const iconCenterY = -58;
+      const iconHalo = this.add.circle(0, iconCenterY, 66, choice.color, 0.08).setStrokeStyle(2, choice.color, 0.72);
       card.add(iconHalo);
-      this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, -22, choice.color);
+      this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, iconCenterY, choice.color);
       const titleSize = choice.title.length > 11 ? 14 : 16;
       const detailSize = choice.detail.length > 42 ? 9 : 10;
       card.add(this.add.text(0, 78, choice.title, {

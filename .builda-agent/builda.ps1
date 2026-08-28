@@ -1704,6 +1704,7 @@ function Invoke-DevServer {
   $Candidates = if ($Port -eq 0) { @(0) } else { $Port..([Math]::Min($Port + 20, 65535)) }
   if ($UseHttpListener) {
     try { $Listener = New-Object System.Net.HttpListener } catch { $UseHttpListener = $false }
+    if (!$Listener) { $UseHttpListener = $false }
   }
   if ($UseHttpListener) {
     foreach ($Candidate in $Candidates) {
@@ -1841,15 +1842,22 @@ function Invoke-DevServer {
   }
 
   function Send-DevHttpListenerResponse($Context, $Reply, [bool]$HeadOnly) {
-    $Context.Response.StatusCode = $Reply.Status
-    $Context.Response.ContentType = $Reply.ContentType
-    if ($Reply.Location) { $Context.Response.Headers["Location"] = $Reply.Location }
-    $Context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    $Context.Response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-    $Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-    $Context.Response.ContentLength64 = $Reply.Bytes.Length
-    if (!$HeadOnly) { $Context.Response.OutputStream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
-    $Context.Response.Close()
+    try {
+      $Context.Response.StatusCode = $Reply.Status
+      $Context.Response.ContentType = $Reply.ContentType
+      if ($Reply.Location) { $Context.Response.Headers["Location"] = $Reply.Location }
+      $Context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin"
+      $Context.Response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+      $Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+      $Context.Response.ContentLength64 = $Reply.Bytes.Length
+      if (!$HeadOnly) { $Context.Response.OutputStream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
+    } catch [System.IO.IOException] {
+      return
+    } catch [System.Net.HttpListenerException] {
+      return
+    } finally {
+      try { $Context.Response.Close() } catch {}
+    }
   }
 
   function Send-DevTcpResponse($Client, $Reply, [bool]$HeadOnly) {
@@ -1857,11 +1865,18 @@ function Invoke-DevServer {
     $Headers = "HTTP/1.1 $($Reply.Status) $Reason`r`nContent-Type: $($Reply.ContentType)`r`nContent-Length: $($Reply.Bytes.Length)`r`nConnection: close`r`nCross-Origin-Opener-Policy: same-origin`r`nCross-Origin-Embedder-Policy: require-corp`r`nCross-Origin-Resource-Policy: cross-origin`r`n"
     if ($Reply.Location) { $Headers += "Location: $($Reply.Location)`r`n" }
     $Headers += "`r`n"
-    $Stream = $Client.GetStream()
-    $HeaderBytes = [System.Text.Encoding]::ASCII.GetBytes($Headers)
-    $Stream.Write($HeaderBytes, 0, $HeaderBytes.Length)
-    if (!$HeadOnly) { $Stream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
-    $Stream.Flush()
+    try {
+      $Stream = $Client.GetStream()
+      $HeaderBytes = [System.Text.Encoding]::ASCII.GetBytes($Headers)
+      $Stream.Write($HeaderBytes, 0, $HeaderBytes.Length)
+      if (!$HeadOnly) { $Stream.Write($Reply.Bytes, 0, $Reply.Bytes.Length) }
+      $Stream.Flush()
+    } catch [System.IO.IOException] {
+      # Browsers routinely cancel superseded asset requests during iframe reloads.
+      return
+    } catch [System.ObjectDisposedException] {
+      return
+    }
   }
 
   $BaseUrl = "http://127.0.0.1:$ActualPort"
