@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3623,
-                     "lastCheckedAt":  "2026-08-28T22:03:23+08:00",
+                     "lastCheckedAt":  "2026-08-28T22:55:12+08:00",
                      "completedCheckboxes":  53,
                      "pendingCheckboxes":  6
                  },
@@ -319,8 +319,8 @@
                           }
                       ],
     "verification":  {
-                           "tests":  "passed: 7 个测试文件，38 项全部通过（2026-08-28 21:55）",
-                           "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:02）；仅有既有大 chunk 提示",
+                         "tests":  "passed: 7 个测试文件，38 项全部通过（2026-08-28 22:53）",
+                         "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:54）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
                             "documentFetch":  "passed: revision 3623；53 项已完成，6 项待处理（2026-08-28 22:03）",
