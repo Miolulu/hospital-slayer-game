@@ -361,6 +361,7 @@
                              "buildaFixedBundleLocal":  "passed: 当前 dist 重新构建；仅保留一份 index-CEDYJxlD.js，PNG 全部转为同名 WebP 并同步 index.html/脚本引用；299 个 WebP、0 个 PNG、0 个目录条目，bundle-check 通过，包体 193121819 字节；未上传或发布。",
                              "buildaDraftUpload":  "passed: 创游世界草稿同步完成，gameId GD:48356599:1，currentVersionId cbafab05-fdcc-5677-b1f6-c174dd980b94，bundleVersion b92665db868c07202f51e6416732e312；cysjSyncStatus=synced，公开发布待用户操作。",
                              "floorEnemyPreviewRotation":  "passed: addFloorEnemyPreview 按楼层稳定选择同类敌人变体，npm.cmd test 与 npm.cmd run build 通过。",
-                             "investigatorFemaleEdgeCleanup":  "passed: 调查员女正常版静态图和四向行走序列使用 edge_artifact 清理并归一化为 192 像素帧，npm.cmd test 与 npm.cmd run build 通过。"
+                             "investigatorFemaleEdgeCleanup":  "passed: 调查员女正常版静态图和四向行走序列使用 edge_artifact 清理并归一化为 192 像素帧，npm.cmd test 与 npm.cmd run build 通过。",
+                             "combatUiWaveRefactor":  "passed: 战斗 HUD 顶层与嵌套容器固定在视口，左下 SAN/经验状态面板避开触摸摇杆，按钮触摸热区统一至少 48px 并补充按压与暴走提示状态；npm.cmd test（38 项）与 npm.cmd run build 通过。"
                      }
 }

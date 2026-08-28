@@ -2290,24 +2290,34 @@ export class HospitalBattleScene extends Phaser.Scene {
   private addFloorEnemyPreview(parent: Phaser.GameObjects.Container, x: number, y: number, kind: EnemyKind, floor: number) {
     const card = this.add.container(x, y);
     const accent = kind === 'boss' || kind === 'miniBoss' ? paletteRgb.danger : paletteRgb.cyan;
+    const cardWidth = 150;
+    const cardHeight = 128;
     if (this.textures.exists('mainline-floor-enemy-frame-v1')) {
-      card.add(this.add.image(0, 0, 'mainline-floor-enemy-frame-v1').setOrigin(0.5).setDisplaySize(124, 106).setAlpha(0.98));
+      card.add(this.add.image(0, 0, 'mainline-floor-enemy-frame-v1').setOrigin(0.5).setDisplaySize(cardWidth, cardHeight).setAlpha(0.98));
     } else {
-      card.add(this.add.rectangle(0, 0, 124, 106, 0x071117, 0.9).setStrokeStyle(1, accent, 0.62));
+      card.add(this.add.rectangle(0, 0, cardWidth, cardHeight, 0x071117, 0.9).setStrokeStyle(1, accent, 0.62));
     }
     let sprite: Phaser.GameObjects.Sprite | undefined;
     if (kind === 'boss' || kind === 'miniBoss') {
       const key = kind === 'boss'
         ? MOON_MOTH_QUEEN_ART.portraitKey
         : MAINLINE_BOSS_ART_VARIANT_LIST[Math.abs(Math.floor(floor)) % MAINLINE_BOSS_ART_VARIANT_LIST.length]?.portraitKey;
-      if (this.textures.exists(key)) sprite = this.add.sprite(0, -10, key, 0).setOrigin(0.5).setDisplaySize(68, 68);
+      if (this.textures.exists(key)) {
+        sprite = this.add.sprite(0, -10, key, 0).setOrigin(0.5);
+        const targetHeight = 84;
+        sprite.setDisplaySize(targetHeight * sprite.width / Math.max(1, sprite.height), targetHeight);
+      }
     } else {
       const artKey = smallEnemyArtForFloor(kind as SmallEnemyKind, floor);
-      if (artKey && this.textures.exists(artKey)) sprite = this.add.sprite(0, -10, artKey, 0).setOrigin(0.5).setDisplaySize(58, 58);
+      if (artKey && this.textures.exists(artKey)) {
+        sprite = this.add.sprite(0, -10, artKey, 0).setOrigin(0.5);
+        const targetHeight = 74;
+        sprite.setDisplaySize(targetHeight * sprite.width / Math.max(1, sprite.height), targetHeight);
+      }
     }
     if (sprite) card.add(sprite);
     else card.add(this.add.circle(0, -10, 23, kind === 'boss' ? 0x7e2e51 : 0x315b68, 0.9).setStrokeStyle(2, accent, 0.8));
-    card.add(this.add.text(0, 38, this.enemyPreviewLabel(kind), { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream, align: 'center' }).setOrigin(0.5));
+    card.add(this.add.text(0, 47, this.enemyPreviewLabel(kind), { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cream, align: 'center', wordWrap: { width: 128 } }).setOrigin(0.5));
     parent.add(card);
     return card;
   }
@@ -2395,13 +2405,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layoutShift = centerX - W / 2;
     const selected = this.selectedStartFloor;
     this.addUiTextTexture(layer, W / 2, this.safeTopY(46, 18), 180, 76, 'ui-text-mainline-v1', '主线通关', 28);
-    layer.add(this.add.text(W / 2, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
+    layer.add(this.add.text(W / 2, this.safeTopY(78, 18), '精神病院·楼层', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(104, 18), Math.min(1030, safe.width), 1, 0x46636a, 0.78));
 
     const leftColumnX = 355 + layoutShift;
-    const building = this.add.container(leftColumnX, 400);
-    building.add(this.add.text(0, -252, '精神病院 · WARD 07', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    layer.add(building);
 
     const maskShape = this.add.graphics().setScrollFactor(0);
     maskShape.fillStyle(0xffffff, 1).fillRect(64 + layoutShift, this.floorScrollViewport.top, 582, this.floorScrollViewport.bottom - this.floorScrollViewport.top);
@@ -2459,15 +2466,14 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     const detailX = clamp(940 + layoutShift, safe.left + 250, safe.right - 250);
     const detail = this.add.container(detailX, 382);
-    detail.add(this.add.text(-220, -206, this.floorLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '25px', color: selected === 0 ? palette.amber : palette.cream }).setFontStyle('bold'));
-    detail.add(this.add.text(220, -204, `${selected === 0 ? '教程' : `进度 ${selected} / ${TOTAL_FLOORS}`}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.green }).setOrigin(1, 0));
-    detail.add(this.add.text(-220, -168, this.floorZoneLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
-    detail.add(this.add.rectangle(0, -138, 438, 1, 0x46636a, 0.74));
-    detail.add(this.add.text(-220, -112, '可能出现', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
-    this.floorEnemyKinds(selected).slice(0, 6).forEach((kind, index) => this.addFloorEnemyPreview(detail, -148 + (index % 3) * 148, -34 + Math.floor(index / 3) * 112, kind, selected));
+    detail.add(this.add.text(-250, -206, this.floorLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '25px', color: selected === 0 ? palette.amber : palette.cream }).setFontStyle('bold'));
+    if (selected !== 0) detail.add(this.add.text(250, -204, `进度 ${selected} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.green }).setOrigin(1, 0));
+    detail.add(this.add.text(-250, -168, this.floorZoneLabel(selected), { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }));
+    detail.add(this.add.rectangle(0, -138, 500, 1, 0x46636a, 0.74));
+    detail.add(this.add.text(-250, -112, '可能出现', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.muted }).setFontStyle('bold'));
+    this.floorEnemyKinds(selected).slice(0, 6).forEach((kind, index) => this.addFloorEnemyPreview(detail, -164 + (index % 3) * 164, -30 + Math.floor(index / 3) * 132, kind, selected));
     if (selected === 0) {
-      detail.add(this.add.text(-220, 170, '入口教程', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setFontStyle('bold'));
-      detail.add(this.add.text(-220, 196, '满级体验：熟悉移动、自动攻击、经验升级与低 SAN 异化。', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 430 } }));
+      // 入口说明保持简洁，教程内容在进入关卡后通过对话展示。
     } else if (selected > maxSelectable) {
       detail.add(this.add.text(-220, 170, `完成${this.floorLabel(selected - 1)}后解锁当前楼层`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.amber }));
     } else {
