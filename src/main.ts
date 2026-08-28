@@ -1839,9 +1839,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       const textureKey = unlocked
         ? (isSelected ? 'mainline-floor-selected-v1' : 'mainline-floor-unlocked-v1')
         : (isSelected ? 'mainline-floor-locked-selected-v1' : 'mainline-floor-locked-v1');
-      if (isSelected && unlocked) {
-        this.tweens.add({ targets: glow, alpha: 0.5, duration: 860, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      }
       if (this.textures.exists(textureKey)) {
         const source = this.textures.get(textureKey).getSourceImage() as { width: number; height: number };
         const sourceAspect = source.width / Math.max(1, source.height);
