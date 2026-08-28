@@ -90,6 +90,7 @@ interface SkinDef {
 interface ProgressSave {
   maxFloor: number;
   mainlineIntroSeen?: boolean;
+  tutorialCompleted?: boolean;
   unlockedWeaponIds: string[];
   unlockedWeaponSkinIds: string[];
   equippedWeaponSkinIds: Partial<Record<WeaponClass, string>>;
@@ -240,6 +241,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private world!: Phaser.GameObjects.Container;
   private ui!: Phaser.GameObjects.Container;
   private arenaBackground?: Phaser.GameObjects.Image;
+  private arenaBackgroundTransition?: Phaser.GameObjects.Image;
   private arenaBackgroundTexture = '';
   private player!: Phaser.GameObjects.Container;
   private playerBodyLayer?: Phaser.GameObjects.Container;
@@ -268,6 +270,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private progress: ProgressSave = {
     maxFloor: 1,
     mainlineIntroSeen: false,
+    tutorialCompleted: false,
     unlockedWeaponIds: ['knife', 'ward-lantern'],
     unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'],
     equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' },
@@ -283,6 +286,11 @@ export class HospitalBattleScene extends Phaser.Scene {
   private playerIdentityLoaded = false;
   private profilePreviewSkinId = 'patient-default';
   private profileSkinCategory: ProfileSkinCategory = 'all';
+  private profileSkinPage = 0;
+  private profileSkinPointer?: number;
+  private profileSkinStartX = 0;
+  private profileSkinMoved = false;
+  private profileSkinViewport = { left: 0, right: 0, top: 0, bottom: 0 };
   private skinPaymentPending = false;
   private dailyBoard: DailyBoardEntry[] = [
     { rank: 1, name: '夜班记录员', score: 9820 },
@@ -354,12 +362,6 @@ export class HospitalBattleScene extends Phaser.Scene {
   private level = 1;
   private xpNeed = experienceRequiredForLevel(1);
   private kills = 0;
-  private mutationTimer = 0;
-  private sanLowActive = false;
-  private sanLowTimer = 0;
-  private frenzyAvailable = false;
-  private frenzyActive = false;
-  private frenzyTimer = 0;
   private sanPulse = 0;
   private mutated = false;
   private runSpeed = 190;
@@ -392,6 +394,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private dialogueIndex = 0;
   private dialogueTransitioning = false;
   private tutorialRun = false;
+  private tutorialDialogueStage: 'intro' | 'outro' = 'intro';
   private tutorialGuide?: Phaser.GameObjects.Container;
   private tutorialGuideTimer = 0;
   private floorScrollContent?: Phaser.GameObjects.Container;
@@ -404,6 +407,17 @@ export class HospitalBattleScene extends Phaser.Scene {
   private floorScrollStartOffset = 0;
   private floorScrollMoved = false;
   private readonly floorScrollViewport = { top: 174, bottom: 628 };
+  private dailyRankingRows?: Phaser.GameObjects.Container;
+  private dailyRankingScrollThumb?: Phaser.GameObjects.Rectangle;
+  private dailyRankingEntries: DailyBoardEntry[] = [];
+  private dailyRankingVisibleCount = 0;
+  private dailyRankingOffset = 0;
+  private dailyRankingMaxOffset = 0;
+  private dailyRankingPointer?: number;
+  private dailyRankingStartY = 0;
+  private dailyRankingStartOffset = 0;
+  private dailyRankingMoved = false;
+  private dailyRankingViewport = { left: 0, right: 0, top: 0, bottom: 0 };
   private screenShakeEnabled = true;
   private damageNumbersEnabled = true;
   private buildaSafeArea = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -446,23 +460,31 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.on('progress', (value: number) => {
       this.loadingProgress?.clear()
         .fillStyle(0x6bd3c1, 1)
-        .fillRect(W / 2 - 210, H / 2 + 35, 420 * clamp(value, 0, 1), 10);
+        .fillRect(W / 2 - 210, H / 2 + 42, 420 * clamp(value, 0, 1), 8);
       this.loadingStatus?.setText(`正在加载病区资源  ${Math.round(value * 100)}%`);
       const progress = Math.round(clamp(value, 0, 1) * 100);
       document.getElementById('loading-progress-ring')?.style.setProperty('--progress', `${progress}%`);
+      document.getElementById('loading-progress-fill')?.style.setProperty('width', `${progress}%`);
       const progressLabel = document.getElementById('loading-progress-value');
       if (progressLabel) progressLabel.textContent = `${progress}%`;
+      const htmlStatus = document.getElementById('loading-status');
+      if (htmlStatus) htmlStatus.textContent = `正在加载病区资源  ${progress}%`;
     });
     this.load.on('loaderror', (file: { key?: string }) => {
       const key = file.key || '未知资源';
       this.loadingStatus?.setText(`资源加载失败：${key}`.slice(0, 42)).setColor(palette.danger);
+      const htmlStatus = document.getElementById('loading-status');
+      if (htmlStatus) htmlStatus.textContent = `资源加载失败：${key}`.slice(0, 42);
+      htmlStatus?.setAttribute('data-error', 'true');
     });
     this.load.once('complete', () => {
       this.loadingLayer?.destroy(true);
       this.loadingLayer = undefined;
       this.loadingProgress = undefined;
       this.loadingStatus = undefined;
-      document.getElementById('loading-screen')?.classList.add('hidden');
+      const loadingScreen = document.getElementById('loading-screen');
+      loadingScreen?.setAttribute('aria-busy', 'false');
+      loadingScreen?.classList.add('hidden');
     });
     this.load.image('patient-boy', '/assets/art/patient-boy.png');
     this.load.image('patient-idle-front', '/assets/art/animations/patient-idle-front.png');
@@ -475,6 +497,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png');
     this.load.image('profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.png');
     this.load.image('profile-case-sheet-v1', '/assets/art/profile-case-sheet-v1.png');
+    this.load.image('profile-case-sheet-v2', '/assets/art/profile-case-sheet-v2.png');
+    this.load.image('profile-barcode-v1', '/assets/art/profile-barcode-v1.png');
+    this.load.image('profile-skin-background-v1', '/assets/art/profile-skin-background-v1.png');
+    this.load.spritesheet('profile-skin-frame-v1', '/assets/art/profile-skin-frame-v1.png', { frameWidth: 512, frameHeight: 1024 });
     this.load.image('profile-evidence-corridor-v1', '/assets/art/profile-evidence-corridor-v1.png');
     this.load.image('menu-background-v1', '/assets/art/menu/menu-background-v1.png');
     this.load.image('menu-title-v2', '/assets/art/menu/menu-title-v2.png');
@@ -485,6 +511,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ui-command-frame-v2', '/assets/art/ui/ui-command-frame-v2.png');
     this.load.image('ui-typography-kit-v1', '/assets/art/ui/ui-typography-kit-v1.png');
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
+    this.load.image('dialogue-bubble-v2', '/assets/art/ui/dialogue-bubble-v2.png');
+    this.load.image('touch-joystick-base-v1', '/assets/art/ui/touch-joystick-base-v1.png');
     (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'boss-name', 'start-challenge'] as const).forEach((textAsset) => {
       this.load.image(`ui-text-${textAsset}-v1`, `/assets/art/ui/text/ui-text-${textAsset}-v1.png`);
     });
@@ -494,6 +522,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png');
     this.load.image('daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png');
     this.load.image('daily-ranking-frame-v1', '/assets/art/daily/daily-ranking-frame-v1.png');
+    (['first', 'second', 'third'] as const).forEach((rank) => {
+      this.load.image(`daily-rank-${rank}-v1`, `/assets/art/daily/daily-rank-${rank}-v1.png`);
+    });
     this.load.image('daily-panel-frame-v1', '/assets/art/daily/daily-panel-frame-v1.png');
     this.load.image('daily-start-button-v1', '/assets/art/daily/daily-start-button-v1.png');
     this.load.image('mainline-background-v1', '/assets/art/mainline-background-v1.png');
@@ -506,6 +537,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('mainline-floor-unlocked-v1', '/assets/art/mainline-floor-unlocked-v1.png');
     this.load.image('mainline-floor-selected-v1', '/assets/art/mainline-floor-selected-v1.png');
     this.load.image('mainline-building-floor-shell-v1', '/assets/art/mainline-building-floor-shell-v1.png');
+    this.load.image('mainline-floor-enemy-frame-v1', '/assets/art/mainline-floor-enemy-frame-v1.png');
     this.load.image('weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.png');
     (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => {
       this.load.image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.png`);
@@ -528,7 +560,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('effect-cannon-neon-v1', '/assets/art/weapons/effect-cannon-neon-v1.png');
     this.load.image('effect-whip-neon-v1', '/assets/art/weapons/effect-whip-neon-v1.png');
     this.load.image('xp-drop-cthulhu-v1', '/assets/art/pickups/xp-drop-cthulhu-v1.png');
-    this.load.image('san-frenzy-v1', '/assets/art/hud/san-frenzy-v1.png');
+    this.load.image('hud-status-frame-v2', '/assets/art/ui/hud-status-frame-v2.png');
     UPGRADE_ICON_KINDS.forEach((kind) => {
       this.load.image(`upgrade-icon-${kind}`, `/assets/art/cards/icons/upgrade-icon-${kind}.png`);
     });
@@ -566,21 +598,21 @@ export class HospitalBattleScene extends Phaser.Scene {
   private createLoadingScreen() {
     const layer = this.add.container(0, 0).setDepth(1000).setScrollFactor(0);
     const backdrop = this.add.rectangle(W / 2, H / 2, W, H, palette.bg, 1);
-    const frame = this.add.rectangle(W / 2, H / 2, 560, 188, 0x101b24, 0.98)
-      .setStrokeStyle(2, 0x6bd3c1, 0.92);
-    const title = this.add.text(W / 2, H / 2 - 46, '正在进入病区', {
+    const frame = this.add.rectangle(W / 2, H / 2, 660, 250, 0x071117, 0.98)
+      .setStrokeStyle(1, 0x6bd3c1, 0.68);
+    const title = this.add.text(W / 2, H / 2 - 58, '正在进入病区...', {
       fontFamily: UI_FONT_STACK,
-      fontSize: '24px',
+      fontSize: '28px',
       color: palette.cream,
       stroke: '#071015',
       strokeThickness: 3,
     }).setOrigin(0.5).setFontStyle('bold');
-    const status = this.add.text(W / 2, H / 2 - 8, '正在加载病区资源  0%', {
+    const status = this.add.text(W / 2, H / 2 - 10, '正在加载病区资源  0%', {
       fontFamily: UI_FONT_STACK,
       fontSize: '13px',
       color: palette.muted,
     }).setOrigin(0.5);
-    const track = this.add.graphics().fillStyle(0x26383f, 1).fillRect(W / 2 - 210, H / 2 + 35, 420, 10);
+    const track = this.add.graphics().fillStyle(0x26383f, 1).fillRect(W / 2 - 210, H / 2 + 42, 420, 8);
     const progress = this.add.graphics();
     layer.add([backdrop, frame, title, status, track, progress]);
     this.loadingLayer = layer;
@@ -593,7 +625,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.loadProgress();
     this.createPlayerAnimations();
     this.createEnemyAnimations();
-    this.floor = clamp(this.progress.maxFloor, 1, TOTAL_FLOORS);
+    this.floor = this.progress.tutorialCompleted ? clamp(this.progress.maxFloor, 1, TOTAL_FLOORS) : 0;
     this.weapons = this.createWeaponRoster();
     this.requestLandscapeLock();
     this.world = this.add.container(0, 0);
@@ -905,15 +937,14 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private buildHud() {
     const text = (x: number, y: number, value: string, size = 16, color = palette.cream) => this.add.text(x, y, value, { fontFamily: 'Microsoft YaHei', fontSize: `${size}px`, color, lineSpacing: 3 });
-    // 固定组件只使用画布坐标，镜头移动时不会带走数值和提示。
-    const panel = this.add.container(174, H - 242).setDepth(25).setScrollFactor(0, 0, true);
-    this.addPixelFrame(panel, 146, 110, 292, 220, palette.panel, 0x6bd3c1);
-    panel.add(this.add.text(14, 10, '生存状态 / SAN', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }).setFontStyle('bold'));
+    const safe = this.pageSafeBounds(0);
+    // 固定 HUD 只保留 SAN、经验和当前武器，统一放进美术贴图预留区。
+    const panel = this.add.container(safe.left + 104, H - 164).setDepth(25).setScrollFactor(0, 0, true);
     this.hud.panel = panel;
     this.ui.add(panel);
     this.hud.sanOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0xc44557, 0).setDepth(0);
     this.ui.add(this.hud.sanOverlay);
-    const wavePanel = this.add.container(W / 2, 44).setDepth(26).setScrollFactor(0, 0, true);
+    const wavePanel = this.add.container(safe.centerX, 44).setDepth(26).setScrollFactor(0, 0, true);
     this.hud.wavePanel = wavePanel;
     this.ui.add(wavePanel);
     this.hud.wave = text(0, -12, '第 1 / 10 波', 22, palette.amber).setOrigin(0.5).setFontStyle('bold');
@@ -922,36 +953,21 @@ export class HospitalBattleScene extends Phaser.Scene {
     wavePanel.add(this.hud.wave);
     wavePanel.add(this.hud.timer);
     wavePanel.add(this.hud.waveCleared);
-    this.hud.hp = text(52, 18, '生命 100 / 100', 13, palette.cream).setFixedSize(228, 18);
-    this.hud.xp = text(52, 84, `经验 0 / ${experienceRequiredForLevel(1)} · Lv.1`, 11, palette.muted).setFixedSize(225, 18);
-    this.hud.san = text(52, 43, 'SAN 100 / 100', 13, palette.cyan).setFixedSize(228, 18).setWordWrapWidth(228);
-    this.hud.weapon = text(96, 132, '病院刀 · 武器数 1', 11, palette.amber).setFixedSize(184, 18).setWordWrapWidth(184);
-    this.hud.status = text(96, 162, '环绕攻击 · 自动吸附', 10, palette.muted).setFixedSize(184, 36).setWordWrapWidth(184);
-    panel.add(this.hud.hp);
-    panel.add(this.hud.xp);
-    panel.add(this.hud.san);
-    panel.add(this.hud.weapon);
-    panel.add(this.hud.status);
-    this.hud.bar = this.add.graphics();
-    this.hud.sanBar = this.add.graphics();
     this.hud.xpBar = this.add.graphics();
-    panel.add(this.hud.bar);
-    panel.add(this.hud.sanBar);
+    this.hud.sanBar = this.add.graphics();
     panel.add(this.hud.xpBar);
-    this.hud.bar.setDepth(1);
-    this.hud.sanBar.setDepth(1);
+    panel.add(this.hud.sanBar);
     this.hud.xpBar.setDepth(1);
-    const weaponIcon = this.add.circle(56, 151, 29, 0x19353b, 1).setStrokeStyle(2, 0xf2bf62, 0.95);
-    panel.add(weaponIcon);
-    this.hud.weaponIcon = this.add.image(56, 151, 'weapon-sword').setOrigin(0.5).setDisplaySize(46, 46);
+    this.hud.sanBar.setDepth(1);
+    if (this.textures.exists('hud-status-frame-v2')) {
+      panel.add(this.add.image(0, 0, 'hud-status-frame-v2').setOrigin(0.5).setDisplaySize(190, 285).setDepth(3));
+    }
+    this.hud.xp = text(-25, -118, 'EXP 0%', 8, palette.cyan).setOrigin(0.5).setDepth(4);
+    this.hud.san = text(25, -118, 'SAN 100', 8, palette.cream).setOrigin(0.5).setDepth(4);
+    this.hud.weaponIcon = this.add.image(0, 69, 'weapon-sword').setOrigin(0.5).setDisplaySize(72, 72).setDepth(4);
     panel.add(this.hud.weaponIcon);
-    this.hud.skillIcon = this.add.image(230, 180, 'san-frenzy-v1').setOrigin(0.5).setDisplaySize(48, 48).setDepth(25).setVisible(false);
-    panel.add(this.hud.skillIcon);
-    this.hud.skill = this.add.text(230, 180, '暴走', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.cream, backgroundColor: '#8c3c4d', padding: { left: 12, right: 12, top: 8, bottom: 8 } })
-      .setOrigin(0.5).setDepth(26).setVisible(false)
-      .setInteractive(new Phaser.Geom.Rectangle(-48, -25, 96, 50), Phaser.Geom.Rectangle.Contains);
-    this.hud.skill.on('pointerdown', (pointer: Phaser.Input.Pointer) => { pointer.event?.preventDefault?.(); this.triggerFrenzy(); });
-    panel.add(this.hud.skill);
+    this.hud.weapon = text(0, 132, '病院刀', 10, palette.cream).setOrigin(0.5).setFixedSize(138, 18).setAlign('center').setDepth(4);
+    panel.add([this.hud.xp, this.hud.san, this.hud.weapon]);
     this.pinHudToViewport();
   }
 
@@ -1051,7 +1067,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       ? (this.buildaSafeArea.right + this.buildaCapsuleRect.right + this.buildaCapsuleRect.width + 12) * scaleX
       : this.buildaSafeArea.right * scaleX + 20;
     const safeBottom = this.buildaSafeArea.bottom * scaleY;
-    this.hud.panel?.setPosition(174, H - 242 - safeBottom);
+    const safe = this.pageSafeBounds(0);
+    this.hud.panel?.setPosition(safe.left + 104, H - 164 - safeBottom);
+    this.hud.wavePanel?.setX(safe.centerX);
     this.hud.resourcePanel?.setPosition(W - 122 - Math.max(0, capsuleRight - 20), safeTop + 36);
   }
 
@@ -1146,54 +1164,28 @@ export class HospitalBattleScene extends Phaser.Scene {
         : this.phase === 'wave-break'
           ? `下一波倒计时 ${Math.max(1, Math.ceil(this.waveBreakTimer))} 秒`
           : '下一波准备中');
-    this.hud.hp?.setText(`生命 ${Math.ceil(this.hp)} / ${this.maxHp}${this.maxShield > 0 ? ` · 护盾 ${Math.ceil(this.shield)}` : ''}`);
-    this.hud.xp?.setText(`经验 ${Math.floor(this.xp)} / ${this.xpNeed} · Lv.${this.level}`);
-    const sanLabel = this.mutated
-      ? 'SAN 变异态 · 伤害↑ 防御↓'
-      : this.frenzyActive
-        ? `SAN 归零 · 暴走 ${this.frenzyTimer.toFixed(1)} 秒`
-        : this.sanLowActive
-          ? `SAN 归零 · 刷怪加速 ${this.sanLowTimer.toFixed(1)} 秒`
-          : this.mutationTimer > 0
-            ? `SAN 归零 · 变异倒计时 ${this.mutationTimer.toFixed(1)} 秒`
-            : this.san < 30
-              ? `SAN 偏低 · ${Math.ceil(this.san)} / 100`
-              : `SAN ${Math.ceil(this.san)} / 100`;
-    this.hud.san?.setText(sanLabel);
+    const xpRatio = clamp(this.xp / Math.max(1, this.xpNeed), 0, 1);
+    const sanRatio = clamp(this.san / 100, 0, 1);
+    this.hud.xp?.setText(`EXP ${Math.round(xpRatio * 100)}%`);
+    this.hud.san?.setText(`SAN ${Math.ceil(this.san)}`);
     const weapon = this.currentWeapon();
     this.hud.weapon?.setText(weapon
-      ? `${weapon.name} Lv.${weapon.level} · ×${weapon.copies} · ${this.currentWeaponDamage(weapon)}伤害`
-      : '手持：无');
-    this.hud.weaponIcon?.setTexture(this.weaponAssetKey(weapon)).setVisible(true).setDisplaySize(46, 46);
-    const attackStatusLabel = this.activeAttackStatus
-      ? `${({ poison: '中毒', burn: '燃烧', weaken: '虚弱' } as Record<AttackStatus, string>)[this.activeAttackStatus]} Lv.${this.attackStatusLevel}`
-      : '无攻击特效';
-    const combatStatus = this.mutated
-      ? '变异：刷怪↑ · 移速↑ · 伤害↑ · 防御↓'
-      : this.frenzyActive
-        ? '暴走：伤害↑ · 护盾效果↓'
-        : this.mutationTimer > 0
-          ? `变异倒计时 ${this.mutationTimer.toFixed(1)} 秒 · 防御↓`
-          : this.sanLowActive
-            ? 'SAN 暴走：刷怪↑ · 伤害↑ · 防御↓'
-            : `武器环绕 · 自动拾取 · ${attackStatusLabel}`;
-    this.hud.status?.setText(combatStatus);
+      ? weapon.name
+      : '未装备武器');
+    this.hud.weaponIcon?.setTexture(this.weaponAssetKey(weapon)).setVisible(true).setDisplaySize(72, 72);
     this.hud.kills?.setText(`击破 ${this.kills}`);
-    this.hud.hp?.setColor(this.hp < 30 ? palette.danger : palette.cream);
-    this.hud.san?.setColor(this.mutated || this.san < 30 ? palette.danger : palette.cyan);
-    const sanAlert = this.sanLowActive || this.mutationTimer > 0 || this.mutated || this.frenzyActive;
+    this.hud.san?.setColor(this.san < 30 ? palette.danger : palette.cream);
+    const sanAlert = this.mutated;
     const pulse = 0.04 + (Math.sin(this.sanPulse * 8) + 1) * 0.025;
     this.hud.sanOverlay?.setAlpha(sanAlert ? pulse : this.san < 30 ? 0.025 : 0);
-    const skillVisible = this.phase === 'battle' && this.frenzyAvailable && !this.frenzyActive;
-    this.hud.skillIcon?.setVisible(skillVisible).setAlpha(skillVisible ? 0.92 + (Math.sin(this.sanPulse * 8) + 1) * 0.04 : 0);
-    this.hud.skill?.setVisible(skillVisible).setAlpha(skillVisible ? 0.82 + (Math.sin(this.sanPulse * 8) + 1) * 0.09 : 0);
-    const hpRatio = clamp(this.hp / Math.max(1, this.maxHp), 0, 1);
-    const xpRatio = clamp(this.xp / Math.max(1, this.xpNeed), 0, 1);
-    const healthBarHeight = 132;
-    const healthBarY = 42 + healthBarHeight * (1 - hpRatio);
-    this.hud.bar?.clear().fillStyle(0x2a3b42, 1).fillRect(18, 42, 18, healthBarHeight).fillStyle(this.hp < 30 ? 0xed716e : 0xd25563, 1).fillRect(18, healthBarY, 18, healthBarHeight * hpRatio);
-    this.hud.xpBar?.clear().fillStyle(0x2a3b42, 1).fillRect(52, 84, 220, 7).fillStyle(0x557fc4, 1).fillRect(52, 84, 220 * xpRatio, 7);
-    this.hud.sanBar?.clear().fillStyle(0x2a3b42, 1).fillRect(52, 110, 220, 7).fillStyle(this.mutated || this.frenzyActive ? 0xed716e : 0x7ab9d0, 1).fillRect(52, 110, 220 * clamp(this.san / 100, 0, 1), 7);
+    const barHeight = 145;
+    const barTop = -104;
+    this.hud.xpBar?.clear()
+      .fillStyle(0x081116, 0.96).fillRect(-34, barTop, 19, barHeight)
+      .fillStyle(0x4b8ee8, 1).fillRect(-34, barTop + barHeight * (1 - xpRatio), 19, barHeight * xpRatio);
+    this.hud.sanBar?.clear()
+      .fillStyle(0x12090d, 0.96).fillRect(15, barTop, 19, barHeight)
+      .fillStyle(this.mutated ? 0xff4258 : 0xd85462, 1).fillRect(15, barTop + barHeight * (1 - sanRatio), 19, barHeight * sanRatio);
     this.updateHeldWeaponVisual();
   }
 
@@ -1227,6 +1219,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.progress = {
         maxFloor: clamp(Number(parsed.maxFloor) || 1, 1, TOTAL_FLOORS),
         mainlineIntroSeen: parsed.mainlineIntroSeen === true,
+        tutorialCompleted: parsed.tutorialCompleted === true || Number(parsed.maxFloor) > 1,
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
@@ -1255,7 +1248,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (!this.progress.unlockedSkinIds.includes('investigator-normal')) this.progress.unlockedSkinIds.splice(1, 0, 'investigator-normal');
       if (!this.progress.unlockedSkinIds.includes(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
     } catch {
-      this.progress = { maxFloor: 1, mainlineIntroSeen: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default', 'investigator-normal'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
+      this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: ['patient-default', 'investigator-normal'], equippedSkinId: 'patient-default', archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttempts: 0, metaCoins: 0 };
     }
   }
 
@@ -1319,11 +1312,20 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private todayKey() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
+  private monthKey() {
+    return this.todayKey().slice(0, 7);
   }
 
   private isDailyCompleted() {
-    return this.progress.dailyCompletedDate === this.todayKey();
+    return this.progress.dailyCompletedDate?.slice(0, 7) === this.monthKey();
+  }
+
+  private currentMonthDailyBestSeconds() {
+    return this.isDailyCompleted() ? this.progress.dailyBestSeconds : undefined;
   }
 
   private dailyAttemptsUsed() {
@@ -1332,10 +1334,6 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private async startDailyAttempt(weaponId: string) {
-    if (this.isDailyCompleted()) {
-      this.showDailyChallenge('本月挑战已完成，本日入口已锁定');
-      return;
-    }
     const today = this.todayKey();
     let attempts = this.dailyAttemptsUsed();
     if (attempts >= 3) {
@@ -1390,10 +1388,6 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private showWeaponSelect(mode: RunMode, targetFloor = this.floor) {
-    if (mode === 'daily' && this.isDailyCompleted()) {
-      this.showDailyChallenge('今日挑战已完成，请明日再来~');
-      return;
-    }
     this.phase = 'weapon-select';
     this.runMode = mode;
     this.selectedStartFloor = clamp(Math.round(targetFloor), mode === 'mainline' ? 0 : 1, TOTAL_FLOORS);
@@ -1543,7 +1537,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const lastButtonY = safe.bottom - buttonHeight / 2 - 12;
     const firstButtonY = lastButtonY - (buttonHeight + buttonGap) * 2;
     this.addMenuImageButton(layer, safe.centerX, firstButtonY, 330, buttonHeight, 'menu-button-archive-v1', '病历档案', () => this.showProfile());
-    this.addMenuImageButton(layer, safe.centerX, firstButtonY + buttonHeight + buttonGap, 330, buttonHeight, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.floor));
+    this.addMenuImageButton(layer, safe.centerX, firstButtonY + buttonHeight + buttonGap, 330, buttonHeight, 'menu-button-mainline-v1', '主线通关', () => this.showMainline(this.progress.tutorialCompleted ? this.floor : 0));
     this.addMenuImageButton(layer, safe.centerX, lastButtonY, 330, buttonHeight, 'menu-button-daily-v1', '每日挑战', () => this.showDailyChallenge());
     this.overlay = layer;
   }
@@ -1721,7 +1715,11 @@ export class HospitalBattleScene extends Phaser.Scene {
   private addFloorEnemyPreview(parent: Phaser.GameObjects.Container, x: number, y: number, kind: EnemyKind) {
     const card = this.add.container(x, y);
     const accent = kind === 'boss' || kind === 'miniBoss' ? paletteRgb.danger : paletteRgb.cyan;
-    card.add(this.add.rectangle(0, 0, 124, 106, 0x071117, 0.9).setStrokeStyle(1, accent, 0.62));
+    if (this.textures.exists('mainline-floor-enemy-frame-v1')) {
+      card.add(this.add.image(0, 0, 'mainline-floor-enemy-frame-v1').setOrigin(0.5).setDisplaySize(124, 106).setAlpha(0.98));
+    } else {
+      card.add(this.add.rectangle(0, 0, 124, 106, 0x071117, 0.9).setStrokeStyle(1, accent, 0.62));
+    }
     let sprite: Phaser.GameObjects.Sprite | undefined;
     if (kind === 'boss' || kind === 'miniBoss') {
       const key = kind === 'boss' ? 'floor-boss-01' : 'mini-boss-01';
@@ -1738,6 +1736,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private setFloorScrollOffset(offset: number) {
+    if (!this.progress.tutorialCompleted) return;
     this.floorScrollOffset = clamp(offset, this.floorScrollMin, this.floorScrollMax);
     this.floorScrollContent?.setY(this.floorScrollOffset);
     this.floorScrollRegions.forEach(({ region, baseY }) => { region.y = baseY + this.floorScrollOffset; });
@@ -1795,14 +1794,21 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private showMainline(targetFloor = this.floor) {
     if (!this.progress.mainlineIntroSeen) {
-      this.showMainlineIntro();
-      return;
+      this.progress.mainlineIntroSeen = true;
+      this.saveProgress();
     }
     this.phase = 'mainline-select';
     this.runMode = 'mainline';
     this.ui?.setVisible(false);
-    const maxSelectable = clamp(this.progress.maxFloor, 1, TOTAL_FLOORS);
-    this.selectedStartFloor = clamp(Math.round(targetFloor), 0, maxSelectable);
+    // Battle camera follow survives the tutorial outro unless it is stopped here.
+    // The floor picker is viewport UI, so always rebuild it from the viewport origin.
+    this.cameras.main.stopFollow();
+    this.cameras.main.setZoom(1);
+    this.cameras.main.setScroll(0, 0);
+    const maxSelectable = this.progress.tutorialCompleted ? clamp(this.progress.maxFloor, 1, TOTAL_FLOORS) : 0;
+    this.selectedStartFloor = this.progress.tutorialCompleted
+      ? clamp(Math.round(targetFloor), 0, TOTAL_FLOORS)
+      : 0;
     this.clearOverlay();
     const layer = this.add.container(0, 0).setDepth(40).setScrollFactor(0);
     this.addHospitalBackdrop(layer, 'mainline-floor-select-background-v1', 0.18);
@@ -1811,9 +1817,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
     const selected = this.selectedStartFloor;
-    layer.add(this.add.text(W / 2, this.safeTopY(46, 18), '主线通关', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
+    this.addUiTextTexture(layer, W / 2, this.safeTopY(46, 18), 180, 76, 'ui-text-mainline-v1', '主线通关', 28);
     layer.add(this.add.text(W / 2, this.safeTopY(78, 18), '精神病院 · 楼层档案', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.text(safe.right - 8, this.safeTopY(52, 18), `已开放 ${this.progress.maxFloor} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.green }).setOrigin(1, 0.5));
+    layer.add(this.add.text(safe.right - 8, this.safeTopY(52, 18), `已开放 ${maxSelectable} / ${TOTAL_FLOORS}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.green }).setOrigin(1, 0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(104, 18), Math.min(1030, safe.width), 1, 0x46636a, 0.78));
 
     const leftColumnX = 355 + layoutShift;
@@ -1821,11 +1827,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     building.add(this.add.text(0, -252, '精神病院 · WARD 07', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(building);
 
-    const maskShape = this.add.graphics();
+    const maskShape = this.add.graphics().setScrollFactor(0);
     maskShape.fillStyle(0xffffff, 1).fillRect(64 + layoutShift, this.floorScrollViewport.top, 582, this.floorScrollViewport.bottom - this.floorScrollViewport.top);
     maskShape.setVisible(false);
     layer.add(maskShape);
-    this.floorScrollContent = this.add.container(0, 0).setMask(maskShape.createGeometryMask());
+    this.floorScrollContent = this.add.container(0, 0).setScrollFactor(0).setMask(maskShape.createGeometryMask());
     this.floorScrollRegions = [];
     // Keep the authored perspective ratio and space each floor as a large
     // scrollable window so the tower remains readable at full size.
@@ -1843,16 +1849,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floorScrollOffset = clamp((this.floorScrollViewport.top + this.floorScrollViewport.bottom) / 2 - baseYForFloor(selected), this.floorScrollMin, this.floorScrollMax);
     this.floorScrollContent.setY(this.floorScrollOffset);
     for (let floor = 0; floor <= TOTAL_FLOORS; floor += 1) {
-      const unlocked = floor === 0 || floor <= this.progress.maxFloor;
+      const unlocked = floor === 0 || (this.progress.tutorialCompleted === true && floor <= this.progress.maxFloor);
       const isSelected = floor === selected;
       // Every floor maps to the tower's single vertical window column.
       const x = floorCardX;
       const y = baseYForFloor(floor);
       const card = this.add.container(x, y);
-      const glow = this.add.rectangle(0, 0, floorSlotWidth + 18, floorSlotHeight + 18, paletteRgb.danger, unlocked ? (isSelected ? 0.34 : 0.12) : 0.035);
-      card.add(glow);
-      if (unlocked) this.tweens.add({ targets: glow, alpha: isSelected ? 0.5 : 0.28, duration: 760, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      card.add(this.add.rectangle(0, 0, floorSlotWidth, floorSlotHeight, unlocked ? 0x0d1b22 : 0x11191e, 0.18).setStrokeStyle(1, unlocked ? paletteRgb.danger : 0x3b5158, unlocked ? 0.72 : 0.7));
       if (this.textures.exists('mainline-building-floor-shell-v1')) {
         card.add(this.add.image(0, 0, 'mainline-building-floor-shell-v1')
           .setOrigin(0.5)
@@ -1873,15 +1875,11 @@ export class HospitalBattleScene extends Phaser.Scene {
           .setAlpha(unlocked ? 0.98 : 0.92));
       }
       this.floorScrollContent.add(card);
-      if (unlocked) {
-        const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
-        this.uiActionRegions.push(region);
-        this.floorScrollRegions.push({ region, baseY: y });
-      }
+      const region: UiActionRegion = { phase: this.phase, x, y: y + this.floorScrollOffset, width: floorSlotWidth + 18, height: floorSlotHeight + 18, callback: () => this.showMainline(floor), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) };
+      this.uiActionRegions.push(region);
+      this.floorScrollRegions.push({ region, baseY: y });
     }
     layer.add(this.floorScrollContent);
-    layer.add(this.add.text(leftColumnX, this.safeTopY(130, 18), '上下滑动查看楼层', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(0.5));
-    layer.add(this.add.text(leftColumnX, this.safeBottomY(650, 22), '红光窗口可进入 · 锁定楼层需完成上一层', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: palette.cyan }).setOrigin(0.5));
 
     const detailX = clamp(940 + layoutShift, safe.left + 250, safe.right - 250);
     const detail = this.add.container(detailX, 382);
@@ -1893,13 +1891,19 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floorEnemyKinds(selected).slice(0, 6).forEach((kind, index) => this.addFloorEnemyPreview(detail, -148 + (index % 3) * 148, -34 + Math.floor(index / 3) * 112, kind));
     if (selected === 0) {
       detail.add(this.add.text(-220, 170, '入口教程', { fontFamily: 'Microsoft YaHei', fontSize: '13px', color: palette.amber }).setFontStyle('bold'));
-      detail.add(this.add.text(-220, 196, '满级体验：熟悉移动、自动攻击、经验升级与 SAN 异化。', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 430 } }));
+      detail.add(this.add.text(-220, 196, '满级体验：熟悉移动、自动攻击、经验升级与低 SAN 异化。', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 430 } }));
+    } else if (selected > maxSelectable) {
+      detail.add(this.add.text(-220, 170, `完成${this.floorLabel(selected - 1)}后解锁当前楼层`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.amber }));
     } else {
       detail.add(this.add.text(-220, 170, `通关后解锁 ${selected < TOTAL_FLOORS ? this.floorLabel(selected + 1) : '终局档案'}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.green }));
     }
     layer.add(detail);
-    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`, () => this.showWeaponSelect('mainline', selected), 'primary', 12);
+    const canEnterFloor = selected === 0 || (this.progress.tutorialCompleted === true && selected <= maxSelectable);
+    this.addButton(layer, detailX, this.safeBottomY(649, 34), 320, 48, canEnterFloor ? (selected === 0 ? '开始教程' : `进入${this.floorLabel(selected)}`) : '楼层未解锁', () => {
+      if (canEnterFloor) this.showWeaponSelect('mainline', selected);
+    }, canEnterFloor ? 'primary' : 'muted', 12, true);
     this.addButton(layer, 88, 38, 150, 42, '返回主界面', () => this.showStart(), 'muted', 8);
+    layer.setScrollFactor(0, 0, true);
     this.overlay = layer;
   }
 
@@ -1924,42 +1928,13 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private addPixelFrame(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, fill: number, accent: number) {
+    void width;
+    void height;
+    void fill;
+    void accent;
+    // Legacy vector panels are intentionally blank. Pages now use authored
+    // raster frames where one exists, otherwise content sits directly on the scene.
     const frame = this.add.container(x, y);
-    frame.add(this.add.rectangle(4, 4, width, height, 0x03060a, 0.96));
-    frame.add(this.add.rectangle(0, 0, width, height, fill, 0.98).setStrokeStyle(2, 0x080d13, 1));
-    frame.add(this.add.rectangle(0, 0, width - 10, height - 10, fill, 0).setStrokeStyle(1, accent, 0.45));
-    const commandFrameKey = this.textures.exists('ui-command-frame-v2') ? 'ui-command-frame-v2' : 'ui-command-frame';
-    if (this.textures.exists(commandFrameKey)) {
-      const edgeWidth = Math.max(180, width + 42);
-      const edgeHeight = Math.min(58, Math.max(44, height * 0.12));
-      const top = this.add.image(0, -height / 2 + edgeHeight * 0.38, commandFrameKey)
-        .setDisplaySize(edgeWidth, edgeHeight)
-        .setAlpha(0.78);
-      const bottom = this.add.image(0, height / 2 - edgeHeight * 0.38, commandFrameKey)
-        .setDisplaySize(edgeWidth, edgeHeight)
-        .setFlipY(true)
-        .setAlpha(0.7);
-      frame.add([top, bottom]);
-      if (this.textures.exists('ui-round-frame')) {
-        const cornerSize = Math.min(48, Math.max(34, edgeHeight));
-        const topLeft = this.add.image(-width / 2 + cornerSize * 0.55, -height / 2 + cornerSize * 0.55, 'ui-round-frame')
-          .setDisplaySize(cornerSize, cornerSize)
-          .setAlpha(0.72);
-        const bottomRight = this.add.image(width / 2 - cornerSize * 0.55, height / 2 - cornerSize * 0.55, 'ui-round-frame')
-          .setDisplaySize(cornerSize, cornerSize)
-          .setAngle(180)
-          .setAlpha(0.64);
-        frame.add([topLeft, bottomRight]);
-      }
-    } else {
-      const corners = this.add.graphics();
-      corners.lineStyle(3, accent, 0.9);
-      corners.lineBetween(-width / 2 + 6, -height / 2 + 14, -width / 2 + 6, -height / 2 + 6);
-      corners.lineBetween(-width / 2 + 6, -height / 2 + 6, -width / 2 + 14, -height / 2 + 6);
-      corners.lineBetween(width / 2 - 14, height / 2 - 6, width / 2 - 6, height / 2 - 6);
-      corners.lineBetween(width / 2 - 6, height / 2 - 6, width / 2 - 6, height / 2 - 14);
-      frame.add(corners);
-    }
     parent.add(frame);
     return frame;
   }
@@ -1986,17 +1961,73 @@ export class HospitalBattleScene extends Phaser.Scene {
     return frame;
   }
 
+  private setDailyRankingOffset(offset: number) {
+    const next = clamp(Math.round(offset), 0, this.dailyRankingMaxOffset);
+    if (next === this.dailyRankingOffset && this.dailyRankingRows) return;
+    this.dailyRankingOffset = next;
+    this.renderDailyRankingRows();
+  }
+
+  private renderDailyRankingRows() {
+    const rows = this.dailyRankingRows;
+    if (!rows) return;
+    rows.removeAll(true);
+    const rowHeight = 30;
+    const listTop = -120;
+    const board = this.dailyRankingEntries;
+    board.slice(this.dailyRankingOffset, this.dailyRankingOffset + this.dailyRankingVisibleCount).forEach((entry, index) => {
+      const y = listTop + index * rowHeight;
+      const own = entry.name === this.playerNickname;
+      const topRank = entry.rank <= 3;
+      const rankColor = entry.rank === 1 ? palette.amber : entry.rank === 2 ? '#d6e7ea' : entry.rank === 3 ? '#d99263' : palette.cream;
+      if (topRank) rows.add(this.add.rectangle(0, y, 304, rowHeight - 2, entry.rank === 1 ? 0x8e6d32 : entry.rank === 2 ? 0x4e6972 : 0x754a35, 0.36));
+      else if (own) rows.add(this.add.rectangle(0, y, 304, rowHeight - 3, 0x18353b, 0.9));
+      if (topRank) {
+        const badgeKey = entry.rank === 1 ? 'daily-rank-first-v1' : entry.rank === 2 ? 'daily-rank-second-v1' : 'daily-rank-third-v1';
+        if (this.textures.exists(badgeKey)) {
+          const badge = this.add.image(-131, y, badgeKey).setOrigin(0.5);
+          const scale = (rowHeight - 2) / Math.max(1, badge.height);
+          badge.setScale(scale);
+          rows.add(badge);
+        } else {
+          rows.add(this.add.circle(-131, y, 11, entry.rank === 1 ? 0xf2bf62 : entry.rank === 2 ? 0xd6e7ea : 0xd99263, 0.85).setStrokeStyle(1, 0x050b10, 0.9));
+          rows.add(this.add.text(-131, y, String(entry.rank), { fontFamily: 'Courier New', fontSize: '10px', color: '#071117' }).setOrigin(0.5));
+        }
+      } else {
+        rows.add(this.add.text(-143, y, String(entry.rank).padStart(2, '0'), { fontFamily: 'Courier New', fontSize: '10px', color: rankColor }).setOrigin(0, 0.5));
+      }
+      const displayName = entry.name.length > 12 ? `${entry.name.slice(0, 11)}...` : entry.name;
+      rows.add(this.add.text(-82, y, displayName, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: own ? palette.teal : rankColor }).setOrigin(0, 0.5));
+      const timeLabel = entry.score > 0 ? this.formatDailyTime(Math.max(1, Math.round((100000 - entry.score) / 100))) : '未通关';
+      rows.add(this.add.text(143, y, timeLabel, {
+        fontFamily: 'Courier New, Microsoft YaHei',
+        fontSize: '10px',
+        color: entry.score > 0 ? (topRank ? rankColor : palette.amber) : palette.danger,
+      }).setOrigin(1, 0.5));
+    });
+    if (this.dailyRankingScrollThumb) {
+      const trackTop = -117;
+      const trackHeight = 282;
+      const thumbHeight = Math.max(28, trackHeight * this.dailyRankingVisibleCount / Math.max(this.dailyRankingVisibleCount, board.length));
+      const travel = Math.max(0, trackHeight - thumbHeight);
+      const progress = this.dailyRankingMaxOffset > 0 ? this.dailyRankingOffset / this.dailyRankingMaxOffset : 0;
+      this.dailyRankingScrollThumb.setDisplaySize(7, thumbHeight).setY(trackTop + thumbHeight / 2 + travel * progress);
+    }
+  }
+
   private addDailyImageButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, accent: number) {
     const button = this.add.container(x, y);
     const image = this.add.image(0, 0, 'daily-start-button-v1').setOrigin(0.5).setDisplaySize(width, height);
-    const text = this.add.text(0, 0, label, {
-      fontFamily: 'Microsoft YaHei', fontSize: '19px', color: palette.cream, stroke: '#080d11', strokeThickness: 4,
-    }).setOrigin(0.5).setFontStyle('bold');
-    button.add([image, text]);
+    const labelNode = label === '开始挑战' && this.textures.exists('ui-text-start-challenge-v1')
+      ? this.add.image(0, 0, 'ui-text-start-challenge-v1').setOrigin(0.5).setDisplaySize(190, 70)
+      : this.add.text(0, 0, label, {
+        fontFamily: 'Microsoft YaHei', fontSize: '19px', color: palette.cream, stroke: '#080d11', strokeThickness: 4,
+      }).setOrigin(0.5).setFontStyle('bold');
+    button.add([image, labelNode]);
     const setPressed = (pressed: boolean) => {
       button.setScale(pressed ? 0.96 : 1);
       image.setTint(pressed ? 0xc6d8d0 : 0xffffff);
-      text.setAlpha(pressed ? 0.8 : 1);
+      labelNode.setAlpha(pressed ? 0.8 : 1);
     };
     parent.add(button);
     this.uiActionRegions.push({ phase: this.phase, x, y, width: width + 22, height: Math.max(48, height + 12), callback, setPressed });
@@ -2019,10 +2050,16 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private dialogueLines() {
     if (this.tutorialRun) {
+      if (this.tutorialDialogueStage === 'outro') {
+        return [
+          { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '果然又是梦吗？...' },
+          { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '我昨夜的力量真是强得可怕，好想再试一试。' },
+          { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '总有一天我能变得同梦里那么强大，斩杀深渊里的诡神！' },
+        ];
+      }
       return [
-        { speaker: '深渊使者', role: '梦境来客', glyph: '渊', color: 0xb798e2, text: '病院已经被诡异污染。找到并击败源头，你才能从梦里醒来。' },
-        { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '我会记住这条路。刀、枪和异化的力量，都交给我试试。' },
-        { speaker: '深渊使者', role: '梦境来客', glyph: '渊', color: 0xb798e2, text: '去吧，少年。等你睁眼时，真正的夜班才刚刚开始。' },
+        { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '又来到了这里吗？这次竟然是白天的病房？！！' },
+        { speaker: '小男孩', role: '患者 / 0001', glyph: '男', color: 0xf2bf62, text: '这一次我一定要打败所有诡异，彻底净化这里！！' },
       ];
     }
     return [
@@ -2044,8 +2081,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     const layoutShift = safe.centerX - W / 2;
     const line = this.dialogueLines()[this.dialogueIndex];
     const playerActive = line.speaker === '小男孩';
-    const npcLine = playerActive ? this.dialogueLines().find((entry) => entry.speaker !== '小男孩') ?? this.dialogueLines()[0] : line;
-    const npcData = { color: npcLine.color, role: npcLine.role, glyph: npcLine.glyph };
+    const npcLine = playerActive
+      ? this.dialogueLines().find((entry) => entry.speaker !== '小男孩')
+      : line;
+    const hasNpcLine = Boolean(npcLine);
+    const npcData = npcLine ?? { color: 0x5d5c53, role: '', glyph: '' };
     const progressLabel = this.add.text(safe.left, this.safeTopY(34, 8), `${String(this.dialogueIndex + 1).padStart(2, '0')} / ${String(this.dialogueLines().length).padStart(2, '0')}`, {
       fontFamily: 'Courier New, Microsoft YaHei', fontSize: '14px', color: palette.cream, stroke: '#1b1413', strokeThickness: 4,
     }).setOrigin(0, 0.5);
@@ -2059,10 +2099,15 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.tutorialRun) floorLabel.setText('入口教程');
 
     const stage = this.add.container(layoutShift, 0);
-    const npcX = 500;
-    const playerX = 780;
+    // Keep the player on the left and the hospital staff on the right. Both
+    // actors share the same floor baseline so the day-to-night cut has no
+    // visible jump in composition.
+    const npcX = 835;
+    const playerX = 445;
     const actorY = this.safeBottomY(515, 108);
-    this.addDialogueCharacter(stage, npcX, actorY - 28, npcLine.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
+    if (hasNpcLine) {
+      this.addDialogueCharacter(stage, npcX, actorY - 6, npcLine!.speaker === '夜班护士' ? 'nurse' : 'doctor', npcData.color);
+    }
     const playerShadow = this.add.graphics();
     playerShadow.fillStyle(0x05090f, 0.24).fillEllipse(playerX, actorY + 112, 126, 22);
     stage.add(playerShadow);
@@ -2071,9 +2116,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       playerSprite.setAlpha(1).clearTint();
     }
 
-    const npcBubble = this.addDialogueBubble(stage, npcX, 345, 270, 96, '', !playerActive ? line.text : '', 'left', !playerActive ? line.color : 0x5d5c53);
-    const playerBubble = this.addDialogueBubble(stage, playerX, 345, 270, 96, '', playerActive ? line.text : '', 'right', playerActive ? line.color : 0x5d5c53);
-    npcBubble.setVisible(!playerActive);
+    const npcBubble = this.addDialogueBubble(stage, npcX, 296, 340, 112, '', !playerActive && hasNpcLine ? line.text : '', 'left', !playerActive ? line.color : 0x5d5c53);
+    const playerBubble = this.addDialogueBubble(stage, playerX, 296, 340, 112, '', playerActive ? line.text : '', 'right', playerActive ? line.color : 0x5d5c53);
+    npcBubble.setVisible(!playerActive && hasNpcLine);
     playerBubble.setVisible(playerActive);
     layer.add(stage);
 
@@ -2128,6 +2173,34 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private addDialogueBubble(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, speaker: string, message: string, tailSide: 'left' | 'right', accent: number) {
     const bubble = this.add.container(x, y);
+    if (this.textures.exists('dialogue-bubble-v2')) {
+      // The generated frame is 3:1; keep its native ratio so the tail and
+      // corner ornaments do not look vertically stretched on any viewport.
+      const frameWidth = width + 24;
+      const frameHeight = frameWidth * (724 / 2172);
+      const frame = this.add.image(0, -4, 'dialogue-bubble-v2')
+        .setOrigin(0.5)
+        .setDisplaySize(frameWidth, frameHeight);
+      bubble.add(frame);
+      const textColor = '#17232c';
+      if (speaker) bubble.add(this.add.text(-width / 2 + 22, -height / 2 + 15, speaker, {
+        fontFamily: UI_FONT_STACK,
+        fontSize: '12px',
+        color: textColor,
+      }).setFontStyle('bold'));
+      const messageTop = speaker ? -height / 2 + 36 : -height / 2 + 20;
+      const messageHeight = speaker ? height - 48 : height - 34;
+      bubble.add(this.add.text(-width / 2 + 24, messageTop, message, {
+        fontFamily: UI_FONT_STACK,
+        fontSize: '15px',
+        color: textColor,
+        lineSpacing: 5,
+        align: 'center',
+        wordWrap: { width: width - 48, useAdvancedWrap: true },
+      }).setFixedSize(width - 48, messageHeight).setFontStyle('bold').setResolution(2));
+      parent.add(bubble);
+      return bubble;
+    }
     const left = -width / 2;
     const right = width / 2;
     const top = -height / 2;
@@ -2183,7 +2256,28 @@ export class HospitalBattleScene extends Phaser.Scene {
       alpha: 1,
       duration: 1250,
       ease: 'Sine.easeIn',
-      onComplete: () => this.beginBattle(),
+      onComplete: () => {
+        if (this.tutorialRun && this.tutorialDialogueStage === 'outro') {
+          this.tutorialRun = false;
+          this.tutorialDialogueStage = 'intro';
+          this.showMainline(1);
+        } else {
+          this.beginBattle();
+        }
+        // The target scene is created before lifting the veil, so the
+        // hospital room keeps one shared origin while the transition eases
+        // into the night palette instead of cutting on a single frame.
+        const targetLayer = this.phase === 'battle' ? this.ui : this.overlay;
+        const fadeIn = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 1).setDepth(200).setScrollFactor(0);
+        targetLayer?.add(fadeIn);
+        this.tweens.add({
+          targets: fadeIn,
+          alpha: 0,
+          duration: 650,
+          ease: 'Sine.easeOut',
+          onComplete: () => fadeIn.destroy(),
+        });
+      },
     });
   }
 
@@ -2192,7 +2286,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.phase = 'battle';
     this.ui?.setVisible(true);
     this.updateHud();
-    if (this.tutorialRun) this.showTutorialGuide();
   }
 
   private showTutorialGuide() {
@@ -2200,7 +2293,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const guide = this.add.container(W / 2, 122).setDepth(80).setScrollFactor(0);
     guide.add(this.add.rectangle(0, 0, 780, 82, 0x071117, 0.94).setStrokeStyle(2, paletteRgb.amber, 0.86));
     guide.add(this.add.text(0, -22, '入口教程 · 先活下来，再观察 SAN', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    guide.add(this.add.text(0, 12, '拖动任意位置移动 ｜ 武器自动攻击 ｜ 收集绿色经验升级 ｜ SAN 归零会异化', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream }).setOrigin(0.5));
+    guide.add(this.add.text(0, 12, '拖动任意位置移动 ｜ 武器自动攻击 ｜ 收集绿色经验升级 ｜ SAN 归零挑战失败', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream }).setOrigin(0.5));
     this.ui.add(guide);
     this.tutorialGuide = guide;
     this.tutorialGuideTimer = 10;
@@ -2376,61 +2469,54 @@ export class HospitalBattleScene extends Phaser.Scene {
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
     this.addUiTextTexture(layer, centerX, this.safeTopY(58, 8), 170, 68, 'ui-text-archive-v1', '病历档案', 28);
-    layer.add(this.add.text(centerX, this.safeTopY(92, 8), 'PATIENT FILE  /  WARD 07', { fontFamily: 'Courier New', fontSize: '11px', color: palette.cyan }).setOrigin(0.5));
-    layer.add(this.add.text(safe.right - 8, this.safeTopY(62, 8), `\u521b\u6e38\u8d27\u5e01  ${this.progress.metaCoins}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(1, 0.5));
     layer.add(this.add.rectangle(centerX, this.safeTopY(118, 8), 1080, 1, 0x46636a, 0.78));
 
     const previewSkin = this.skins.find((skin) => skin.id === this.profilePreviewSkinId) ?? this.skins[0];
-    // The archive is built as a stack of physical case materials. The sheet
-    // gives the page its silhouette while the two photos and portrait remain
-    // independent, so each record can be replaced without redrawing the page.
-    const boardX = 335 + layoutShift;
-    const boardY = 394;
+    const caseInk = '#293832';
+    const caseAccent = '#9f3e3b';
+    const caseMuted = '#5c675f';
+    const boardX = 340 + layoutShift;
+    const boardY = 408;
     const board = this.add.container(boardX, boardY);
-    board.add(this.add.rectangle(6, 7, 630, 424, 0x02060a, 0.92));
-    if (this.textures.exists('profile-case-sheet-v1')) {
-      board.add(this.add.image(0, 0, 'profile-case-sheet-v1').setOrigin(0.5).setDisplaySize(620, 413).setAlpha(0.98));
+    if (this.textures.exists('profile-case-sheet-v2')) {
+      board.add(this.add.image(0, 0, 'profile-case-sheet-v2').setOrigin(0.5).setDisplaySize(650, 406).setAlpha(0.98));
     } else {
-      board.add(this.add.rectangle(0, 0, 620, 413, 0x101b24, 0.98).setStrokeStyle(2, previewSkin.color, 0.92));
+      board.add(this.add.image(0, 0, 'profile-case-sheet-v1').setOrigin(0.5).setDisplaySize(650, 406).setAlpha(0.98));
     }
-    board.add(this.add.text(0, -188, '\u75c5\u4f8b\u8bc1  /  PATIENT CASE SHEET', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '13px', color: palette.amber }).setOrigin(0.5).setFontStyle('bold'));
-    board.add(this.add.text(-263, -166, `\u6635\u79f0  ${this.playerNickname}`, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cream, wordWrap: { width: 218 } }));
-    board.add(this.add.text(-263, -145, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: palette.cyan }));
-    board.add(this.add.text(263, -166, `W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: 'Courier New', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
-
-    const addEvidencePhoto = (x: number, y: number, key: string, label: string, accent: number) => {
-      board.add(this.add.rectangle(x + 2, y + 3, 132, 96, 0x02060a, 0.95));
-      if (this.textures.exists(key)) board.add(this.add.image(x, y, key).setOrigin(0.5).setDisplaySize(122, 84).setAlpha(0.98));
-      board.add(this.add.rectangle(x, y, 128, 90, 0x000000, 0).setStrokeStyle(1, accent, 0.82));
-      board.add(this.add.text(x, y + 53, label, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '8px', color: palette.cream, backgroundColor: '#071117', padding: { left: 4, right: 4, top: 2, bottom: 2 } }).setOrigin(0.5));
-    };
-    addEvidencePhoto(-164, -92, 'profile-hospital-photo-v1', '\u4e3b\u9662\u533a / 01', previewSkin.color);
-    addEvidencePhoto(208, -92, 'profile-evidence-corridor-v1', '\u8d70\u5eca\u76d1\u63a7 / 02', paletteRgb.cyan);
-
-    const portrait = this.addPatientSprite(board, 22, 22, 176, previewSkin);
+    // Keep identity details in the paper's upper-left field, where the
+    // decorative sheet leaves a clear reading area at every viewport size.
+    board.add(this.add.text(-205, -118, '\u75c5\u4eba\u59d3\u540d', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: caseAccent }).setFontStyle('bold'));
+    board.add(this.add.text(-205, -91, this.playerNickname, { fontFamily: 'Microsoft YaHei', fontSize: '17px', color: caseInk, wordWrap: { width: 190 } }).setFontStyle('bold'));
+    board.add(this.add.text(-205, -59, '\u79f0\u53f7  \u003c\u65e0\u003e', { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: caseAccent }));
+    board.add(this.add.text(-205, -31, `\u75c5\u5386\u7f16\u53f7  W07-${String(this.progress.maxFloor).padStart(2, '0')}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: caseMuted }));
+    board.add(this.add.text(-250, 24, '\u75c7\u72b6\u8bb0\u5f55', { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: caseAccent }).setFontStyle('bold'));
+    board.add(this.add.text(-250, 48, '\u5931\u7720 / \u4f4e\u8bed\u5e7b\u542c / \u7ea2\u5149\u8fc7\u5ea6\u53cd\u5e94', { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: caseInk, wordWrap: { width: 220 } }));
+    if (this.textures.exists('profile-barcode-v1')) board.add(this.add.image(-205, 108, 'profile-barcode-v1').setOrigin(0.5).setDisplaySize(208, 48).setAlpha(0.96));
+    const portrait = this.addPatientSprite(board, 164, -3, 198, previewSkin);
     if (portrait && previewSkin.id !== 'patient-default' && !this.skinHasCustomArt(previewSkin)) portrait.setTint(previewSkin.color);
-    board.add(this.add.rectangle(22, 122, 156, 2, previewSkin.color, 0.76));
-    board.add(this.add.text(22, 140, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
-    board.add(this.add.text(22, 158, '\u5f53\u524d\u88c5\u5907\u76ae\u80a4', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.green }).setOrigin(0.5));
-
-    board.add(this.add.text(-263, 132, '\u75c7\u72b6\u8bb0\u5f55', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setFontStyle('bold'));
-    board.add(this.add.text(-263, 151, '\u5931\u7720 / \u4f4e\u8bed\u5e7b\u542c / \u7ea2\u5149\u8fc7\u5ea6\u53cd\u5e94', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.cream, wordWrap: { width: 165 } }));
-    board.add(this.add.text(263, 132, '\u884c\u52a8\u8bb0\u5f55', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setOrigin(1, 0).setFontStyle('bold'));
-    board.add(this.add.text(263, 151, `SAN  ${Math.ceil(this.san)} / 100  \u00b7  \u697c\u5c42  ${this.progress.maxFloor}`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.cyan }).setOrigin(1, 0));
+    board.add(this.add.text(164, 111, previewSkin.name, { fontFamily: 'Microsoft YaHei', fontSize: '11px', color: caseInk }).setOrigin(0.5).setFontStyle('bold'));
+    board.add(this.add.text(164, 174, `SAN ${Math.ceil(this.san)} / 100`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: caseMuted }).setOrigin(0.5));
     layer.add(board);
 
-    const evidenceTray = this.add.container(boardX, 647);
-    evidenceTray.add(this.add.rectangle(6, 5, 630, 58, 0x02060a, 0.88));
-    evidenceTray.add(this.add.rectangle(0, 0, 620, 54, 0x071117, 0.95).setStrokeStyle(1, previewSkin.color, 0.64));
-    evidenceTray.add(this.add.text(-292, -17, '\u89c2\u5bdf\u5907\u6ce8', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.amber }).setFontStyle('bold'));
-    evidenceTray.add(this.add.text(-292, 4, '\u591c\u95f4\u75c5\u533a\u5b58\u5728\u672a\u77e5\u6ce2\u52a8\uff0c\u8bf7\u52ff\u5355\u72ec\u79bb\u5f00\u3002', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: palette.cream, wordWrap: { width: 320 } }));
-    evidenceTray.add(this.add.text(292, -17, '\u8d44\u6599\u72b6\u6001  /  ARCHIVED', { fontFamily: 'Courier New', fontSize: '9px', color: palette.cyan }).setOrigin(1, 0).setFontStyle('bold'));
-    evidenceTray.add(this.add.text(292, 5, `\u5df2\u5f52\u6863 ${this.progress.archiveKinds.length} \u9879  \u00b7  \u5269\u4f59\u7a7a\u767d\u9879`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '9px', color: palette.muted }).setOrigin(1, 0));
-    layer.add(evidenceTray);
+    const previewUnlocked = this.progress.unlockedSkinIds.includes(previewSkin.id);
+    const previewEquipped = previewSkin.id === this.progress.equippedSkinId;
+    const previewAction = previewUnlocked
+      ? (previewEquipped ? '已装备' : '装备')
+      : previewSkin.id === 'scarlet-night'
+        ? '去挑战'
+        : `购买 ${this.skinPurchaseCost(previewSkin.id)}`;
+    this.addButton(layer, boardX + 164, boardY + 136, 108, 30, previewAction, () => {
+      if (previewUnlocked) this.equipSkin(previewSkin.id);
+      else if (previewSkin.id === 'scarlet-night') this.showDailyChallenge();
+      else void this.buySkin(previewSkin.id);
+    }, previewEquipped ? 'muted' : 'primary', 8);
 
     const skinPanelX = clamp(965 + layoutShift, safe.left + 285, safe.right - 285);
-    this.addPixelFrame(layer, skinPanelX, this.safeBottomY(405, 250), 560, 520, 0x0a141b, 0x46636a);
-    layer.add(this.add.text(skinPanelX - 252, this.safeTopY(157, 8), '\u5168\u90e8\u76ae\u80a4', { fontFamily: 'Microsoft YaHei', fontSize: '16px', color: palette.cream }).setFontStyle('bold'));
+    const skinPanelY = this.safeBottomY(405, 250);
+    const skinPanel = this.add.container(skinPanelX, skinPanelY);
+    if (this.textures.exists('profile-skin-background-v1')) skinPanel.add(this.add.image(0, 0, 'profile-skin-background-v1').setOrigin(0.5).setDisplaySize(560, 520).setAlpha(0.9));
+    else skinPanel.add(this.add.rectangle(0, 0, 560, 520, 0x09141b, 0.9));
+    layer.add(skinPanel);
     layer.add(this.add.text(skinPanelX + 250, this.safeTopY(157, 8), `${this.skins.length} \u5957`, { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '11px', color: palette.muted }).setOrigin(1, 0));
     const categories: Array<{ id: ProfileSkinCategory; label: string }> = [
       { id: 'all', label: '\u5168\u90e8' },
@@ -2440,42 +2526,71 @@ export class HospitalBattleScene extends Phaser.Scene {
     ];
     const setCategory = (category: ProfileSkinCategory) => {
       this.profileSkinCategory = category;
+      this.profileSkinPage = 0;
       const categorySkins = this.skins.filter((skin) => category === 'all' || this.profileSkinCategoryFor(skin) === category);
       if (categorySkins.length > 0 && !categorySkins.some((skin) => skin.id === this.profilePreviewSkinId)) this.profilePreviewSkinId = categorySkins[0].id;
       this.showProfile();
     };
-    categories.forEach((category, index) => {
-      this.addButton(layer, skinPanelX - 126 + index * 84, this.safeTopY(190, 8), index === 3 ? 90 : 68, 28, category.label, () => setCategory(category.id), this.profileSkinCategory === category.id ? 'primary' : 'muted', 7);
-    });
+    if (this.textures.exists('ui-text-profile-tabs-v1')) {
+      layer.add(this.add.image(skinPanelX, this.safeTopY(190, 8), 'ui-text-profile-tabs-v1').setOrigin(0.5).setDisplaySize(430, 78));
+      categories.forEach((category, index) => {
+        const tabX = skinPanelX - 126 + index * 84;
+        this.uiActionRegions.push({
+          phase: this.phase,
+          x: tabX,
+          y: this.safeTopY(190, 8),
+          width: index === 3 ? 90 : 68,
+          height: 36,
+          callback: () => setCategory(category.id),
+          setPressed: () => undefined,
+        });
+        if (this.profileSkinCategory === category.id) layer.add(this.add.rectangle(tabX, this.safeTopY(210, 8), index === 3 ? 72 : 54, 2, paletteRgb.danger, 0.9));
+      });
+    } else {
+      categories.forEach((category, index) => {
+        this.addPlainTextAction(layer, skinPanelX - 126 + index * 84, this.safeTopY(190, 8), index === 3 ? 90 : 68, 36, category.label, () => setCategory(category.id), this.profileSkinCategory === category.id ? palette.teal : palette.muted, 10);
+      });
+    }
     const visibleSkins = this.skins.filter((skin) => this.profileSkinCategory === 'all' || this.profileSkinCategoryFor(skin) === this.profileSkinCategory);
-    visibleSkins.forEach((skin, index) => {
+    const profileSkinPageCount = Math.max(1, Math.ceil(visibleSkins.length / 6));
+    this.profileSkinPage = clamp(this.profileSkinPage, 0, profileSkinPageCount - 1);
+    const pageSkins = visibleSkins.slice(this.profileSkinPage * 6, this.profileSkinPage * 6 + 6);
+    const skinGridTop = 314;
+    const skinGridGapY = 184;
+    this.profileSkinViewport = { left: skinPanelX - 280, right: skinPanelX + 280, top: 232, bottom: 642 };
+    pageSkins.forEach((skin, index) => {
       const unlocked = this.progress.unlockedSkinIds.includes(skin.id);
       const selected = skin.id === this.profilePreviewSkinId;
       const column = index % 3;
       const row = Math.floor(index / 3);
-      const x = skinPanelX - 165 + column * 165;
-      const y = 270 + row * 142;
+      const x = skinPanelX - 172 + column * 172;
+      const y = skinGridTop + row * skinGridGapY;
       const card = this.add.container(x, y);
-      card.add(this.add.rectangle(0, 0, 150, 120, 0x0a141b, 0.98).setStrokeStyle(selected ? 2 : 1, selected ? skin.color : 0x46636a, 0.95));
-      const mini = this.addPatientSprite(card, 0, -17, 66, skin);
+      const frameIndex = unlocked ? (selected ? 1 : 0) : 2;
+      // Keep each page to two rows of three and enlarge the portrait without
+      // changing its source aspect ratio.
+      if (this.textures.exists('profile-skin-frame-v1')) card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.78));
+      const mini = this.addPatientSprite(card, 0, -18, 86, skin);
       if (mini && skin.id !== 'patient-default' && !this.skinHasCustomArt(skin)) mini.setTint(skin.color);
       if (mini && !unlocked) mini.setAlpha(0.42);
-      if (!unlocked) {
-        card.add(this.add.rectangle(0, -16, 144, 74, 0x05090f, 0.34));
-        card.add(this.add.text(0, -16, '\u9501', { fontFamily: 'Microsoft YaHei', fontSize: '18px', color: palette.muted }).setOrigin(0.5));
-      }
-      card.add(this.add.text(0, 40, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: unlocked ? palette.cream : palette.muted, wordWrap: { width: 130 }, align: 'center' }).setOrigin(0.5).setFontStyle('bold'));
-      card.add(this.add.text(0, 57, unlocked ? (skin.id === this.progress.equippedSkinId ? '\u5df2\u88c5\u5907' : '\u5df2\u89e3\u9501') : '\u672a\u89e3\u9501', { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: unlocked ? palette.green : palette.muted }).setOrigin(0.5));
+      card.add(this.add.text(0, 63, skin.name, { fontFamily: 'Microsoft YaHei', fontSize: '9px', color: unlocked ? palette.cream : palette.muted, wordWrap: { width: 90 }, align: 'center' }).setOrigin(0.5).setFontStyle('bold'));
       layer.add(card);
-      this.addButton(layer, x - 35, y + 82, 66, 22, selected ? '\u5df2\u9884\u89c8' : '\u9884\u89c8', () => this.previewSkin(skin.id), selected ? 'primary' : 'muted', 7);
+      // Selecting a card immediately updates the larger preview on the left.
+      this.uiActionRegions.push({ phase: this.phase, x, y, width: 150, height: 168, callback: () => this.previewSkin(skin.id), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) });
       if (unlocked) {
-        this.addButton(layer, x + 39, y + 82, 66, 22, skin.id === this.progress.equippedSkinId ? '\u5df2\u88c5\u5907' : '\u88c5\u5907', () => this.equipSkin(skin.id), skin.id === this.progress.equippedSkinId ? 'muted' : 'primary', 7);
+        this.addPlainTextAction(layer, x + 30, y + 91, 58, 28, skin.id === this.progress.equippedSkinId ? '\u5df2\u88c5\u5907' : '\u88c5\u5907', () => this.equipSkin(skin.id), skin.id === this.progress.equippedSkinId ? palette.muted : palette.teal, 8);
       } else if (skin.id === 'scarlet-night') {
-        this.addButton(layer, x + 39, y + 82, 66, 22, '\u53bb\u6311\u6218', () => this.showDailyChallenge(), 'muted', 7);
+        this.addPlainTextAction(layer, x + 30, y + 91, 58, 28, '\u53bb\u6311\u6218', () => this.showDailyChallenge(), palette.muted, 8);
       } else {
-        this.addButton(layer, x + 39, y + 82, 66, 22, `\u8d2d\u4e70 ${this.skinPurchaseCost(skin.id)}`, () => this.buySkin(skin.id), 'primary', 7);
+        this.addPlainTextAction(layer, x + 30, y + 91, 58, 28, `\u8d2d\u4e70${this.skinPurchaseCost(skin.id)}`, () => this.buySkin(skin.id), palette.teal, 8);
       }
     });
+    if (profileSkinPageCount > 1) {
+      const pageY = this.safeTopY(236, 8);
+      this.addButton(layer, skinPanelX - 232, pageY, 42, 34, '<', () => this.setProfileSkinPage(this.profileSkinPage - 1, profileSkinPageCount), 'muted', 8);
+      this.addButton(layer, skinPanelX + 232, pageY, 42, 34, '>', () => this.setProfileSkinPage(this.profileSkinPage + 1, profileSkinPageCount), 'muted', 8);
+      layer.add(this.add.text(skinPanelX, pageY, `${this.profileSkinPage + 1} / ${profileSkinPageCount}`, { fontFamily: 'Courier New', fontSize: '10px', color: palette.muted }).setOrigin(0.5));
+    }
     this.addButton(layer, 88, 38, 150, 42, '\u8fd4\u56de\u4e3b\u754c\u9762', () => this.showStart(), 'muted', 8);
     this.overlay = layer;
     if (!this.playerIdentityLoaded) {
@@ -2492,6 +2607,11 @@ export class HospitalBattleScene extends Phaser.Scene {
   private previewSkin(id: string) {
     if (!this.skins.some((skin) => skin.id === id)) return;
     this.profilePreviewSkinId = id;
+    this.showProfile();
+  }
+
+  private setProfileSkinPage(page: number, pageCount: number) {
+    this.profileSkinPage = clamp(Math.round(page), 0, Math.max(0, pageCount - 1));
     this.showProfile();
   }
 
@@ -2606,20 +2726,19 @@ export class HospitalBattleScene extends Phaser.Scene {
       stroke: '#050b10',
       strokeThickness: Math.max(2, Math.round(size / 7)),
     }).setOrigin(0.5).setFontStyle('bold');
-    const title = cthulhuText(centerX, this.safeTopY(42, 8), '每日挑战', 26);
-    layer.add(title);
+    this.addUiTextTexture(layer, centerX, this.safeTopY(72, 8), 230, 88, 'ui-text-daily-v1', '每日挑战', 29);
 
     const bossX = clamp(205 + layoutShift, safe.left + 165, safe.right - 165);
-    const bossPanel = this.addDailyPanelFrame(layer, bossX, 220, 330, 250);
-    layer.add(cthulhuText(bossX, 79, '本月首领', 15, palette.violet));
+    const bossPanel = this.add.container(bossX, 220);
+    layer.add(bossPanel);
+    this.addUiTextTexture(layer, bossX, 112, 150, 52, 'ui-text-boss-month-v1', '本月首领', 16, palette.violet);
     if (this.textures.exists('boss-moon-wolf')) {
       bossPanel.add(this.add.image(0, -2, 'boss-moon-wolf').setOrigin(0.5).setDisplaySize(250, 180));
     } else {
       bossPanel.add(this.add.circle(0, -2, 64, 0x24353c, 1).setStrokeStyle(2, 0xb798e2, 1));
       bossPanel.add(this.add.text(0, -2, 'BOSS', { fontFamily: 'Courier New', fontSize: '20px', color: palette.violet }).setOrigin(0.5));
     }
-    layer.add(cthulhuText(bossX, 355, '月蚀狼王', 20));
-    layer.add(cthulhuText(bossX, 407, 'BOSS 掉落', 14, palette.violet));
+    this.addUiTextTexture(layer, bossX, 407, 154, 48, 'ui-text-boss-drop-v1', 'BOSS 掉落', 14, palette.violet);
     const dropItems = [
       { texture: 'relic-crown', label: '月蚀王冠' },
       { texture: 'relic-fang', label: '狼王牙' },
@@ -2646,15 +2765,21 @@ export class HospitalBattleScene extends Phaser.Scene {
     }).setOrigin(0.5));
 
     const infoX = centerX + 5;
-    layer.add(cthulhuText(infoX, 168, completed ? '本月挑战已完成' : '今晚的病区正在等待', 19, completed ? palette.green : palette.cream));
-    layer.add(this.add.text(infoX, 220, '通关最快记录', {
+    if (completed) layer.add(cthulhuText(infoX, 168, '本月挑战已完成', 19, palette.green));
+    else this.addUiTextTexture(layer, infoX, 158, 244, 54, 'ui-text-status-waiting-v1', '今晚的病区正在等待', 15);
+    layer.add(this.add.text(infoX, 202, '通关最快记录', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '11px',
       color: palette.muted,
     }).setOrigin(0.5));
-    layer.add(cthulhuText(infoX, 252, this.formatDailyTime(this.progress.dailyBestSeconds), 24, this.progress.dailyBestSeconds ? palette.green : palette.danger));
+    const monthlyBestSeconds = this.currentMonthDailyBestSeconds();
+    const statusStampKey = monthlyBestSeconds ? 'ui-stamp-completed-v1' : 'ui-stamp-uncompleted-v1';
+    const statusStampFallback = monthlyBestSeconds ? '已通关' : '未通关';
+    this.addUiTextTexture(layer, infoX, 258, 108, 108, statusStampKey, statusStampFallback, 21, monthlyBestSeconds ? palette.green : palette.danger);
+    if (monthlyBestSeconds) layer.add(cthulhuText(infoX, 322, this.formatDailyTime(monthlyBestSeconds), 18, palette.green));
     const dailyActionY = this.safeBottomY(635, 52);
-    if (!completed) this.addDailyImageButton(layer, centerX, dailyActionY, 330, 86, attempts >= 3 ? '付费挑战' : '开始挑战', () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
+    const dailyActionLabel = attempts >= 3 ? '付费挑战' : completed ? '刷新纪录' : '开始挑战';
+    this.addDailyImageButton(layer, centerX, dailyActionY, 330, 86, dailyActionLabel, () => this.showWeaponSelect('daily', 1), attempts >= 3 ? 0xed716e : 0xb798e2);
     layer.add(this.add.text(centerX, this.safeBottomY(700, 10), '剩余免费次数 ' + Math.max(0, 3 - attempts) + ' / 3', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '11px',
@@ -2670,39 +2795,34 @@ export class HospitalBattleScene extends Phaser.Scene {
     const rankingX = clamp(1080 + layoutShift, safe.left + 180, safe.right - 180);
     const rankingY = this.safeBottomY(370, 282);
     const boardPanel = this.addDailyRankingFrame(layer, rankingX, rankingY, 360, 560);
-    boardPanel.add(cthulhuText(0, -248, '排行榜', 18));
-    boardPanel.add(this.add.text(-143, -218, '排名', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
-    boardPanel.add(this.add.text(-76, -218, '昵称', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
-    boardPanel.add(this.add.text(143, -218, '通关记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
-    boardPanel.add(this.add.rectangle(0, -200, 300, 1, 0x6bd3c1, 0.28));
-    const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && this.progress.dailyBestSeconds ? { ...entry, score: this.dailyScoreForTime(this.progress.dailyBestSeconds) } : entry);
-    board.slice(0, 20).forEach((entry) => {
-      const y = -181 + (entry.rank - 1) * 17;
-      const own = entry.name === this.playerNickname;
-      const topRank = entry.rank <= 3;
-      const rankColor = entry.rank === 1 ? palette.amber : entry.rank === 2 ? '#d6e7ea' : entry.rank === 3 ? '#d99263' : palette.cream;
-      if (topRank) boardPanel.add(this.add.rectangle(0, y + 7, 304, 18, entry.rank === 1 ? 0x8e6d32 : entry.rank === 2 ? 0x4e6972 : 0x754a35, 0.34));
-      else if (own) boardPanel.add(this.add.rectangle(0, y + 7, 304, 17, 0x18353b, 0.9));
-      if (topRank) {
-        boardPanel.add(this.add.circle(-133, y + 7, 8, entry.rank === 1 ? 0xf2bf62 : entry.rank === 2 ? 0xd6e7ea : 0xd99263, 0.85).setStrokeStyle(1, 0x050b10, 0.9));
-        boardPanel.add(this.add.text(-133, y + 7, String(entry.rank), { fontFamily: 'Courier New', fontSize: '9px', color: '#071117' }).setOrigin(0.5));
-      } else {
-        boardPanel.add(this.add.text(-143, y + 7, String(entry.rank).padStart(2, '0'), { fontFamily: 'Courier New', fontSize: '10px', color: rankColor }).setOrigin(0, 0.5));
-      }
-      boardPanel.add(this.add.text(-76, y + 7, entry.name, { fontFamily: 'Microsoft YaHei', fontSize: '10px', color: own ? palette.teal : rankColor }).setOrigin(0, 0.5));
-      const timeLabel = entry.score > 0 ? this.formatDailyTime(Math.max(1, Math.round((100000 - entry.score) / 100))) : '未通关';
-      boardPanel.add(this.add.text(143, y + 7, timeLabel, {
-        fontFamily: 'Courier New, Microsoft YaHei',
-        fontSize: '10px',
-        color: entry.score > 0 ? (topRank ? rankColor : palette.amber) : palette.danger,
-      }).setOrigin(1, 0.5));
-    });
+    this.addUiTextTexture(boardPanel, 0, -194, 150, 56, 'ui-text-ranking-v1', '排行榜', 18);
+    boardPanel.add(this.add.text(-143, -154, '排名', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    boardPanel.add(this.add.text(-76, -154, '昵称', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }));
+    boardPanel.add(this.add.text(143, -154, '通关记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '10px', color: palette.muted }).setOrigin(1, 0));
+    boardPanel.add(this.add.rectangle(0, -136, 300, 1, 0x6bd3c1, 0.28));
+    const board = this.dailyBoard.map((entry) => entry.name === this.playerNickname && monthlyBestSeconds ? { ...entry, score: this.dailyScoreForTime(monthlyBestSeconds) } : entry);
+    const rankingListTop = -120;
+    const rankingListBottom = 180;
+    const rankingRowHeight = 30;
+    this.dailyRankingEntries = board;
+    this.dailyRankingVisibleCount = Math.max(1, Math.floor((rankingListBottom - rankingListTop) / rankingRowHeight));
+    this.dailyRankingMaxOffset = Math.max(0, board.length - this.dailyRankingVisibleCount);
+    this.dailyRankingOffset = clamp(this.dailyRankingOffset, 0, this.dailyRankingMaxOffset);
+    this.dailyRankingViewport = { left: rankingX - 162, right: rankingX + 162, top: rankingY - 150, bottom: rankingY + 168 };
+    boardPanel.add(this.add.rectangle(160, 24, 4, 282, 0x18353b, 0.78));
+    this.dailyRankingScrollThumb = this.add.rectangle(160, -103, 7, 76, 0xb798e2, 0.88);
+    boardPanel.add(this.dailyRankingScrollThumb);
+    boardPanel.add(this.add.triangle(160, -124, -5, 5, 5, 5, 0, -5, 0x6bd3c1, 0.8));
+    boardPanel.add(this.add.triangle(160, 168, -5, -5, 5, -5, 0, 5, 0x6bd3c1, 0.8));
+    this.dailyRankingRows = this.add.container(0, 0);
+    boardPanel.add(this.dailyRankingRows);
+    this.renderDailyRankingRows();
     boardPanel.add(this.add.rectangle(0, 165, 300, 1, 0x6bd3c1, 0.28));
     boardPanel.add(this.add.text(-143, 180, '我的记录', { fontFamily: 'Courier New, Microsoft YaHei', fontSize: '12px', color: palette.muted }));
-    boardPanel.add(this.add.text(143, 180, this.progress.dailyBestSeconds ? this.formatDailyTime(this.progress.dailyBestSeconds) : '未通关', {
+    boardPanel.add(this.add.text(143, 180, monthlyBestSeconds ? this.formatDailyTime(monthlyBestSeconds) : '未通关', {
       fontFamily: 'Courier New, Microsoft YaHei',
       fontSize: '19px',
-      color: this.progress.dailyBestSeconds ? palette.green : palette.danger,
+      color: monthlyBestSeconds ? palette.green : palette.danger,
     }).setOrigin(1, 0));
     layer.add(boardPanel);
     this.addButton(layer, 88, 38, 100, 34, '返回', () => this.showStart(), 'muted', 8);
@@ -2941,9 +3061,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.clearRunObjects();
     this.runMode = mode;
     this.tutorialRun = mode === 'mainline' && Math.round(targetFloor) === 0;
-    this.floor = mode === 'daily' ? 1 : this.tutorialRun ? 1 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
+    this.floor = mode === 'daily' ? 1 : this.tutorialRun ? 0 : clamp(Math.round(targetFloor), 1, Math.min(TOTAL_FLOORS, this.progress.maxFloor));
     this.selectedWeaponId = weaponId;
-    this.phase = 'dialogue';
+    this.phase = 'battle';
     this.dialogueIndex = 0;
     this.dialogueTransitioning = false;
     this.wave = 1;
@@ -2970,12 +3090,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.level = this.tutorialRun ? 8 : 1;
     this.xpNeed = experienceRequiredForLevel(this.level);
     this.kills = 0;
-    this.mutationTimer = 0;
-    this.sanLowActive = false;
-    this.sanLowTimer = 0;
-    this.frenzyAvailable = false;
-    this.frenzyActive = false;
-    this.frenzyTimer = 0;
     this.sanPulse = 0;
     this.mutated = false;
     this.damageBonus = 0;
@@ -3028,7 +3142,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.cameras.main.setBounds(WORLD_BOUNDS.left, WORLD_BOUNDS.top, WORLD_BOUNDS.right - WORLD_BOUNDS.left, WORLD_BOUNDS.bottom - WORLD_BOUNDS.top);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
     this.updateHud();
-    this.showDialogue();
+    if (this.tutorialRun) this.showDialogue();
+    else this.beginBattle();
   }
 
   private createPlayer() {
@@ -3042,9 +3157,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.playerSprite = undefined;
     const equippedSkin = this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
     const skinColor = equippedSkin.color;
-    this.playerGlow = this.add.circle(0, 0, 42, this.mutated ? 0xed716e : 0x6bd3c1, 0.14);
+    this.playerGlow = this.add.circle(0, 0, 42, this.mutated ? 0xed716e : 0x6bd3c1, 0);
     bodyLayer.add(this.playerGlow);
-    bodyLayer.add(this.add.circle(0, 8, 34, this.mutated ? 0xed716e : skinColor, 0.2).setStrokeStyle(1, skinColor, 0.8));
     this.playerSpriteTargetHeight = 104;
     this.playerSprite = this.addPlayerSprite(bodyLayer, 0, 5, this.playerSpriteTargetHeight, equippedSkin);
     if (!this.playerSprite) {
@@ -3160,29 +3274,35 @@ export class HospitalBattleScene extends Phaser.Scene {
     const resolved = this.resolveBlockedPosition(this.player.x + x * this.runSpeed * dt, this.player.y + y * this.runSpeed * dt, this.playerRadius);
     this.player.x = resolved.x;
     this.player.y = resolved.y;
-    if (this.playerHitTimer > 0) this.playPlayerAnimation('hit');
-    else this.playPlayerAnimation(moving ? `walk-${this.playerDirection}` : 'idle');
+    this.playPlayerAnimation(moving ? `walk-${this.playerDirection}` : 'idle');
+    if (this.playerSprite) {
+      if (this.playerHitTimer > 0) this.playerSprite.setTint(0xff4f58);
+      else this.playerSprite.clearTint();
+    }
     const mutationVisual = this.mutated;
     this.playerGlow.setFillStyle(mutationVisual ? 0xed716e : 0x6bd3c1);
-    this.playerGlow.setAlpha(mutationVisual ? 0.22 + (Math.sin(this.sanPulse * 10) + 1) * 0.06 : 0.14);
+    this.playerGlow.setAlpha(0);
     this.playerGlow.setScale(mutationVisual ? 1.08 + (Math.sin(this.sanPulse * 10) + 1) * 0.05 : 1);
   }
 
   private spawnWaveEnemy() {
     if (this.waveTimer >= this.waveLength || this.waveSpawned >= this.spawnBudgetForWave()) return;
     const available: EnemyKind[] = ['chaser'];
-    if (this.wave >= 3) available.push('shooter');
-    if (this.wave >= 6) available.push('disruptor');
-    if (this.wave >= 9) available.push('tentacle');
-    if (this.wave >= 12) available.push('bomber');
-    if (this.wave >= 15) available.push('eye');
     if (this.tutorialRun) {
-      (['shooter', 'disruptor', 'tentacle', 'bomber', 'eye'] as EnemyKind[]).forEach((kind) => {
-        if (!available.includes(kind)) available.push(kind);
-      });
+      const tutorialKinds: EnemyKind[] = ['chaser', 'shooter', 'disruptor', 'tentacle', 'bomber'];
+      available.splice(0, available.length, ...tutorialKinds.slice(0, Math.min(this.wave, tutorialKinds.length)));
+    } else {
+      if (this.wave >= 3) available.push('shooter');
+      if (this.wave >= 6) available.push('disruptor');
+      if (this.wave >= 9) available.push('tentacle');
+      if (this.wave >= 12) available.push('bomber');
+      if (this.wave >= 15) available.push('eye');
     }
     let kind: EnemyKind = Phaser.Utils.Array.GetRandom(available);
-    if (this.isMiniBossWave() && !this.waveBossSpawned) {
+    if (this.isTutorialBossWave() && !this.waveBossSpawned) {
+      kind = 'boss';
+      this.waveBossSpawned = true;
+    } else if (this.isMiniBossWave() && !this.waveBossSpawned) {
       kind = 'miniBoss';
       this.waveBossSpawned = true;
     }
@@ -3282,6 +3402,9 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private spawnBudgetForWave() {
+    if (this.tutorialRun) {
+      return [10, 20, 30, 40, 50, 1][clamp(this.wave, 1, 6) - 1];
+    }
     const paceBudget = Math.ceil(this.durationForWave() / Math.max(0.1, this.spawnIntervalForWave() * this.spawnRateMultiplier()));
     if (this.runMode === 'daily') {
       const scaling = dailyWaveScaling(this.wave);
@@ -3292,11 +3415,16 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private wavesPerFloor() {
+    if (this.tutorialRun) return 6;
     return this.runMode === 'daily' ? 50 : wavesPerFloorForFloor(this.floor);
   }
 
   private isMiniBossWave() {
-    return this.runMode === 'mainline' && this.wave === 7;
+    return this.runMode === 'mainline' && !this.tutorialRun && this.wave === 7;
+  }
+
+  private isTutorialBossWave() {
+    return this.tutorialRun && this.wave === 6;
   }
 
   private isFloorBossWave() {
@@ -4032,22 +4160,21 @@ export class HospitalBattleScene extends Phaser.Scene {
         .sort((a, b) => distance(a.node, this.player) - distance(b.node, this.player))[0];
       if (target) this.damageEnemy(target, this.dailyShieldRetaliation, 0x7ab9d0);
     }
-    this.hp = clamp(this.hp - healthDamage, 0, this.maxHp);
-    this.san = clamp(this.san - incoming * 1.2, 0, 100);
-    if (this.san <= 0 && !this.mutated && !this.frenzyAvailable && !this.frenzyActive) this.beginSanCollapse();
+    this.san = clamp(this.san - healthDamage, 0, 100);
+    this.hp = this.san;
     const hitLabel = absorbed > 0
-      ? `${source} 护盾吸收 ${Math.round(absorbed)}${healthDamage > 0 ? ` · 生命 -${Math.round(healthDamage)}` : ''}`
-      : `${source} 生命 -${Math.round(healthDamage)}`;
+      ? `${source} 护盾吸收 ${Math.round(absorbed)}${healthDamage > 0 ? ` · SAN -${Math.round(healthDamage)}` : ''}`
+      : `${source} SAN -${Math.round(healthDamage)}`;
     this.floatText(this.player.x, this.playerLabelY(10), hitLabel, absorbed > 0 ? palette.cyan : palette.danger);
     this.cameras.main.flash(90, 180, 65, 65, false);
     if (this.screenShakeEnabled) this.cameras.main.shake(120, 0.006);
     this.playerHitTimer = 0.3;
-    this.playPlayerAnimation('hit', true);
-    // Keep the character silhouette at a uniform scale. Hit feedback comes
-    // from the camera flash, shake and animation instead of squash/stretch.
+    this.playerSprite?.setTint(0xff4f58);
+    // Keep the current animation frame and silhouette. Damage feedback is a
+    // short red tint plus camera feedback, never a replacement hit sprite.
     this.tweens.killTweensOf(this.player);
     this.player.setScale(1);
-    if (this.san <= 0 && this.mutated) {
+    if (this.san <= 0) {
       this.playerDeathPending = true;
       this.playerDeathTimer = 0.72;
       this.playerHitTimer = 0;
@@ -4057,50 +4184,43 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private updateMutation(dt: number) {
     this.sanPulse += dt;
-    this.updateWardBackground();
-    if (this.mutated) return;
-    if (this.san <= 0 && !this.frenzyAvailable && !this.frenzyActive && this.mutationTimer <= 0) this.beginSanCollapse();
-    if (this.sanLowActive) {
-      this.sanLowTimer -= dt;
-      if (this.sanLowTimer <= 0) {
-        this.sanLowTimer = 0;
-        this.sanLowActive = false;
-        this.floatText(this.player.x, this.playerLabelY(18), '低 SAN 暴走结束 · 刷怪恢复', palette.cyan);
-      }
+    const shouldMutate = this.san > 0 && this.san < 30;
+    if (shouldMutate !== this.mutated) {
+      this.mutated = shouldMutate;
+      this.cameras.main.shake(shouldMutate ? 260 : 120, shouldMutate ? 0.01 : 0.004);
+      this.floatText(this.player.x, this.playerLabelY(18), shouldMutate ? 'SAN 低于 30 · 异化启动' : 'SAN 恢复 · 异化解除', shouldMutate ? palette.danger : palette.cyan);
+      this.updateWardBackground();
     }
-    if (this.frenzyActive) {
-      this.frenzyTimer -= dt;
-      if (this.frenzyTimer <= 0) {
-        this.frenzyTimer = 0;
-        this.frenzyActive = false;
-        this.san = 35;
-        this.floatText(this.player.x, this.playerLabelY(18), '暴走结束 · SAN 暂时稳定', palette.cyan);
-      }
-    }
-    if (this.mutationTimer > 0) {
-      this.mutationTimer -= dt;
-      if (this.mutationTimer <= 0) {
-        this.mutated = true;
-        this.damageBonus += 10;
-        this.san = 42;
-        this.playerGlow.setFillStyle(0xed716e);
-        this.cameras.main.shake(380, 0.012);
-        this.floatText(this.player.x, this.playerLabelY(18), '变异完成 · 伤害提升', palette.danger);
-        this.updateWardBackground();
-      }
-    }
-  }
-
-  private enterMutationMode() {
-    this.beginSanCollapse();
   }
 
   private updateWardBackground() {
     if (!this.arenaBackground) return;
     const textureKey = this.mutated ? 'ward-night-deep-v1' : 'ward-night-v1';
-    if (this.arenaBackgroundTexture === textureKey || !this.textures.exists(textureKey)) return;
+    if (this.arenaBackgroundTexture === textureKey || this.arenaBackgroundTransition?.texture.key === textureKey || !this.textures.exists(textureKey)) return;
     this.arenaBackgroundTexture = textureKey;
-    this.arenaBackground.setTexture(textureKey);
+    const previous = this.arenaBackground;
+    const next = this.add.image(
+      (WORLD_BOUNDS.left + WORLD_BOUNDS.right) / 2,
+      (WORLD_BOUNDS.top + WORLD_BOUNDS.bottom) / 2,
+      textureKey,
+    ).setOrigin(0.5).setDisplaySize(
+      WORLD_BOUNDS.right - WORLD_BOUNDS.left,
+      WORLD_BOUNDS.bottom - WORLD_BOUNDS.top,
+    ).setAlpha(0);
+    this.world.add(next);
+    this.arenaBackgroundTransition = next;
+    this.tweens.add({
+      targets: next,
+      alpha: 0.96,
+      duration: 900,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        if (this.arenaBackgroundTransition !== next) return;
+        previous?.destroy();
+        this.arenaBackground = next;
+        this.arenaBackgroundTransition = undefined;
+      },
+    });
   }
 
   private updateDailyAugments(dt: number) {
@@ -4141,27 +4261,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floatText(x, y - 36, '猎杀爆裂', '#ffe2a0');
   }
 
-  private beginSanCollapse() {
-    if (this.mutated || this.mutationTimer > 0 || this.frenzyAvailable || this.frenzyActive) return;
-    this.sanLowActive = true;
-    this.sanLowTimer = 3;
-    this.frenzyAvailable = true;
-    this.spawnTimer = Math.min(this.spawnTimer, 0.05);
-    this.cameras.main.shake(220, 0.008);
-    this.floatText(this.player.x, this.playerLabelY(18), 'SAN 归零 · 暴走技能已就绪', palette.danger);
-  }
-
-  private triggerFrenzy() {
-    if (this.phase !== 'battle' || !this.frenzyAvailable || this.frenzyActive) return;
-    this.frenzyAvailable = false;
-    this.frenzyActive = true;
-    this.frenzyTimer = 8;
-    this.sanLowActive = false;
-    this.sanLowTimer = 0;
-    this.spawnTimer = Math.min(this.spawnTimer, 0.05);
-    this.cameras.main.shake(240, 0.01);
-    this.floatText(this.player.x, this.playerLabelY(18), '暴走启动 · 伤害提升 / 护盾减弱', palette.danger);
-  }
   private gainXp(amount: number) {
     this.xp += amount;
     this.checkLevelUp();
@@ -4185,8 +4284,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.textures.exists(textureKey)) {
       const icon = this.add.image(x, y, textureKey)
         .setOrigin(0.5)
-        // The card opening is about 128px wide at runtime; use the full inner diameter.
-        .setDisplaySize(128, 128);
+        // The card assets already provide the circular opening. Keep each
+        // authored icon inside that opening without adding a second ring.
+        .setDisplaySize(94, 94);
       parent.add(icon);
       return icon;
     }
@@ -4495,7 +4595,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     const centerX = safe.centerX;
     const layoutShift = centerX - W / 2;
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
-    this.addPixelFrame(layer, centerX, 350, 940, 560, 0x101b24, 0xb798e2);
     layer.add(this.add.text(centerX, this.safeTopY(84, 8), `升级 Lv.${this.level}`, { fontFamily: 'Microsoft YaHei', fontSize: '28px', color: palette.cream }).setOrigin(0.5).setFontStyle('bold'));
     layer.add(this.add.text(centerX, this.safeTopY(122, 8), '随机三选一 · 选择后继续战斗', { fontFamily: 'Microsoft YaHei', fontSize: '14px', color: palette.muted }).setOrigin(0.5));
     const weapon = this.currentWeapon();
@@ -4529,11 +4628,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       // and raster icon on the same measured center so every type lands in
       // the circular opening instead of drifting into the text panel.
       const iconCenterY = -58;
-      const iconHalo = this.add.circle(0, iconCenterY, 66, choice.color, 0.08).setStrokeStyle(2, choice.color, 0.72);
-      card.add(iconHalo);
       this.upgradeCardIcon(card, choice.icon ?? 'effect', 0, iconCenterY, choice.color);
-      const titleSize = choice.title.length > 11 ? 14 : 16;
-      const detailSize = choice.detail.length > 42 ? 9 : 10;
+      const titleSize = choice.title.length > 11 ? 15 : 17;
+      const detailSize = choice.detail.length > 42 ? 10 : 11;
       card.add(this.add.text(0, 78, choice.title, {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${titleSize}px`,
@@ -4543,8 +4640,8 @@ export class HospitalBattleScene extends Phaser.Scene {
         strokeThickness: rarity === 'blue' ? 2 : 1,
         wordWrap: { width: 176 },
         lineSpacing: 2,
-      }).setOrigin(0.5).setFixedSize(184, 52).setFontStyle('bold'));
-      card.add(this.add.text(0, 128, choice.detail, {
+      }).setOrigin(0.5).setFixedSize(184, 48).setFontStyle('bold'));
+      card.add(this.add.text(0, 108, choice.detail, {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${detailSize}px`,
         color: cardDetailColor,
@@ -4553,7 +4650,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         strokeThickness: 1,
         wordWrap: { width: 174 },
         lineSpacing: 2,
-      }).setOrigin(0.5).setFixedSize(180, 54));
+      }).setOrigin(0.5).setFixedSize(180, 42));
       layer.add(card);
       const applyChoice = () => {
         if (this.phase !== 'upgrade') return;
@@ -4578,7 +4675,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       card.on('pointerout', () => selectionFrame.setVisible(false));
       card.on('pointerdown', () => selectionFrame.setVisible(true));
       card.on('pointerup', applyChoice);
-      this.addButton(layer, x, 520, 142, 38, '选择', applyChoice, 'primary', 4);
+      this.addUpgradeTextAction(layer, x, 520, '选择', applyChoice, 'primary');
     });
     const paidRefresh = upgradeRefreshRequiresPayment(this.upgradeRefreshCount);
     const refreshLabel = this.upgradePaymentPending
@@ -4588,7 +4685,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         : `刷新卡牌 · 免费（剩 ${FREE_UPGRADE_REFRESHES - this.upgradeRefreshCount} 次）`;
     const refreshStyle = paidRefresh ? 'danger' : 'muted';
     const upgradeActionY = this.safeBottomY(580, 22);
-    this.addButton(layer, 475 + layoutShift, upgradeActionY, 280, 42, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, 4);
+    this.addUpgradeTextAction(layer, 475 + layoutShift, upgradeActionY, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, true);
     layer.add(this.add.text(805 + layoutShift, upgradeActionY, `未使用经验 ${Math.floor(this.xp)}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0, 0.5));
     if (this.upgradePaymentMessage) {
       layer.add(this.add.text(centerX, this.safeBottomY(612, 8), this.upgradePaymentMessage, {
@@ -4731,6 +4828,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private durationForWave() {
     const waves = this.wavesPerFloor();
+    if (this.tutorialRun) return this.wave === waves ? 34 : 18;
     if (this.runMode === 'daily') {
       if (this.wave === waves) return 52;
       if (this.isMiniBossWave()) return 38;
@@ -4743,6 +4841,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.playerDeathPending = false;
     this.playerDeathTimer = 0;
     if (win) this.recordRunReward();
+    if (win && this.tutorialRun) {
+      this.tutorialDialogueStage = 'outro';
+      this.dialogueIndex = 0;
+      this.showDialogue();
+      return;
+    }
     this.phase = 'result';
     this.ui?.setVisible(false);
     this.clearOverlay();
@@ -4808,13 +4912,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.runMode === 'daily') {
       if (!this.dailyBossRewardGranted) {
         this.dailyBossRewardGranted = true;
+        const alreadyCompletedThisMonth = this.isDailyCompleted();
         this.progress.dailyCompletedDate = this.todayKey();
-        this.progress.dailyBestSeconds = this.progress.dailyBestSeconds
+        this.progress.dailyBestSeconds = alreadyCompletedThisMonth && this.progress.dailyBestSeconds
           ? Math.min(this.progress.dailyBestSeconds, this.elapsed)
           : this.elapsed;
-        if (!this.progress.unlockedSkinIds.includes('scarlet-night')) this.progress.unlockedSkinIds.push('scarlet-night');
-        if (!this.progress.archiveKinds.includes('boss')) this.progress.archiveKinds.push('boss');
-        this.progress.metaCoins += 30;
+        if (!alreadyCompletedThisMonth) {
+          if (!this.progress.unlockedSkinIds.includes('scarlet-night')) this.progress.unlockedSkinIds.push('scarlet-night');
+          if (!this.progress.archiveKinds.includes('boss')) this.progress.archiveKinds.push('boss');
+          this.progress.metaCoins += 30;
+        }
         this.saveProgress();
         void this.submitDailyScore(this.elapsed);
       }
@@ -4822,6 +4929,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     if (this.tutorialRun) {
       this.progress.maxFloor = Math.max(1, this.progress.maxFloor);
+      this.progress.tutorialCompleted = true;
       this.saveProgress();
       return;
     }
@@ -4831,7 +4939,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.saveProgress();
   }
 
-  private addButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, style: 'primary' | 'muted' | 'danger' = 'primary', hitPadding = 14) {
+  private addButton(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, style: 'primary' | 'muted' | 'danger' = 'primary', hitPadding = 14, frameOnly = false) {
     const isBackButton = label === '返回主界面' || label === '返回' || x === 88 && y === 38 || x === 76 && y === 38;
     if (isBackButton) {
       x = this.safeBackButtonX();
@@ -4842,34 +4950,89 @@ export class HospitalBattleScene extends Phaser.Scene {
       hitPadding = Math.max(hitPadding, 12);
     }
     const colors = { primary: 0x2d6b69, muted: 0x26383f, danger: 0x8c3c4d };
-    const lineColors = { primary: 0x7bd6c1, muted: 0x5b777c, danger: 0xed716e };
     // Keep the touch target larger than the visible button.
     const hitWidth = Math.max(48, width + hitPadding * 2);
     const hitHeight = Math.max(48, height + hitPadding * 2);
     const button = this.add.container(x, y);
-    const shadow = isBackButton ? undefined : this.add.rectangle(4, 4, width, height, 0x05090f, 0.96).setStrokeStyle(1, 0x05090f, 1);
     const commandFrameKey = this.textures.exists('ui-command-frame-v2') ? 'ui-command-frame-v2' : 'ui-command-frame';
     const hasPixelButton = !isBackButton && this.textures.exists(commandFrameKey);
     const pixelButton = hasPixelButton
       ? this.add.image(0, 0, commandFrameKey).setDisplaySize(width + 24, Math.max(48, height + 16)).setAlpha(0.92)
       : undefined;
-    const rect = isBackButton ? undefined : this.add.rectangle(0, 0, width, height, colors[style], hasPixelButton ? 0.32 : 1).setStrokeStyle(2, lineColors[style], 0.95);
-    if (shadow) button.add(shadow);
     if (pixelButton) button.add(pixelButton);
-    if (rect) {
-      button.add(rect);
-      button.add(this.add.rectangle(0, 0, width - 8, height - 8, colors[style], 0).setStrokeStyle(1, lineColors[style], 0.55));
-    }
     const labelNode = isBackButton && this.textures.exists('back-icon-v1')
       ? this.add.image(0, 0, 'back-icon-v1').setDisplaySize(48, 48)
       : this.add.text(0, 0, isBackButton ? '←' : label, { fontFamily: 'Microsoft YaHei', fontSize: isBackButton ? '25px' : '15px', color: palette.cream }).setOrigin(0.5);
     button.add(labelNode);
     const setPressed = (pressed: boolean) => {
       button.setScale(pressed ? 0.97 : 1);
-      rect?.setFillStyle(pressed ? Phaser.Display.Color.IntegerToColor(colors[style]).lighten(12).color : colors[style], 1);
+      pixelButton?.setTint(pressed ? Phaser.Display.Color.IntegerToColor(colors[style]).lighten(12).color : 0xffffff);
     };
     parent.add(button);
     this.uiActionRegions.push({ phase: this.phase, x, y, width: hitWidth, height: hitHeight, callback, setPressed });
+    return button;
+  }
+
+  /** Upgrade choices stay visually attached to their raster cards; no extra line frame is drawn. */
+  private addUpgradeTextAction(parent: Phaser.GameObjects.Container, x: number, y: number, label: string, callback: () => void, style: 'primary' | 'muted' | 'danger' = 'primary', refresh = false) {
+    const colors = { primary: palette.teal, muted: palette.muted, danger: palette.danger };
+    const button = this.add.container(x, y);
+    const labelNode = this.add.text(refresh ? -42 : 0, 0, label, {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: refresh ? '12px' : '15px',
+      color: colors[style],
+      stroke: '#071015',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setFontStyle('bold');
+    if (refresh) {
+      button.add(this.add.text(-112, 0, '\u21bb', {
+        fontFamily: 'Courier New',
+        fontSize: '28px',
+        color: colors[style],
+        stroke: '#071015',
+        strokeThickness: 2,
+      }).setOrigin(0.5));
+    }
+    button.add(labelNode);
+    parent.add(button);
+    this.uiActionRegions.push({
+      phase: this.phase,
+      x,
+      y,
+      width: refresh ? 300 : 150,
+      height: 52,
+      callback,
+      setPressed: (pressed) => {
+        button.setScale(pressed ? 0.96 : 1);
+        labelNode.setAlpha(pressed ? 0.68 : 1);
+      },
+    });
+    return button;
+  }
+
+  private addPlainTextAction(parent: Phaser.GameObjects.Container, x: number, y: number, width: number, height: number, label: string, callback: () => void, color = palette.teal, fontSize = 10) {
+    const button = this.add.container(x, y);
+    const labelNode = this.add.text(0, 0, label, {
+      fontFamily: 'Microsoft YaHei',
+      fontSize: `${fontSize}px`,
+      color,
+      stroke: '#071015',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setFontStyle('bold');
+    button.add(labelNode);
+    parent.add(button);
+    this.uiActionRegions.push({
+      phase: this.phase,
+      x,
+      y,
+      width,
+      height,
+      callback,
+      setPressed: (pressed) => {
+        button.setScale(pressed ? 0.96 : 1);
+        labelNode.setAlpha(pressed ? 0.68 : 1);
+      },
+    });
     return button;
   }
 
@@ -4877,6 +5040,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.releaseJoystick();
     this.releaseUiPointer();
     this.releaseFloorScroll();
+    this.releaseDailyRankingScroll();
     document.getElementById('game-shell')?.classList.remove('menu-shell');
     this.overlay?.destroy(true);
     this.overlay = undefined;
@@ -4885,6 +5049,17 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.tutorialGuideTimer = 0;
     this.floorScrollContent = undefined;
     this.floorScrollRegions = [];
+    this.dailyRankingRows = undefined;
+    this.dailyRankingScrollThumb = undefined;
+    this.dailyRankingEntries = [];
+    this.dailyRankingVisibleCount = 0;
+    this.dailyRankingOffset = 0;
+    this.dailyRankingMaxOffset = 0;
+    this.dailyRankingViewport = { left: 0, right: 0, top: 0, bottom: 0 };
+    this.profileSkinPointer = undefined;
+    this.profileSkinMoved = false;
+    this.profileSkinStartX = 0;
+    this.profileSkinViewport = { left: 0, right: 0, top: 0, bottom: 0 };
     this.uiActionRegions = [];
   }
 
@@ -4946,7 +5121,24 @@ export class HospitalBattleScene extends Phaser.Scene {
   private handleUiPointerDown(event: PointerEvent) {
     if (this.phase === 'battle' || this.pendingUiAction) return;
     const point = this.canvasPoint(event);
-    if (this.phase === 'mainline-select') {
+    if (this.phase === 'start' && this.dailyRankingRows && this.dailyRankingMaxOffset > 0
+      && point.x >= this.dailyRankingViewport.left && point.x <= this.dailyRankingViewport.right
+      && point.y >= this.dailyRankingViewport.top && point.y <= this.dailyRankingViewport.bottom) {
+      this.dailyRankingPointer = event.pointerId;
+      this.dailyRankingStartY = point.y;
+      this.dailyRankingStartOffset = this.dailyRankingOffset;
+      this.dailyRankingMoved = false;
+      try { this.game.canvas.setPointerCapture(event.pointerId); } catch { /* capture can fail after browser gestures */ }
+      return;
+    }
+    if (this.phase === 'start'
+      && point.x >= this.profileSkinViewport.left && point.x <= this.profileSkinViewport.right
+      && point.y >= this.profileSkinViewport.top && point.y <= this.profileSkinViewport.bottom) {
+      this.profileSkinPointer = event.pointerId;
+      this.profileSkinStartX = point.x;
+      this.profileSkinMoved = false;
+    }
+    if (this.phase === 'mainline-select' && this.progress.tutorialCompleted) {
       this.floorScrollPointer = event.pointerId;
       this.floorScrollStartY = point.y;
       this.floorScrollStartOffset = this.floorScrollOffset;
@@ -4961,7 +5153,27 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private handleUiPointerMove(event: PointerEvent) {
-    if (this.phase !== 'mainline-select' || this.floorScrollPointer !== event.pointerId) return;
+    if (this.phase === 'start' && this.dailyRankingPointer === event.pointerId) {
+      const point = this.canvasPoint(event);
+      const delta = point.y - this.dailyRankingStartY;
+      if (!this.dailyRankingMoved && Math.abs(delta) > 8) this.dailyRankingMoved = true;
+      if (this.dailyRankingMoved) {
+        this.setDailyRankingOffset(this.dailyRankingStartOffset - delta / 30);
+        event.preventDefault();
+      }
+      return;
+    }
+    if (this.phase === 'start' && this.profileSkinPointer === event.pointerId) {
+      const point = this.canvasPoint(event);
+      const delta = point.x - this.profileSkinStartX;
+      if (!this.profileSkinMoved && Math.abs(delta) > 8) {
+        this.profileSkinMoved = true;
+        this.releaseUiPointer();
+      }
+      if (this.profileSkinMoved) event.preventDefault();
+      return;
+    }
+    if (this.phase !== 'mainline-select' || !this.progress.tutorialCompleted || this.floorScrollPointer !== event.pointerId) return;
     const point = this.canvasPoint(event);
     const delta = point.y - this.floorScrollStartY;
     if (!this.floorScrollMoved && Math.abs(delta) > 8) {
@@ -4977,12 +5189,41 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private handleUiWheel(event: WheelEvent) {
-    if (this.phase !== 'mainline-select') return;
-    this.setFloorScrollOffset(this.floorScrollOffset + event.deltaY * 0.82);
+    if (this.phase === 'mainline-select' && this.progress.tutorialCompleted) {
+      this.setFloorScrollOffset(this.floorScrollOffset + event.deltaY * 0.82);
+      event.preventDefault();
+      return;
+    }
+    if (this.phase !== 'start' || !this.dailyRankingRows || this.dailyRankingMaxOffset <= 0) return;
+    const point = this.canvasPoint(event as unknown as PointerEvent);
+    if (point.x < this.dailyRankingViewport.left || point.x > this.dailyRankingViewport.right
+      || point.y < this.dailyRankingViewport.top || point.y > this.dailyRankingViewport.bottom) return;
+    const direction = event.deltaY === 0 ? 0 : event.deltaY > 0 ? 1 : -1;
+    this.setDailyRankingOffset(this.dailyRankingOffset + direction * 2);
     event.preventDefault();
   }
 
   private handleUiPointerUp(event: PointerEvent) {
+    const scrollingRanking = this.phase === 'start' && this.dailyRankingPointer === event.pointerId;
+    const movedRanking = this.dailyRankingMoved;
+    if (scrollingRanking) this.releaseDailyRankingScroll();
+    if (movedRanking) {
+      this.releaseUiPointer();
+      return;
+    }
+    const swipingProfile = this.phase === 'start' && this.profileSkinPointer === event.pointerId;
+    const movedProfile = this.profileSkinMoved;
+    const profileDelta = this.canvasPoint(event).x - this.profileSkinStartX;
+    if (swipingProfile) this.releaseProfileSkinSwipe();
+    if (movedProfile) {
+      this.releaseUiPointer();
+      if (Math.abs(profileDelta) > 42) {
+        const visibleSkins = this.skins.filter((skin) => this.profileSkinCategory === 'all' || this.profileSkinCategoryFor(skin) === this.profileSkinCategory);
+        const pageCount = Math.max(1, Math.ceil(visibleSkins.length / 6));
+        this.setProfileSkinPage(this.profileSkinPage + (profileDelta < 0 ? 1 : -1), pageCount);
+      }
+      return;
+    }
     const scrollingFloor = this.phase === 'mainline-select' && this.floorScrollPointer === event.pointerId;
     const movedFloor = this.floorScrollMoved;
     if (scrollingFloor) this.releaseFloorScroll();
@@ -5013,6 +5254,19 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.floorScrollMoved = false;
     this.floorScrollStartY = 0;
     this.floorScrollStartOffset = this.floorScrollOffset;
+  }
+
+  private releaseDailyRankingScroll() {
+    this.dailyRankingPointer = undefined;
+    this.dailyRankingMoved = false;
+    this.dailyRankingStartY = 0;
+    this.dailyRankingStartOffset = this.dailyRankingOffset;
+  }
+
+  private releaseProfileSkinSwipe() {
+    this.profileSkinPointer = undefined;
+    this.profileSkinMoved = false;
+    this.profileSkinStartX = 0;
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
@@ -5047,15 +5301,15 @@ export class HospitalBattleScene extends Phaser.Scene {
     const scale = Math.min(1, 42 / len);
     this.joystickVector.x = (dx / len) * scale;
     this.joystickVector.y = (dy / len) * scale;
-    const knob = this.joystickVisual?.getData('knob') as Phaser.GameObjects.Arc | undefined;
+    const knob = this.joystickVisual?.getData('knob') as Phaser.GameObjects.Image | undefined;
     knob?.setPosition(this.joystickVector.x * 42, this.joystickVector.y * 42);
   }
 
   private createTouchJoystick() {
     this.joystickVisual?.destroy(true);
     const visual = this.add.container(this.joystickOrigin.x, this.joystickOrigin.y).setDepth(30).setScrollFactor(0);
-    const ring = this.add.circle(0, 0, 46, 0x18313a, 0.42).setStrokeStyle(2, 0x6bd3c1, 0.8);
-    const knob = this.add.circle(0, 0, 18, 0x6bd3c1, 0.82).setStrokeStyle(2, 0xf4e8c9, 0.65);
+    const ring = this.add.image(0, 0, 'touch-joystick-base-v1').setOrigin(0.5).setDisplaySize(104, 104).setAlpha(0.72);
+    const knob = this.add.image(0, 0, 'upgrade-icon-move').setOrigin(0.5).setDisplaySize(34, 34).setAlpha(0.92);
     visual.add([ring, knob]);
     visual.setData('knob', knob);
     this.joystickVisual = visual;
