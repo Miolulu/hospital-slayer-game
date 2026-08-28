@@ -36,6 +36,11 @@ import {
   type SmallEnemyKind,
 } from './patientEnemyArt';
 import {
+  SMALL_ENEMY_ATTACK_ARTS,
+  SMALL_ENEMY_ATTACK_ART_BY_KIND,
+  type SmallEnemyAttackKind,
+} from './patientEnemyAttackArt';
+import {
   MOON_MOTH_QUEEN_ART,
   MOON_MOTH_QUEEN_ART_IMAGES,
   MOON_MOTH_QUEEN_ART_SHEETS,
@@ -88,9 +93,44 @@ const H = 720;
 const MAX_WEAPON_COPIES = 5;
 const TOTAL_FLOORS = TOTAL_HOSPITAL_FLOORS;
 const SKIN_TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
+const TEMP_FIRST_WAVE_BOSS_TEST = true;
 const FULL_TURN = Math.PI * 2;
 const ARENA = { left: 160, right: 1120, top: 116, bottom: 642 };
 const WORLD_BOUNDS = { left: -720, right: 2000, top: -520, bottom: 1700 };
+const ARENA_IMAGE_SIZE = { width: 2048, height: 1152 };
+const ARENA_WALKABLE_IMAGE_POINTS = [
+  { x: 42, y: 585 },
+  { x: 130, y: 525 },
+  { x: 285, y: 476 },
+  { x: 470, y: 416 },
+  { x: 670, y: 344 },
+  { x: 833, y: 260 },
+  { x: 1008, y: 178 },
+  { x: 1170, y: 258 },
+  { x: 1355, y: 343 },
+  { x: 1545, y: 424 },
+  { x: 1760, y: 539 },
+  { x: 1930, y: 690 },
+  { x: 1775, y: 807 },
+  { x: 1600, y: 885 },
+  { x: 1405, y: 964 },
+  { x: 1210, y: 1048 },
+  { x: 1020, y: 1124 },
+  { x: 835, y: 1098 },
+  { x: 625, y: 1022 },
+  { x: 430, y: 928 },
+  { x: 278, y: 824 },
+  { x: 152, y: 707 },
+  { x: 62, y: 620 },
+] as const;
+const ARENA_WALKABLE_POINTS = ARENA_WALKABLE_IMAGE_POINTS.map((point) => ({
+  x: WORLD_BOUNDS.left + (point.x / ARENA_IMAGE_SIZE.width) * (WORLD_BOUNDS.right - WORLD_BOUNDS.left),
+  y: WORLD_BOUNDS.top + (point.y / ARENA_IMAGE_SIZE.height) * (WORLD_BOUNDS.bottom - WORLD_BOUNDS.top),
+}));
+const ARENA_WALKABLE_CENTER = ARENA_WALKABLE_POINTS.reduce((acc, point) => ({
+  x: acc.x + point.x / ARENA_WALKABLE_POINTS.length,
+  y: acc.y + point.y / ARENA_WALKABLE_POINTS.length,
+}), { x: 0, y: 0 });
 
 type Phase = 'start' | 'mainline-intro' | 'mainline-select' | 'weapon-select' | 'dialogue' | 'battle' | 'wave-cleanup' | 'wave-break' | 'upgrade' | 'boss-intro' | 'boss-death' | 'result';
 type EnemyKind = CombatEnemyKind;
@@ -105,6 +145,7 @@ type AttackStatus = UpgradeAttackStatus;
 type PlayerDirection = 'left' | 'right' | 'up' | 'down';
 type PlayerAnimation = 'idle' | 'walk-left' | 'walk-right' | 'walk-up' | 'walk-down' | 'hit' | 'death';
 type BossVisualState = 'transform' | 'walk' | 'attack' | 'death';
+type MiniBossVisualState = 'walk' | 'attack' | 'death';
 interface ProgressSave {
   maxFloor: number;
   mainlineIntroSeen?: boolean;
@@ -163,6 +204,18 @@ interface Enemy {
     death: Phaser.GameObjects.Image;
     aura: Phaser.GameObjects.Ellipse;
   };
+  miniBossVisual?: {
+    artId: string;
+    state: MiniBossVisualState;
+    shadow: Phaser.GameObjects.Ellipse;
+    walkKey: string;
+    attackKey: string;
+    deathKey: string;
+    walk: Phaser.GameObjects.Sprite;
+    attack: Phaser.GameObjects.Sprite;
+    death: Phaser.GameObjects.Image;
+    aura: Phaser.GameObjects.Ellipse;
+  };
   baseHp: number;
   hpScale: number;
   hp: number;
@@ -187,7 +240,7 @@ interface Enemy {
 }
 
 interface Projectile {
-  node: Phaser.GameObjects.Arc;
+  node: Phaser.GameObjects.Arc | Phaser.GameObjects.Image;
   vx: number;
   vy: number;
   damage: number;
@@ -278,13 +331,27 @@ const paletteRgb = {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 const hex = (color: number) => Phaser.Display.Color.IntegerToColor(color).rgba;
+const pointInPolygon = (point: { x: number; y: number }, polygon: readonly { x: number; y: number }[]) => {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersects = (yi > point.y) !== (yj > point.y)
+      && point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || 0.000001) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+};
 
 export class HospitalBattleScene extends Phaser.Scene {
   private phase: Phase = 'start';
   private loadingLayer?: Phaser.GameObjects.Container;
   private loadingProgress?: Phaser.GameObjects.Graphics;
   private loadingStatus?: Phaser.GameObjects.Text;
-  private overlay?: Phaser.GameObjects.Container;
+  private _overlay?: Phaser.GameObjects.Container;
+  private uiCamera?: Phaser.Cameras.Scene2D.Camera;
   private canvasUiPointerDownHandler?: (event: PointerEvent) => void;
   private canvasUiPointerMoveHandler?: (event: PointerEvent) => void;
   private canvasUiPointerUpHandler?: (event: PointerEvent) => void;
@@ -304,9 +371,10 @@ export class HospitalBattleScene extends Phaser.Scene {
   private readonly smallEnemyScale = 1.2;
   private enemyVisualHeight = Math.round(164 * 1.2);
   private readonly gameplayCameraZoom = 2 / 3;
-  private readonly joystickMaxDistance = 68;
   private readonly joystickRingRadius = 66;
   private readonly joystickKnobRadius = 22;
+  private readonly joystickMaxDistance = this.joystickRingRadius - this.joystickKnobRadius;
+  private readonly joystickDeadzone = 8;
   private playerAnimation: PlayerAnimation = 'idle';
   private playerDirection: PlayerDirection = 'down';
   private playerHitTimer = 0;
@@ -370,17 +438,33 @@ export class HospitalBattleScene extends Phaser.Scene {
     { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png', category: 'store' },
     { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png', category: 'store' },
     { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 80, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png', category: 'store' },
+    { id: 'sword-black-tide', name: '黑潮断罪刃', weaponClass: 'sword', color: 0x3b5164, cost: 70, textureKey: 'weapon-skin-sword-black-tide', assetPath: '/assets/art/weapon-select/skin-sword-black-tide-clean.png', category: 'store' },
+    { id: 'sword-old-god-ritual', name: '旧神祭器刃', weaponClass: 'sword', color: 0x9a6bd1, cost: 85, textureKey: 'weapon-skin-sword-old-god-ritual', assetPath: '/assets/art/weapon-select/skin-sword-old-god-ritual-clean.png', category: 'store' },
+    { id: 'sword-abyss-mouth', name: '深渊口器刃', weaponClass: 'sword', color: 0xe78a57, cost: 75, textureKey: 'weapon-skin-sword-abyss-mouth', assetPath: '/assets/art/weapon-select/skin-sword-abyss-mouth-clean.png', category: 'store' },
     { id: 'sword-moon-moth', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-sword-moon-moth', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-clean.png', dropOnly: true, category: 'boss' },
+    { id: 'sword-moon-moth-queen', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 100, textureKey: 'weapon-skin-sword-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-clean.png', category: 'store' },
+    { id: 'sword-moon-moth-queen-gala', name: '月蚀蝶刃·华丽版', weaponClass: 'sword', color: 0xe8d4ff, cost: 140, textureKey: 'weapon-skin-sword-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-gala-clean.png', category: 'store' },
     { id: 'gun-default', name: '基础灯枪', weaponClass: 'gun', color: 0xf2bf62, cost: 0, textureKey: 'weapon-gun', category: 'basic' },
     { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png', category: 'store' },
     { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png', category: 'store' },
     { id: 'gun-moon-moth', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-gun-moon-moth', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-clean.png', dropOnly: true, category: 'boss' },
+    { id: 'gun-ritual-relic', name: '教团遗物枪', weaponClass: 'gun', color: 0xe0c076, cost: 70, textureKey: 'weapon-skin-gun-ritual-relic', assetPath: '/assets/art/weapon-select/skin-gun-ritual-relic-clean.png', category: 'store' },
+    { id: 'gun-cthulhu-eye', name: '克苏鲁眼脉冲器', weaponClass: 'gun', color: 0x6bd3c1, cost: 85, textureKey: 'weapon-skin-gun-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-eye-clean.png', category: 'store' },
+    { id: 'gun-abyss-machinery', name: '深渊机件射器', weaponClass: 'gun', color: 0x7ab9d0, cost: 75, textureKey: 'weapon-skin-gun-abyss-machinery', assetPath: '/assets/art/weapon-select/skin-gun-abyss-machinery-clean.png', category: 'store' },
+    { id: 'gun-moon-moth-queen', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 100, textureKey: 'weapon-skin-gun-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-clean.png', category: 'store' },
+    { id: 'gun-moon-moth-queen-gala', name: '蝶瞳脉冲枪·华丽版', weaponClass: 'gun', color: 0xe8d4ff, cost: 140, textureKey: 'weapon-skin-gun-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-gala-clean.png', category: 'store' },
     { id: 'whip-default', name: '基础长鞭', weaponClass: 'whip', color: 0x8fd17c, cost: 0, textureKey: 'weapon-whip', category: 'basic' },
     { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 60, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png', category: 'store' },
     { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png', category: 'store' },
+    { id: 'whip-bone-scale', name: '骨鳞祭鞭', weaponClass: 'whip', color: 0xd99263, cost: 70, textureKey: 'weapon-skin-whip-bone-scale', assetPath: '/assets/art/weapon-select/skin-whip-bone-scale-clean.png', category: 'store' },
+    { id: 'whip-living-crown', name: '活体王冠鞭', weaponClass: 'whip', color: 0xb798e2, cost: 85, textureKey: 'weapon-skin-whip-living-crown', assetPath: '/assets/art/weapon-select/skin-whip-living-crown-clean.png', category: 'store' },
+    { id: 'whip-prism-energy', name: '棱晶能量鞭', weaponClass: 'whip', color: 0x7ab9d0, cost: 75, textureKey: 'weapon-skin-whip-prism-energy', assetPath: '/assets/art/weapon-select/skin-whip-prism-energy-clean.png', category: 'store' },
     { id: 'cannon-default', name: '基础回声炮', weaponClass: 'cannon', color: 0xb798e2, cost: 0, textureKey: 'weapon-cannon', category: 'basic' },
     { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 60, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png', category: 'store' },
     { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 45, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png', category: 'store' },
+    { id: 'cannon-old-god-ring', name: '旧神骨环炮', weaponClass: 'cannon', color: 0xe5d47a, cost: 70, textureKey: 'weapon-skin-cannon-old-god-ring', assetPath: '/assets/art/weapon-select/skin-cannon-old-god-ring-clean.png', category: 'store' },
+    { id: 'cannon-cthulhu-eye', name: '克苏鲁之眼炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 85, textureKey: 'weapon-skin-cannon-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-eye-clean.png', category: 'store' },
+    { id: 'cannon-abyss-maw', name: '深渊巨口炮', weaponClass: 'cannon', color: 0xe78a57, cost: 75, textureKey: 'weapon-skin-cannon-abyss-maw', assetPath: '/assets/art/weapon-select/skin-cannon-abyss-maw-clean.png', category: 'store' },
   ];
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
@@ -511,6 +595,29 @@ export class HospitalBattleScene extends Phaser.Scene {
     super('hospital-battle');
   }
 
+  private get overlay() {
+    return this._overlay;
+  }
+
+  private set overlay(layer: Phaser.GameObjects.Container | undefined) {
+    this._overlay = layer;
+    if (layer) this.registerUiLayer(layer);
+  }
+
+  private registerUiLayer(layer: Phaser.GameObjects.Container) {
+    layer.setScrollFactor(0, 0, true);
+    this.cameras.main.ignore(layer);
+  }
+
+  private setupUiCamera() {
+    if (this.uiCamera) return;
+    this.registerUiLayer(this.ui);
+    this.uiCamera = this.cameras.add(0, 0, W, H, false, 'fixed-ui');
+    this.uiCamera.setScroll(0, 0);
+    this.uiCamera.setZoom(1);
+    this.uiCamera.ignore(this.world);
+  }
+
   preload() {
     this.createLoadingScreen();
     this.load.on('progress', (value: number) => {
@@ -571,7 +678,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
     this.load.image('dialogue-bubble-v2', '/assets/art/ui/dialogue-bubble-v2.png');
     this.load.image('touch-joystick-base-v1', '/assets/art/ui/touch-joystick-base-v1.png');
-    (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'start-challenge'] as const).forEach((textAsset) => {
+    (['archive', 'mainline', 'daily', 'profile-tabs', 'boss-month', 'ranking', 'boss-drop', 'status-waiting', 'boss-name', 'start-challenge', 'result-fail'] as const).forEach((textAsset) => {
       this.load.image(`ui-text-${textAsset}-v1`, `/assets/art/ui/text/ui-text-${textAsset}-v1.png`);
     });
     this.load.image('ui-stamp-uncompleted-v1', '/assets/art/ui/text/ui-stamp-uncompleted-v1.png');
@@ -663,6 +770,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => {
       this.load.spritesheet(key, path, { frameWidth, frameHeight });
     });
+    SMALL_ENEMY_ATTACK_ARTS.forEach(({ key, path }) => {
+      this.load.image(key, path);
+    });
   }
 
   private createLoadingScreen() {
@@ -701,6 +811,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.requestLandscapeLock();
     this.world = this.add.container(0, 0);
     this.ui = this.add.container(0, 0).setDepth(100).setScrollFactor(0, 0, true);
+    this.setupUiCamera();
     this.buildArena();
     this.buildHud();
     this.keys = {
@@ -958,14 +1069,34 @@ export class HospitalBattleScene extends Phaser.Scene {
     const body = this.add.container(0, 0);
     const shadow = this.add.ellipse(0, visualHeight * 0.36, visualWidth * 0.54, Math.max(14, visualHeight * 0.08), 0x000000, 0.28);
     const aura = this.add.ellipse(0, -visualHeight * 0.02, visualWidth * 0.72, visualHeight * 0.68, color, 0.1).setStrokeStyle(2, color, 0.32);
-    const sprite = this.add.sprite(0, 0, variant.walkKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
-    sprite.anims.play(variant.walkKey, true);
-    body.add([shadow, aura, sprite]);
-    return { body, visualWidth, visualHeight };
+    const walk = this.add.sprite(0, 0, variant.walkKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    const attack = this.add.sprite(0, 0, variant.attackKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    const death = this.add.image(0, 0, variant.deathKey).setOrigin(0.5).setDisplaySize(visualWidth, visualHeight);
+    walk.anims.play(variant.walkKey, true);
+    attack.setVisible(false);
+    death.setVisible(false);
+    body.add([shadow, aura, walk, attack, death]);
+    return {
+      body,
+      visualWidth,
+      visualHeight,
+      miniBossVisual: {
+        artId: variant.id,
+        state: 'walk' as MiniBossVisualState,
+        shadow,
+        walkKey: variant.walkKey,
+        attackKey: variant.attackKey,
+        deathKey: variant.deathKey,
+        walk,
+        attack,
+        death,
+        aura,
+      },
+    };
   }
 
   private createMoonMothQueenBody(radius: number, color: number) {
-    const bossVisualScale = 0.26;
+    const bossVisualScale = 1;
     const visualHeight = Math.round(this.playerVisualHeight() * 2 * bossVisualScale);
     const visualWidth = Math.round(visualHeight * 0.66);
     const body = this.add.container(0, 0);
@@ -1029,6 +1160,34 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (state === 'attack' && this.anims.exists(boss.attackKey)) {
       boss.attack.anims.play(boss.attackKey, true);
     }
+  }
+
+  private setMiniBossVisualState(enemy: Enemy, state: MiniBossVisualState) {
+    const boss = enemy.miniBossVisual;
+    if (!boss) return;
+    if (boss.state === state) return;
+    boss.state = state;
+    boss.walk.setVisible(state === 'walk');
+    boss.attack.setVisible(state === 'attack');
+    boss.death.setVisible(state === 'death');
+    boss.aura.setVisible(state !== 'death');
+    boss.shadow.setVisible(true);
+    if (state === 'walk' && this.anims.exists(boss.walkKey)) {
+      boss.walk.anims.play(boss.walkKey, true);
+    }
+    if (state === 'attack' && this.anims.exists(boss.attackKey)) {
+      boss.attack.anims.play(boss.attackKey, true);
+    }
+  }
+
+  private updateMiniBossFacing(enemy: Enemy, movingRight: boolean) {
+    const boss = enemy.miniBossVisual;
+    if (!boss) return;
+    const scaleX = movingRight ? -1 : 1;
+    boss.shadow.setScale(Math.abs(scaleX), 1);
+    boss.walk.setScale(scaleX, 1);
+    boss.attack.setScale(scaleX, 1);
+    boss.death.setScale(scaleX, 1);
   }
 
   private updateBossFacing(enemy: Enemy, movingRight: boolean) {
@@ -1413,6 +1572,10 @@ export class HospitalBattleScene extends Phaser.Scene {
       ?? this.weaponSkins.find((skin) => skin.id === `${weaponClass}-default`)!;
   }
 
+  private equippedSkin() {
+    return this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
+  }
+
   private weaponAssetKey(weapon?: Weapon) {
     return this.weaponSkinTextureKey(this.equippedWeaponSkin(weapon?.weaponClass ?? 'sword'));
   }
@@ -1495,6 +1658,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.hud.panel?.setPosition(safe.left + 104, H - 164 - safeBottom);
     this.hud.wavePanel?.setX(safe.centerX);
     this.hud.resourcePanel?.setPosition(W - 122 - Math.max(0, capsuleRight - 20), safeTop + 36);
+    if (this.phase === 'start' && this.overlay) {
+      this.showStart();
+    }
   }
 
   private async notifyBuildaReady() {
@@ -1684,8 +1850,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       const raw = window.localStorage.getItem('hospital-godslayer-progress');
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<ProgressSave>;
+      const validSkinIds = new Set(this.skins.map((skin) => skin.id));
       const defaultWeaponSkins = ['sword-default', 'gun-default', 'whip-default', 'cannon-default'];
-      const availableSkinIds = new Set(this.skins.map((skin) => skin.id));
       const validTrialMap = (value: unknown) => {
         if (!value || typeof value !== 'object') return {};
         return Object.fromEntries(Object.entries(value).filter(([id, expiresAt]) => {
@@ -1703,10 +1869,12 @@ export class HospitalBattleScene extends Phaser.Scene {
         unlockedWeaponIds: Array.isArray(parsed.unlockedWeaponIds) ? parsed.unlockedWeaponIds.filter((id): id is string => typeof id === 'string') : ['knife', 'ward-lantern'],
         unlockedWeaponSkinIds: Array.isArray(parsed.unlockedWeaponSkinIds) ? parsed.unlockedWeaponSkinIds.filter((id): id is string => typeof id === 'string') : defaultWeaponSkins,
         equippedWeaponSkinIds,
-         unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds) ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string' && availableSkinIds.has(id)) : DEFAULT_UNLOCKED_SKIN_IDS,
-         equippedSkinId: typeof parsed.equippedSkinId === 'string' && availableSkinIds.has(parsed.equippedSkinId) ? parsed.equippedSkinId : 'patient-default',
-         skinTrialExpiresAt: validTrialMap(parsed.skinTrialExpiresAt),
-         weaponSkinTrialExpiresAt: validTrialMap(parsed.weaponSkinTrialExpiresAt),
+        unlockedSkinIds: Array.isArray(parsed.unlockedSkinIds)
+          ? parsed.unlockedSkinIds.filter((id): id is string => typeof id === 'string' && validSkinIds.has(id))
+          : DEFAULT_UNLOCKED_SKIN_IDS.filter((id) => validSkinIds.has(id)),
+        equippedSkinId: typeof parsed.equippedSkinId === 'string' && validSkinIds.has(parsed.equippedSkinId) ? parsed.equippedSkinId : 'patient-default',
+        skinTrialExpiresAt: validTrialMap(parsed.skinTrialExpiresAt),
+        weaponSkinTrialExpiresAt: validTrialMap(parsed.weaponSkinTrialExpiresAt),
         archiveKinds: Array.isArray(parsed.archiveKinds) ? parsed.archiveKinds.filter((id): id is string => typeof id === 'string') : [],
         dailyCompletedDate: typeof parsed.dailyCompletedDate === 'string' ? parsed.dailyCompletedDate : undefined,
         dailyBestSeconds: Number.isFinite(Number(parsed.dailyBestSeconds)) && Number(parsed.dailyBestSeconds) > 0 ? Number(parsed.dailyBestSeconds) : undefined,
@@ -1714,10 +1882,10 @@ export class HospitalBattleScene extends Phaser.Scene {
         dailyAttemptMonth: typeof parsed.dailyAttemptMonth === 'string' ? parsed.dailyAttemptMonth : undefined,
         dailyAttempts: Math.max(0, Math.floor(Number(parsed.dailyAttempts) || 0)),
         dailyAdTickets: Math.max(0, Math.floor(Number(parsed.dailyAdTickets) || 0)),
-         dailyRewardMonth: typeof parsed.dailyRewardMonth === 'string' ? parsed.dailyRewardMonth : undefined,
-         dailyRewardIds: Array.isArray(parsed.dailyRewardIds) ? parsed.dailyRewardIds.filter((id): id is string => typeof id === 'string') : [],
-         dailyRewardTitle: typeof parsed.dailyRewardTitle === 'string' ? parsed.dailyRewardTitle : undefined,
-         metaCoins: Math.max(0, Number(parsed.metaCoins) || 0),
+        dailyRewardMonth: typeof parsed.dailyRewardMonth === 'string' ? parsed.dailyRewardMonth : undefined,
+        dailyRewardIds: Array.isArray(parsed.dailyRewardIds) ? parsed.dailyRewardIds.filter((id): id is string => typeof id === 'string') : [],
+        dailyRewardTitle: typeof parsed.dailyRewardTitle === 'string' ? parsed.dailyRewardTitle : undefined,
+        metaCoins: Math.max(0, Number(parsed.metaCoins) || 0),
       };
       if (!this.progress.unlockedWeaponIds.includes('knife')) this.progress.unlockedWeaponIds.unshift('knife');
       if (!this.progress.unlockedWeaponIds.includes('ward-lantern')) this.progress.unlockedWeaponIds.push('ward-lantern');
@@ -1731,13 +1899,34 @@ export class HospitalBattleScene extends Phaser.Scene {
           this.progress.equippedWeaponSkinIds[weaponClass] = defaultId;
         }
       });
-       if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
-       if (!this.progress.unlockedSkinIds.includes(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
-       this.syncFloorUnlocks(this.progress.maxFloor - 1);
-       this.normalizeTemporaryUnlocks();
-     } catch {
-       this.progress = { maxFloor: 1, mainlineIntroSeen: false, tutorialCompleted: false, unlockedWeaponIds: ['knife', 'ward-lantern'], unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'], equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' }, unlockedSkinIds: DEFAULT_UNLOCKED_SKIN_IDS.slice(), equippedSkinId: 'patient-default', skinTrialExpiresAt: {}, weaponSkinTrialExpiresAt: {}, archiveKinds: [], dailyBestSeconds: undefined, dailyAttemptDate: undefined, dailyAttemptMonth: undefined, dailyAttempts: 0, dailyAdTickets: 0, dailyRewardMonth: undefined, dailyRewardIds: [], dailyRewardTitle: undefined, metaCoins: 0 };
-     }
+      if (!this.progress.unlockedSkinIds.includes('patient-default')) this.progress.unlockedSkinIds.unshift('patient-default');
+      if (!this.isSkinAvailable(this.progress.equippedSkinId)) this.progress.equippedSkinId = this.progress.unlockedSkinIds[0] ?? 'patient-default';
+      this.syncFloorUnlocks(this.progress.maxFloor - 1);
+      this.normalizeTemporaryUnlocks();
+    } catch {
+      this.progress = {
+        maxFloor: 1,
+        mainlineIntroSeen: false,
+        tutorialCompleted: false,
+        unlockedWeaponIds: ['knife', 'ward-lantern'],
+        unlockedWeaponSkinIds: ['sword-default', 'gun-default', 'whip-default', 'cannon-default'],
+        equippedWeaponSkinIds: { sword: 'sword-default', gun: 'gun-default', whip: 'whip-default', cannon: 'cannon-default' },
+        unlockedSkinIds: DEFAULT_UNLOCKED_SKIN_IDS.slice(),
+        equippedSkinId: 'patient-default',
+        skinTrialExpiresAt: {},
+        weaponSkinTrialExpiresAt: {},
+        archiveKinds: [],
+        dailyBestSeconds: undefined,
+        dailyAttemptDate: undefined,
+        dailyAttemptMonth: undefined,
+        dailyAttempts: 0,
+        dailyAdTickets: 0,
+        dailyRewardMonth: undefined,
+        dailyRewardIds: [],
+        dailyRewardTitle: undefined,
+        metaCoins: 0,
+      };
+    }
   }
 
   private saveProgress() {
@@ -2726,7 +2915,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const playerShadow = this.add.graphics();
     playerShadow.fillStyle(0x05090f, 0.24).fillEllipse(playerX, actorY + 112, 126, 22);
     stage.add(playerShadow);
-    const playerSprite = this.addPatientSprite(stage, playerX, actorY, 224);
+    const playerSprite = this.addPatientSprite(stage, playerX, actorY, 224, this.equippedSkin(), true);
     if (playerSprite) {
       playerSprite.setAlpha(1).clearTint();
     }
@@ -3966,11 +4155,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.world.add(this.player);
   }
 
-  private fitPlayerSprite(sprite: Phaser.GameObjects.Sprite) {
+  private fitPlayerSprite(sprite: Phaser.GameObjects.Sprite, targetHeight = this.playerSpriteTargetHeight) {
     const frameWidth = sprite.frame?.realWidth || sprite.frame?.width || 1;
     const frameHeight = sprite.frame?.realHeight || sprite.frame?.height || 1;
     const aspect = frameWidth / Math.max(1, frameHeight);
-    sprite.setDisplaySize(this.playerSpriteTargetHeight * aspect, this.playerSpriteTargetHeight);
+    sprite.setDisplaySize(targetHeight * aspect, targetHeight);
   }
 
   private addPlayerSprite(parent: Phaser.GameObjects.Container, x: number, y: number, targetHeight: number, skin?: SkinDef) {
@@ -3979,17 +4168,22 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (!this.textures.exists(textureKey)) return undefined;
     const sprite = this.add.sprite(x, y, textureKey).setOrigin(0.5);
     this.playerSpriteTargetHeight = targetHeight;
-    this.fitPlayerSprite(sprite);
+    this.fitPlayerSprite(sprite, targetHeight);
     parent.add(sprite);
     return sprite;
   }
 
-  private addPatientSprite(parent: Phaser.GameObjects.Container, x: number, y: number, targetHeight: number, skin?: SkinDef) {
-    const selectedSkin = skin ?? this.skins[0];
-    const customTextureKey = this.skinHasCustomArt(selectedSkin) ? this.skinCoverTextureKey(selectedSkin) : '';
-    const textureKey = customTextureKey && this.textures.exists(customTextureKey)
-      ? customTextureKey
-      : (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
+  private addPatientSprite(parent: Phaser.GameObjects.Container, x: number, y: number, targetHeight: number, skin?: SkinDef, animated = false) {
+    const selectedSkin = skin ?? this.equippedSkin();
+    const animatedKey = this.skinWalkAnimationKey(selectedSkin, 'down');
+    if (animated && this.textures.exists(animatedKey)) {
+      const sprite = this.add.sprite(x, y, animatedKey).setOrigin(0.5);
+      this.fitPlayerSprite(sprite, targetHeight);
+      parent.add(sprite);
+      if (this.anims.exists(animatedKey)) sprite.anims.play(animatedKey, true);
+      return sprite;
+    }
+    const textureKey = this.skinHasCustomArt(selectedSkin) ? this.skinFrontTextureKey(selectedSkin) : (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
     if (!this.textures.exists(textureKey)) return undefined;
     const sprite = this.add.image(x, y, textureKey).setOrigin(0.5);
     sprite.setDisplaySize(targetHeight * sprite.width / sprite.height, targetHeight);
@@ -4062,7 +4256,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     const moving = Math.hypot(x, y) > 0.08;
     if (moving) this.playerDirection = this.directionForVector(x, y);
-    const resolved = this.resolveBlockedPosition(this.player.x + x * this.runSpeed * dt, this.player.y + y * this.runSpeed * dt, this.playerRadius);
+    const resolved = this.resolveBlockedPosition(this.player.x, this.player.y, this.player.x + x * this.runSpeed * dt, this.player.y + y * this.runSpeed * dt, this.playerRadius);
     this.player.x = resolved.x;
     this.player.y = resolved.y;
     this.playPlayerAnimation(moving ? `walk-${this.playerDirection}` : 'idle');
@@ -4120,6 +4314,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     let visualWidth = radius * 2;
     let visualHeight = radius * 2;
     let bossVisual: Enemy['bossVisual'] | undefined;
+    let miniBossVisual: Enemy['miniBossVisual'] | undefined;
     if (isBoss) {
       if (kind === 'boss') {
         const boss = this.createMoonMothQueenBody(radius, color);
@@ -4133,6 +4328,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         body = miniBoss.body;
         visualWidth = miniBoss.visualWidth;
         visualHeight = miniBoss.visualHeight;
+        miniBossVisual = miniBoss.miniBossVisual;
       }
     } else {
       const small = this.createSmallEnemyBody(kind as SmallEnemyKind, radius, color);
@@ -4148,6 +4344,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.world.add(node);
     const enemy: Enemy = { kind, node, body, baseHp, hpScale, hp, maxHp: hp, speed: stats.speed, damage: stats.damage, radius, visualWidth, visualHeight, facingRight: false, attackCd: 0.2, shootCd: 1.8, areaCd: 2.5, flash: 0, meleeHitCd: 0, deathTimer: 0, statusTimer: 0, statusTick: 0 };
     if (bossVisual) enemy.bossVisual = bossVisual;
+    if (miniBossVisual) enemy.miniBossVisual = miniBossVisual;
     (node as Phaser.GameObjects.Container & { hpBar?: Phaser.GameObjects.Graphics }).hpBar = hpBar;
     this.enemies.push(enemy);
     this.waveSpawned += 1;
@@ -4162,13 +4359,18 @@ export class HospitalBattleScene extends Phaser.Scene {
     const right = clamp(view.right + margin, WORLD_BOUNDS.left + 28, WORLD_BOUNDS.right - 28);
     const top = clamp(view.y - margin, WORLD_BOUNDS.top + 28, WORLD_BOUNDS.bottom - 28);
     const bottom = clamp(view.bottom + margin, WORLD_BOUNDS.top + 28, WORLD_BOUNDS.bottom - 28);
-    let fallback = { x: left, y: top };
-    for (let attempt = 0; attempt < 16; attempt += 1) {
-      const edge = Math.floor(Math.random() * 4);
-      const point = {
-        x: edge === 0 ? left : edge === 1 ? right : Phaser.Math.Between(Math.round(left), Math.round(right)),
-        y: edge === 2 ? top : edge === 3 ? bottom : Phaser.Math.Between(Math.round(top), Math.round(bottom)),
-      };
+    let fallback = { x: ARENA_WALKABLE_CENTER.x, y: ARENA_WALKABLE_CENTER.y };
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const edge = attempt < 12 ? attempt % 4 : -1;
+      const point = edge === 0
+        ? { x: left, y: Phaser.Math.Between(Math.round(top), Math.round(bottom)) }
+        : edge === 1
+          ? { x: right, y: Phaser.Math.Between(Math.round(top), Math.round(bottom)) }
+          : edge === 2
+            ? { x: Phaser.Math.Between(Math.round(left), Math.round(right)), y: top }
+            : edge === 3
+              ? { x: Phaser.Math.Between(Math.round(left), Math.round(right)), y: bottom }
+              : { x: Phaser.Math.Between(Math.round(left), Math.round(right)), y: Phaser.Math.Between(Math.round(top), Math.round(bottom)) };
       fallback = point;
       if (active.every((enemy) => distance(enemy.node, point) >= Math.max(44, enemy.radius + radius + 8)) && !this.isBlocked(point.x, point.y, radius)) return point;
     }
@@ -4176,6 +4378,16 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private isBlocked(x: number, y: number, radius: number) {
+    const samples = radius > 0
+      ? [
+          { x, y },
+          { x: x + radius * 0.86, y },
+          { x: x - radius * 0.86, y },
+          { x, y: y + radius * 0.86 },
+          { x, y: y - radius * 0.86 },
+        ]
+      : [{ x, y }];
+    if (samples.some((sample) => !pointInPolygon(sample, ARENA_WALKABLE_POINTS))) return true;
     return this.walls.some((wall) => {
       const closestX = clamp(x, wall.x, wall.x + wall.width);
       const closestY = clamp(y, wall.y, wall.y + wall.height);
@@ -4208,7 +4420,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private isMiniBossWave() {
-    return this.runMode === 'mainline' && !this.tutorialRun && this.wave === 10;
+    return this.runMode === 'mainline' && !this.tutorialRun && this.wave === (TEMP_FIRST_WAVE_BOSS_TEST ? 1 : 10);
   }
 
   private isTutorialBossWave() {
@@ -4216,7 +4428,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private isFloorBossWave() {
-    return this.runMode === 'daily' && this.wave === this.wavesPerFloor();
+    return this.runMode === 'daily' && this.wave === (TEMP_FIRST_WAVE_BOSS_TEST ? 1 : this.wavesPerFloor());
   }
 
   private currentWeaponTier() {
@@ -4326,20 +4538,37 @@ export class HospitalBattleScene extends Phaser.Scene {
           this.setBossVisualState(enemy, 'attack');
           this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), '楼层 Boss');
         }
-      } else if (enemy.kind === 'miniBoss') {
-        if (dist > 220) this.moveEnemy(enemy, dt, 0.55);
+      } else if (enemy.kind === 'miniBoss' && enemy.miniBossVisual) {
+        const moving = dist > 220;
+        if (moving) {
+          this.setMiniBossVisualState(enemy, 'walk');
+          this.moveEnemy(enemy, dt, 0.55);
+        } else {
+          this.setMiniBossVisualState(enemy, 'attack');
+        }
+        if (dist > 220) {
+          this.updateMiniBossFacing(enemy, this.player.x > enemy.node.x);
+        }
         if (enemy.shootCd <= 0 && dist < 720) {
           enemy.shootCd = 5.2;
+          this.setMiniBossVisualState(enemy, 'attack');
           this.enemyBomb(enemy);
+          this.time.delayedCall(260, () => {
+            if (!enemy.dead && enemy.miniBossVisual && this.phase === 'battle') {
+              this.setMiniBossVisualState(enemy, distance(enemy.node, this.player) > 220 ? 'walk' : 'attack');
+            }
+          });
         }
         if (enemy.areaCd <= 0) {
           enemy.areaCd = 6.4;
           const warningRadius = 116;
           this.createAreaWarning(this.player.x, this.player.y, warningRadius, 0xf2bf62);
+          this.setMiniBossVisualState(enemy, 'attack');
           if (dist < warningRadius) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 0.9), '小首领冲击');
         }
         if (dist < enemy.radius + 30 && enemy.attackCd <= 0) {
           enemy.attackCd = 1.15;
+          this.setMiniBossVisualState(enemy, 'attack');
           this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), '小首领');
         }
       } else if (enemy.kind === 'bomber') {
@@ -4360,7 +4589,13 @@ export class HospitalBattleScene extends Phaser.Scene {
         if (dist > this.smallEnemyDistance(190)) this.moveEnemy(enemy, dt, 0.75);
         if (enemy.areaCd <= 0) {
           enemy.areaCd = 3.2;
-          this.createAreaWarning(enemy.node.x, enemy.node.y, this.smallEnemyDistance(190), 0x9a6bd1);
+          const angle = Phaser.Math.Angle.Between(enemy.node.x, enemy.node.y, this.player.x, this.player.y);
+          this.enemyAttackEffect('tentacle', enemy.node.x, enemy.node.y, this.smallEnemyDistance(190) * 1.72, this.smallEnemyDistance(190) * 1.72, angle, {
+            alpha: 0.94,
+            depth: 8,
+            duration: 260,
+            scale: 1.08,
+          });
           if (dist < this.smallEnemyDistance(190)) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.1), '触手横扫');
         }
       } else if (enemy.kind === 'shooter') {
@@ -4380,6 +4615,13 @@ export class HospitalBattleScene extends Phaser.Scene {
         this.moveEnemy(enemy, dt, 1);
         if (dist < enemy.radius + this.smallEnemyDistance(24) && enemy.attackCd <= 0) {
           enemy.attackCd = 1.45;
+          const angle = Phaser.Math.Angle.Between(enemy.node.x, enemy.node.y, this.player.x, this.player.y);
+          this.enemyAttackEffect('chaser', enemy.node.x, enemy.node.y, 152, 152, angle, {
+            alpha: 0.96,
+            depth: 8,
+            duration: 180,
+            scale: 1.06,
+          });
           this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage), '异常体');
         }
       }
@@ -4413,6 +4655,16 @@ export class HospitalBattleScene extends Phaser.Scene {
         a.node.y = clamp(a.node.y - Math.sin(angle) * push, WORLD_BOUNDS.top + a.radius, WORLD_BOUNDS.bottom - a.radius);
         b.node.x = clamp(b.node.x + Math.cos(angle) * push, WORLD_BOUNDS.left + b.radius, WORLD_BOUNDS.right - b.radius);
         b.node.y = clamp(b.node.y + Math.sin(angle) * push, WORLD_BOUNDS.top + b.radius, WORLD_BOUNDS.bottom - b.radius);
+        if (this.isBlocked(a.node.x, a.node.y, a.radius)) {
+          const resolvedA = this.resolveBlockedPosition(ARENA_WALKABLE_CENTER.x, ARENA_WALKABLE_CENTER.y, a.node.x, a.node.y, a.radius);
+          a.node.x = resolvedA.x;
+          a.node.y = resolvedA.y;
+        }
+        if (this.isBlocked(b.node.x, b.node.y, b.radius)) {
+          const resolvedB = this.resolveBlockedPosition(ARENA_WALKABLE_CENTER.x, ARENA_WALKABLE_CENTER.y, b.node.x, b.node.y, b.radius);
+          b.node.x = resolvedB.x;
+          b.node.y = resolvedB.y;
+        }
       }
     }
   }
@@ -4427,65 +4679,101 @@ export class HospitalBattleScene extends Phaser.Scene {
     const mutationSpeed = this.mutated ? 1.18 : 1;
     const nextX = enemy.node.x + (dx / len) * enemy.speed * multiplier * slow * mutationSpeed * dt;
     const nextY = enemy.node.y + (dy / len) * enemy.speed * multiplier * slow * mutationSpeed * dt;
-    const resolved = this.resolveBlockedPosition(nextX, nextY, enemy.radius);
+    const resolved = this.resolveBlockedPosition(enemy.node.x, enemy.node.y, nextX, nextY, enemy.radius);
     enemy.node.x = resolved.x;
     enemy.node.y = resolved.y;
     if (enemy.bossVisual) {
       this.updateBossFacing(enemy, nextX > enemy.node.x);
+    } else if (enemy.miniBossVisual) {
+      this.updateMiniBossFacing(enemy, dx > 0);
     } else if (enemy.kind !== 'miniBoss' && enemy.body) {
       enemy.facingRight = dx > 0;
       enemy.body.setScale(enemy.facingRight ? -1 : 1, 1);
     }
   }
 
-  private resolveBlockedPosition(x: number, y: number, radius: number) {
-    let nextX = clamp(x, WORLD_BOUNDS.left + radius, WORLD_BOUNDS.right - radius);
-    let nextY = clamp(y, WORLD_BOUNDS.top + radius, WORLD_BOUNDS.bottom - radius);
-    for (const wall of this.walls) {
-      const closestX = clamp(nextX, wall.x, wall.x + wall.width);
-      const closestY = clamp(nextY, wall.y, wall.y + wall.height);
-      const dx = nextX - closestX;
-      const dy = nextY - closestY;
-      if (dx * dx + dy * dy >= radius * radius) continue;
-      const overlapX = Math.min(Math.abs(nextX - wall.x), Math.abs(nextX - (wall.x + wall.width)));
-      const overlapY = Math.min(Math.abs(nextY - wall.y), Math.abs(nextY - (wall.y + wall.height)));
-      if (overlapX < overlapY) nextX = nextX < wall.x + wall.width / 2 ? wall.x - radius : wall.x + wall.width + radius;
-      else nextY = nextY < wall.y + wall.height / 2 ? wall.y - radius : wall.y + wall.height + radius;
+  private resolveBlockedPosition(fromX: number, fromY: number, x: number, y: number, radius: number) {
+    const clampToWorld = (value: number, min: number, max: number) => clamp(value, min, max);
+    const valid = (pointX: number, pointY: number) => !this.isBlocked(pointX, pointY, radius);
+    const nextX = clampToWorld(x, WORLD_BOUNDS.left + radius, WORLD_BOUNDS.right - radius);
+    const nextY = clampToWorld(y, WORLD_BOUNDS.top + radius, WORLD_BOUNDS.bottom - radius);
+    if (valid(nextX, nextY)) return { x: nextX, y: nextY };
+    let startX = clampToWorld(fromX, WORLD_BOUNDS.left + radius, WORLD_BOUNDS.right - radius);
+    let startY = clampToWorld(fromY, WORLD_BOUNDS.top + radius, WORLD_BOUNDS.bottom - radius);
+    if (!valid(startX, startY)) {
+      startX = ARENA_WALKABLE_CENTER.x;
+      startY = ARENA_WALKABLE_CENTER.y;
     }
-    return { x: clamp(nextX, WORLD_BOUNDS.left + radius, WORLD_BOUNDS.right - radius), y: clamp(nextY, WORLD_BOUNDS.top + radius, WORLD_BOUNDS.bottom - radius) };
+    if (!valid(startX, startY)) return { x: nextX, y: nextY };
+    let lowX = startX;
+    let lowY = startY;
+    let highX = nextX;
+    let highY = nextY;
+    for (let step = 0; step < 14; step += 1) {
+      const midX = (lowX + highX) / 2;
+      const midY = (lowY + highY) / 2;
+      if (valid(midX, midY)) {
+        lowX = midX;
+        lowY = midY;
+      } else {
+        highX = midX;
+        highY = midY;
+      }
+    }
+    return { x: lowX, y: lowY };
   }
 
   private enemyShot(enemy: Enemy) {
     const dx = this.player.x - enemy.node.x;
     const dy = this.player.y - enemy.node.y;
     const len = Math.hypot(dx, dy) || 1;
-    const node = this.add.circle(enemy.node.x, enemy.node.y, 6, 0xb798e2, 1).setDepth(8);
-    this.world.add(node);
+    const node = this.enemyAttackEffect('shooter', enemy.node.x, enemy.node.y, 76, 76, Math.atan2(dy, dx), {
+      alpha: 0.98,
+      depth: 8,
+      tint: 0xffffff,
+    });
     this.projectiles.push({ node, vx: (dx / len) * 165, vy: (dy / len) * 165, damage: this.enemyAttackDamage(enemy, enemy.damage * 0.65), ttl: 4, color: 0xb798e2 });
   }
 
   private enemyBomb(enemy: Enemy) {
     const target = { x: this.player.x, y: this.player.y };
-    const warning = this.add.circle(target.x, target.y, 74, 0xe78a57, 0.12).setStrokeStyle(3, 0xe78a57, 0.85).setDepth(4);
-    this.world.add(warning);
+    const warning = this.enemyAttackEffect('disruptor', target.x, target.y, 116, 116, 0, {
+      alpha: 0.24,
+      depth: 4,
+      tint: 0xe78a57,
+    });
     this.tweens.add({ targets: warning, scale: 0.65, alpha: 0.6, yoyo: true, repeat: 2, duration: 120 });
     this.time.delayedCall(720, () => {
       if (!warning.active) return;
       warning.destroy();
-      const blast = this.add.circle(target.x, target.y, 28, 0xe78a57, 0.5).setStrokeStyle(2, 0xf4e8c9, 0.9).setDepth(9);
-      this.world.add(blast);
-      this.tweens.add({ targets: blast, scale: 2.2, alpha: 0, duration: 300, onComplete: () => blast.destroy() });
+      this.enemyAttackEffect('bomber', target.x, target.y, 188, 188, 0, {
+        alpha: 0.98,
+        depth: 9,
+        duration: 300,
+        scale: 1.48,
+      });
       if (this.phase === 'battle' && distance(this.player, target) < 74) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.35), '爆炸冲击');
     });
   }
 
   private enemyBeam(enemy: Enemy) {
     const target = { x: this.player.x, y: this.player.y };
-    const line = this.add.graphics().setDepth(9);
-    line.lineStyle(12, 0xf06eaa, 0.18).lineBetween(enemy.node.x, enemy.node.y, target.x, target.y);
-    line.lineStyle(4, 0xffb4dc, 0.95).lineBetween(enemy.node.x, enemy.node.y, target.x, target.y);
-    this.world.add(line);
-    this.tweens.add({ targets: line, alpha: 0, duration: 520, onComplete: () => line.destroy() });
+    const angle = Phaser.Math.Angle.Between(enemy.node.x, enemy.node.y, target.x, target.y);
+    this.enemyAttackEffect('eye', enemy.node.x, enemy.node.y, Math.max(120, distance(enemy.node, target) + 56), 72, angle, {
+      alpha: 0.98,
+      depth: 9,
+      duration: 520,
+      scale: 1.02,
+      originX: 0.12,
+      originY: 0.5,
+    });
+    this.enemyAttackEffect('disruptor', target.x, target.y, 54, 54, 0, {
+      alpha: 0.7,
+      depth: 9,
+      duration: 220,
+      scale: 1.4,
+      tint: 0xf06eaa,
+    });
     this.time.delayedCall(280, () => {
       if (this.phase === 'battle' && distance(this.player, target) < 62) this.hitPlayer(this.enemyAttackDamage(enemy, enemy.damage * 1.25), '激光眼');
     });
@@ -4497,7 +4785,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       shot.node.y += shot.vy * dt;
       shot.ttl -= dt;
       if (shot.ttl <= 0 || shot.node.x < WORLD_BOUNDS.left - 30 || shot.node.x > WORLD_BOUNDS.right + 30 || shot.node.y < WORLD_BOUNDS.top - 30 || shot.node.y > WORLD_BOUNDS.bottom + 30) { shot.node.destroy(); return false; }
-      if (distance(shot.node, this.player) < 22) { shot.node.destroy(); this.hitPlayer(shot.damage, '远程投射'); return false; }
+      if (distance(shot.node, this.player) < 26) { shot.node.destroy(); this.hitPlayer(shot.damage, '远程投射'); return false; }
       return true;
     });
   }
@@ -4827,8 +5115,10 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private fireLine(target: Enemy, color: number, delay: number, effect: WeaponEffect, weaponClass?: WeaponClass) {
     this.time.delayedCall(delay * 1000, () => {
-      if (!target.node.active || target.dead || this.phase !== 'battle') return;
-      const line = this.add.graphics().setDepth(9);
+      if (!target.node.active || this.phase !== 'battle') return;
+      const impactX = target.node.x;
+      const impactY = target.node.y;
+      const line = this.add.graphics().setDepth(12);
       const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, target.node.x, target.node.y);
       const lineWidth = effect === 'beam' || effect === 'laser' ? 6 : effect === 'slash' || effect === 'tentacle' ? 4 : 2;
       const originX = this.heldWeapon ? this.player.x + this.heldWeapon.x : this.player.x;
@@ -4844,23 +5134,25 @@ export class HospitalBattleScene extends Phaser.Scene {
         ? this.add.image(originX, originY, effectTexture)
           .setOrigin(0.5)
           .setDisplaySize(weaponClass ? effectSizes[weaponClass].width : 112, weaponClass ? effectSizes[weaponClass].height : 72)
-          .setRotation(angle)
+          // Gun shots are authored with the bright round head on the opposite end,
+          // so rotate them 180° to keep the head leading the travel direction.
+          .setRotation(angle + (weaponClass === 'gun' ? Math.PI : 0))
           .setBlendMode(Phaser.BlendModes.ADD)
           .setAlpha(0.92)
-          .setDepth(10)
+          .setDepth(13)
         : undefined;
       if (effectSprite) this.world.add(effectSprite);
-      line.lineStyle(lineWidth, color, 0.92).lineBetween(originX, originY, target.node.x, target.node.y);
+      line.lineStyle(lineWidth, color, 0.92).lineBetween(originX, originY, impactX, impactY);
       if (effect === 'slash') {
         const perpX = Math.cos(angle + Math.PI / 2) * 13;
         const perpY = Math.sin(angle + Math.PI / 2) * 13;
-        line.lineStyle(3, color, 0.8).lineBetween(target.node.x - perpX - Math.cos(angle) * 13, target.node.y - perpY - Math.sin(angle) * 13, target.node.x + perpX, target.node.y + perpY);
+        line.lineStyle(3, color, 0.8).lineBetween(impactX - perpX - Math.cos(angle) * 13, impactY - perpY - Math.sin(angle) * 13, impactX + perpX, impactY + perpY);
       }
       if (effect === 'spark') {
         line.lineStyle(2, color, 0.8);
         for (let ray = 0; ray < 6; ray += 1) {
           const rayAngle = angle + ray * Math.PI / 3;
-          line.lineBetween(target.node.x + Math.cos(rayAngle) * 6, target.node.y + Math.sin(rayAngle) * 6, target.node.x + Math.cos(rayAngle) * 18, target.node.y + Math.sin(rayAngle) * 18);
+          line.lineBetween(impactX + Math.cos(rayAngle) * 6, impactY + Math.sin(rayAngle) * 6, impactX + Math.cos(rayAngle) * 18, impactY + Math.sin(rayAngle) * 18);
         }
       }
       if (effect === 'tentacle') {
@@ -4873,40 +5165,40 @@ export class HospitalBattleScene extends Phaser.Scene {
           line.beginPath();
           line.moveTo(this.player.x, this.player.y);
           line.lineTo(midX, midY);
-          line.lineTo(target.node.x + Math.cos(bend) * offset * 1.5, target.node.y + Math.sin(bend) * offset * 1.5);
+          line.lineTo(impactX + Math.cos(bend) * offset * 1.5, impactY + Math.sin(bend) * offset * 1.5);
           line.strokePath();
         }
       }
       if (effect === 'laser') {
-        line.lineStyle(12, color, 0.18).lineBetween(originX, originY, target.node.x, target.node.y);
-        line.lineStyle(2, 0xffd4ee, 0.95).lineBetween(originX, originY, target.node.x, target.node.y);
+        line.lineStyle(12, color, 0.18).lineBetween(originX, originY, impactX, impactY);
+        line.lineStyle(2, 0xffd4ee, 0.95).lineBetween(originX, originY, impactX, impactY);
       }
       if (effect === 'void') {
         line.lineStyle(3, color, 0.9);
         for (let ring = 1; ring <= 3; ring += 1) {
-          line.strokeCircle(target.node.x, target.node.y, ring * 10);
+          line.strokeCircle(impactX, impactY, ring * 10);
         }
         for (let ray = 0; ray < 5; ray += 1) {
           const rayAngle = angle + ray * Math.PI * 0.4;
-          line.lineBetween(target.node.x, target.node.y, target.node.x + Math.cos(rayAngle) * (16 + ray * 4), target.node.y + Math.sin(rayAngle) * (16 + ray * 4));
+          line.lineBetween(impactX, impactY, impactX + Math.cos(rayAngle) * (16 + ray * 4), impactY + Math.sin(rayAngle) * (16 + ray * 4));
         }
       }
       if (effect === 'neon') {
         line.lineStyle(2, 0x9ffff1, 0.95);
         for (let ray = 0; ray < 8; ray += 1) {
           const rayAngle = angle + ray * Math.PI / 4;
-          line.lineBetween(target.node.x, target.node.y, target.node.x + Math.cos(rayAngle) * 24, target.node.y + Math.sin(rayAngle) * 24);
+          line.lineBetween(impactX, impactY, impactX + Math.cos(rayAngle) * 24, impactY + Math.sin(rayAngle) * 24);
         }
       }
       this.world.add(line);
-      const muzzle = this.add.circle(originX, originY, effect === 'beam' || effect === 'laser' ? 12 : 7, color, 0.42).setDepth(9);
+      const muzzle = this.add.circle(originX, originY, effect === 'beam' || effect === 'laser' ? 12 : 7, color, 0.42).setDepth(12);
       this.world.add(muzzle);
       this.tweens.add({ targets: muzzle, scale: 2.2, alpha: 0, duration: 150, onComplete: () => muzzle.destroy() });
       const impactRadius = effect === 'beam' || effect === 'laser' ? 15 : effect === 'burst' || effect === 'bomb' ? 12 : effect === 'void' ? 18 : 7;
-      const impact = this.add.circle(target.node.x, target.node.y, impactRadius, color, effect === 'beam' || effect === 'laser' ? 0.3 : 0.22).setDepth(9);
+      const impact = this.add.circle(impactX, impactY, impactRadius, color, effect === 'beam' || effect === 'laser' ? 0.3 : 0.22).setDepth(12);
       this.world.add(impact);
       const impactRing = effect === 'bomb'
-        ? this.add.circle(target.node.x, target.node.y, 28, color, 0).setStrokeStyle(3, color, 0.9).setDepth(9)
+        ? this.add.circle(impactX, impactY, 28, color, 0).setStrokeStyle(3, color, 0.9).setDepth(12)
         : undefined;
       if (impactRing) this.world.add(impactRing);
       const visuals = impactRing ? [line, impact, impactRing] : [line, impact];
@@ -4920,8 +5212,8 @@ export class HospitalBattleScene extends Phaser.Scene {
       if (effectSprite) {
         this.tweens.add({
           targets: effectSprite,
-          x: target.node.x,
-          y: target.node.y,
+          x: impactX,
+          y: impactY,
           alpha: 0,
           scale: 1.12,
           duration: effect === 'beam' || effect === 'laser' ? 210 : 170,
@@ -4948,6 +5240,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.unlockArchiveKind('boss');
       this.startBossDeath(enemy);
       return;
+    }
+    if (enemy.kind === 'miniBoss' && enemy.miniBossVisual) {
+      this.setMiniBossVisualState(enemy, 'death');
     }
     enemy.dead = true;
     enemy.deathTimer = 0.8;
@@ -5032,6 +5327,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       WORLD_BOUNDS.bottom - WORLD_BOUNDS.top,
     ).setAlpha(0);
     this.world.add(next);
+    // Keep the mutation backdrop behind enemies and the player; otherwise the
+    // full-screen image can temporarily cover the whole battle scene.
+    this.world.moveTo(next, 1);
     this.arenaBackgroundTransition = next;
     this.tweens.add({
       targets: next,
@@ -5418,8 +5716,8 @@ export class HospitalBattleScene extends Phaser.Scene {
     const safe = this.pageSafeBounds(12);
     const centerX = safe.centerX;
     const frameWidth = Math.min(1040, safe.width - 48);
-    const frameHeight = Math.min(600, safe.height - 48);
-    const frameY = clamp(safe.centerY + 4, safe.top + frameHeight / 2 + 8, safe.bottom - frameHeight / 2 - 8);
+    const frameHeight = Math.min(612, safe.height - 40);
+    const frameY = clamp(safe.centerY - 2, safe.top + frameHeight / 2 + 8, safe.bottom - frameHeight / 2 - 8);
     const frameTop = frameY - frameHeight / 2;
     const frameBottom = frameY + frameHeight / 2;
     layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x071015, 0.74));
@@ -5517,8 +5815,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         : `刷新卡牌 · 免费（剩 ${FREE_UPGRADE_REFRESHES - this.upgradeRefreshCount} 次）`;
     const refreshStyle = paidRefresh ? 'danger' : 'muted';
     const upgradeActionY = frameBottom - 48;
-    this.addButton(layer, centerX - 140, upgradeActionY, 280, 42, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, 4);
-    layer.add(this.add.text(centerX + 172, upgradeActionY, `未使用经验 ${Math.floor(this.xp)}`, { fontFamily: 'Microsoft YaHei', fontSize: '12px', color: palette.muted }).setOrigin(0, 0.5));
+    this.addButton(layer, centerX, upgradeActionY, 280, 42, refreshLabel, () => { void this.refreshUpgradeCards(); }, refreshStyle, 4);
     if (this.upgradePaymentMessage) {
       layer.add(this.add.text(centerX, frameBottom - 12, this.upgradePaymentMessage, {
         fontFamily: 'Microsoft YaHei',
@@ -5662,11 +5959,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     const waves = this.wavesPerFloor();
     if (this.tutorialRun) return this.wave === waves ? 34 : 18;
     if (this.runMode === 'daily') {
+      if (this.isFloorBossWave()) return 52;
       if (this.wave === waves) return 52;
-      if (this.isMiniBossWave()) return 38;
       return 22 + Math.min(10, this.wave * 0.16);
     }
-    return this.wave === 10 ? 38 : this.wave === waves ? 34 : 24 + this.wave * 1.2;
+    if (this.isMiniBossWave()) return 38;
+    return this.wave === waves ? 34 : 24 + this.wave * 1.2;
   }
 
   private showResult(win: boolean) {
@@ -5687,15 +5985,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const centerX = safe.centerX;
     if (!win) {
       layer.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000204, 1));
-      layer.add(this.add.text(centerX, 190, '你的大脑被大量怪物占据，失去意识...', {
-        fontFamily: 'Microsoft YaHei',
-        fontSize: '27px',
-        color: palette.cream,
-        stroke: '#13090d',
-        strokeThickness: 7,
-        align: 'center',
-        wordWrap: { width: 760 },
-      }).setOrigin(0.5).setFontStyle('bold'));
+      layer.add(this.add.image(centerX, 184, 'ui-text-result-fail-v1').setOrigin(0.5).setDisplaySize(760, 110));
       layer.add(this.add.text(centerX, 270, `第 ${this.floor} 层 · 第 ${this.wave} 波`, {
         fontFamily: 'Courier New, Microsoft YaHei',
         fontSize: '15px',
@@ -5706,7 +5996,6 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.addMenuImageButton(layer, centerX, resultRetryY, 330, 124, 'menu-button-mainline-v1', '重新挑战', () => {
         this.startRun(this.floor, this.runMode, this.selectedWeaponId);
       });
-      this.addMenuImageButton(layer, centerX, resultBottomY, 330, 124, 'menu-button-archive-v1', '回到标题', () => this.showStart());
       this.overlay = layer;
       return;
     }
@@ -5965,10 +6254,46 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: text, y: y - rise, alpha: 0, duration, onComplete: () => text.destroy() });
   }
 
+  private enemyAttackEffect(kind: SmallEnemyAttackKind, x: number, y: number, width: number, height: number, rotation = 0, options: {
+    alpha?: number;
+    depth?: number;
+    duration?: number;
+    scale?: number;
+    originX?: number;
+    originY?: number;
+    tint?: number;
+  } = {}) {
+    const art = SMALL_ENEMY_ATTACK_ART_BY_KIND[kind];
+    const image = this.add.image(x, y, art.key)
+      .setOrigin(options.originX ?? 0.5, options.originY ?? 0.5)
+      .setDisplaySize(width, height)
+      .setRotation(rotation)
+      .setDepth(options.depth ?? 9)
+      .setAlpha(options.alpha ?? 1)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    if (options.tint !== undefined) image.setTint(options.tint);
+    this.world.add(image);
+    if ((options.duration ?? 0) > 0) {
+      this.tweens.add({
+        targets: image,
+        alpha: 0,
+        scale: options.scale ?? 1.12,
+        duration: options.duration,
+        ease: 'Cubic.Out',
+        onComplete: () => image.destroy(),
+      });
+    }
+    return image;
+  }
+
   private createAreaWarning(x: number, y: number, radius = 75, color = 0xb798e2) {
-    const warning = this.add.circle(x, y, radius, color, 0.08).setStrokeStyle(2, color, 0.85).setDepth(4);
-    this.world.add(warning);
-    this.tweens.add({ targets: warning, scale: 1.35, alpha: 0, duration: 520, onComplete: () => warning.destroy() });
+    this.enemyAttackEffect('disruptor', x, y, radius * 2.2, radius * 2.2, 0, {
+      alpha: 0.22,
+      depth: 4,
+      duration: 520,
+      scale: 1.32,
+      tint: color,
+    });
   }
 
   private canvasPoint(event: PointerEvent) {
@@ -6169,11 +6494,19 @@ export class HospitalBattleScene extends Phaser.Scene {
     const dx = x - this.joystickOrigin.x;
     const dy = y - this.joystickOrigin.y;
     const len = Math.hypot(dx, dy) || 1;
-    const scale = Math.min(1, this.joystickMaxDistance / len);
-    this.joystickVector.x = (dx / len) * scale;
-    this.joystickVector.y = (dy / len) * scale;
     const knob = this.joystickVisual?.getData('knob') as Phaser.GameObjects.Arc | undefined;
-    knob?.setPosition(this.joystickVector.x * this.joystickMaxDistance, this.joystickVector.y * this.joystickMaxDistance);
+    if (len <= this.joystickDeadzone) {
+      this.joystickVector.x = 0;
+      this.joystickVector.y = 0;
+      knob?.setPosition(0, 0);
+      return;
+    }
+    const dirX = dx / len;
+    const dirY = dy / len;
+    this.joystickVector.x = dirX;
+    this.joystickVector.y = dirY;
+    const travel = Math.min(len, this.joystickMaxDistance);
+    knob?.setPosition(dirX * travel, dirY * travel);
   }
 
   private createTouchJoystick() {

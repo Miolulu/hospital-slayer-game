@@ -44,12 +44,34 @@ The four supplied base weapon images are cleaned with edge-connected background 
 
 The runtime maps every weapon class to its slot. The same asset is used by the orbiting battle weapon, weapon selection cards and the battle HUD icon. Keep the 160x160 canvas and transparent padding when replacing a slot so the orbit anchor remains stable.
 
+## Weapon skin batches
+
+The weapon-select shop now loads the remake batch under `weapon-select/` and groups it by weapon class:
+
+- `sword`: refreshed `cthulhu`, `fairytale`, `hero-tech`; new `black-tide`, `old-god-ritual`, `abyss-mouth`, `moon-moth-queen`, `moon-moth-queen-gala`
+- `gun`: refreshed `cthulhu`, `fairytale`; new `ritual-relic`, `cthulhu-eye`, `abyss-machinery`, `moon-moth-queen`, `moon-moth-queen-gala`
+- `whip`: refreshed `cthulhu`, `fairytale`; new `bone-scale`, `living-crown`, `prism-energy`
+- `cannon`: refreshed `cthulhu`, `fairytale`; new `old-god-ring`, `cthulhu-eye`, `abyss-maw`
+
 ## Combat feedback slots
 
 - `pickups/xp-drop-cthulhu-v1.png` - Cthulhu-style experience pickup with an eye core.
 - `hud/san-frenzy-v1.png` - SAN collapse and manual frenzy skill icon.
 
 Both assets use transparent square canvases and are displayed at runtime size. The battle scene keeps a geometric fallback when an asset cannot be loaded.
+
+## Small enemy attack slots
+
+The six small enemy kinds now use bitmap attack effects instead of vector placeholders:
+
+- `enemies/patients/attacks/chaser-attack.png`
+- `enemies/patients/attacks/shooter-attack.png`
+- `enemies/patients/attacks/disruptor-attack.png`
+- `enemies/patients/attacks/tentacle-attack.png`
+- `enemies/patients/attacks/bomber-attack.png`
+- `enemies/patients/attacks/eye-attack.png`
+
+These files are loaded directly by the battle scene and tinted or scaled at runtime as needed for warnings, projectiles and impact flashes.
 
 首领资源槽位：
 
