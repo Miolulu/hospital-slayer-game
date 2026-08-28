@@ -474,6 +474,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.load.image('mainline-building-v1', '/assets/art/mainline-building-v1.png');
     this.load.image('mainline-building-v2', '/assets/art/mainline-building-v2.png');
     this.load.image('mainline-building-v3', '/assets/art/mainline-building-v3.png');
+    this.load.image('mainline-floor-perspective-v1', '/assets/art/mainline-floor-perspective-v1.png');
+    this.load.image('mainline-floor-locked-v1', '/assets/art/mainline-floor-locked-v1.png');
+    this.load.image('mainline-floor-unlocked-v1', '/assets/art/mainline-floor-unlocked-v1.png');
+    this.load.image('mainline-floor-selected-v1', '/assets/art/mainline-floor-selected-v1.png');
     this.load.image('weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.png');
     (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => {
       this.load.image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.png`);
@@ -2911,6 +2915,16 @@ export class HospitalBattleScene extends Phaser.Scene {
     const sprite = this.playerSprite;
     if (!sprite) return;
     const equippedSkin = this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
+    // Custom skins do not ship a separate hit/death sheet. Keep their own
+    // portrait frame so the silhouette never changes aspect during damage.
+    if ((animation === 'hit' || animation === 'death') && this.skinHasCustomArt(equippedSkin)) {
+      sprite.anims.stop();
+      const stableKey = this.skinFrontTextureKey(equippedSkin);
+      if (this.textures.exists(stableKey)) sprite.setTexture(stableKey, 0);
+      this.fitPlayerSprite(sprite);
+      this.playerAnimation = animation;
+      return;
+    }
     if (animation === 'idle') {
       if (force || this.playerAnimation !== 'idle') {
         sprite.anims.stop();
@@ -3848,7 +3862,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (this.screenShakeEnabled) this.cameras.main.shake(120, 0.006);
     this.playerHitTimer = 0.3;
     this.playPlayerAnimation('hit', true);
-    this.tweens.add({ targets: this.player, scaleX: 1.14, scaleY: 0.88, yoyo: true, duration: 90 });
+    // Keep the character silhouette at a uniform scale. Hit feedback comes
+    // from the camera flash, shake and animation instead of squash/stretch.
+    this.tweens.killTweensOf(this.player);
+    this.player.setScale(1);
     if (this.san <= 0 && this.mutated) {
       this.playerDeathPending = true;
       this.playerDeathTimer = 0.72;
