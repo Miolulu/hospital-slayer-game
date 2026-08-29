@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3658,
-                     "lastCheckedAt":  "2026-08-29T11:37:47+08:00",
+                     "lastCheckedAt":  "2026-08-29T11:58:43+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -417,6 +417,10 @@
                            "buildaDraftUploadCurrent":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 191776ef-4b48-522f-8eec-0a41bf02b3db，bundleVersion 837decbadb94a4ab07cc36cdb50d6d44，bundleSize 87772899 字节，cysjSyncStatus=synced，公开发布待用户操作。",
                            "customSkinAlphaFix":  "passed: 自定义皮肤战斗与档案预览显式恢复不透明度和正常混合模式，避免移动端透明画布导致立绘发灰；npm.cmd test 与 npm.cmd run build 通过（2026-08-29 11:35）。",
                            "pngDraftBundleSkinAlphaFix":  "passed: 基于皮肤透明度修复重新打包并压缩 PNG；包内 340 张 PNG、0 张 WebP、33 张 GIF，bundle-check --webview-compatible 通过，包体 87772957 字节。",
-                           "buildaDraftUploadSkinAlphaFix":  "passed: 皮肤透明度修复已同步创游世界草稿；gameId GD:48356599:1，currentVersionId da122c31-b062-5176-a00c-48fa2892a99b，bundleVersion b6297e24c3736f3ec2b22483997b5962，bundleSize 87772957 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                           "buildaDraftUploadSkinAlphaFix":  "passed: 皮肤透明度修复已同步创游世界草稿；gameId GD:48356599:1，currentVersionId da122c31-b062-5176-a00c-48fa2892a99b，bundleVersion b6297e24c3736f3ec2b22483997b5962，bundleSize 87772957 字节，cysjSyncStatus=synced，公开发布待用户操作。",
+                           "pngLosslessCompressionAuditLatest":  "passed: 当前 292 张已跟踪 PNG 与 HEAD 逐张解码比对，尺寸、RGBA 像素和透明通道全部一致；未发现有损变化。",
+                           "testsBuildAfterPngAudit":  "passed: npm.cmd test，10 个测试文件、52 项全部通过（2026-08-29 11:55）；npm.cmd run build 的 tsc 与 vite 构建通过（仅有既有大 chunk 提示）。",
+                           "pngDraftBundleCurrentR8":  "passed: 基于最新 dist 在暂存副本排除全部 WebP 并压缩 PNG；包内 340 张 PNG、0 张 WebP、33 张 GIF，bundle-check --webview-compatible 通过，包体 88195110 字节。",
+                           "buildaDraftUploadCurrentR8":  "passed: 最新 PNG 草稿同步完成；gameId GD:48356599:1，currentVersionId d600f288-f383-5c32-bd75-01a3589e30f2，bundleVersion f6f3718137e0a072413aec2449289ac9，bundleSize 88195110 字节，cysjSyncStatus=synced，公开发布待用户操作。"
                       }
 }
