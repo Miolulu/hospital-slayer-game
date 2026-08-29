@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3658,
-                     "lastCheckedAt":  "2026-08-29T12:08:21+08:00",
+                     "lastCheckedAt":  "2026-08-29T12:21:48+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -425,5 +425,6 @@
                            "pngAlphaAuditR9":  "passed: R9 暂存包 340 张 PNG 中 290 张含透明通道，逐像素比较 alpha 与 dist 完全一致；无 alpha 差异。",
                            "pngDraftBundleAlphaPreservingR9":  "passed: 重新保留原始 alpha 通道后打包；包内 340 张 PNG、0 张 WebP、33 张 GIF，bundle-check --webview-compatible 通过，包体 144181036 字节。",
                            "buildaDraftUploadAlphaPreservingR9":  "passed: alpha 保真 PNG 草稿同步完成；gameId GD:48356599:1，currentVersionId 987c6c21-6d08-5888-bab3-4e574fefc3e3，bundleVersion a2ee76f5aa4225f305261036109c4b5e，bundleSize 144181036 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                           ,"buildaDraftReconcileLatest":  "passed: 发现同一 Bundle a2ee76f5aa4225f305261036109c4b5e 被平台再次同步，当前草稿 versionId=0fb5b10c-7570-58a3-a08b-76e648045003，bundleSize=144181036 字节，未公开发布。源代码和素材无新增改动。"
                       }
 }
