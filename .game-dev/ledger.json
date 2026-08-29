@@ -2,10 +2,10 @@
     "document":  {
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
-                     "revision":  3648,
-                     "lastCheckedAt":  "2026-08-29T09:05:00+08:00",
+                     "revision":  3658,
+                     "lastCheckedAt":  "2026-08-29T09:08:00+08:00",
                      "completedCheckboxes":  54,
-                     "pendingCheckboxes":  6
+                     "pendingCheckboxes":  5
                  },
     "completedItems":  [
                            {
@@ -324,12 +324,6 @@
                               "reason":  "主线战斗已按敌人类型随机选择两种已接入变体；独立怪物图鉴入口目前隐藏，文档要求的图鉴轮换和逐楼层不同立绘仍未完成验收。"
                           },
                           {
-                              "summary":  "购买按钮调用创游真实付费接口并整理皮肤、武器清单与规则",
-                              "status":  "blocked",
-                              "implementedIn":  "src/main.ts",
-                              "reason":  "购买按钮已调用 Builda SDK 的 pay.showPayPanel，并配置 6 个玩家皮肤、25 个武器皮肤和升级卡牌刷新商品；创游世界文档新增意见仍要求真实接口验收，需要在平台宿主完成一次真实 G 币支付闭环。"
-                          },
-                          {
                               "summary":  "每日挑战真实平台排行榜验收",
                               "status":  "blocked",
                               "implementedIn":  "src/main.ts",
@@ -348,7 +342,7 @@
                          "build":  "passed: tsc --noEmit 和 vite build（2026-08-28 22:54）；仅有既有大 chunk 提示",
                          "dailyChallengeBackground":  "passed: 1672x941 user-supplied hospital exterior image copied to public/assets/art/daily/daily-background-v2.png and included in dist",
                          "mainlineBackground":  "passed: supplied title-free hospital background copied to public assets, included in dist, and verified in the mainline page preview",
-                            "documentFetch":  "passed: revision 3648；54 项已完成，6 项待处理（2026-08-29 09:05）",
+                            "documentFetch":  "passed: revision 3658；54 项已完成，5 项待处理（2026-08-29 09:08）",
                             "documentCheckboxUpdate":  "passed: revision 3624；已勾选全页面排行榜与字体位置验收项，文档剩余 5 项待处理",
                            "buildaBundleCheck":  "passed: PNG-only H5 包根目录含 index.html，bundle-check --webview-compatible 通过；包内无 WebP，bundleVersion 27575d4ad444e2b71811d5e17e5d522b，bundleSize 78642248 字节。",
                            "buildaUpload":  "passed: PNG-only 优化包已上传并更新现有创游世界草稿；Builda 构建 27575d4ad444e2b71811d5e17e5d522b，currentVersionId fb8ececb-7288-5f0b-8e84-04db942d83f9，未执行公开发布。",
@@ -368,7 +362,7 @@
                           "artAssetIntegration":  "passed: 新增经验掉落物、SAN 暴走技能图标、小首领和楼层首领四张透明 PNG，已接入战斗掉落、固定 HUD 和首领渲染；缺图时保留几何兜底；详见 .game-dev/reports/art-asset-integration-2026-08-27.md",
                           "uiAssetInventory":  "passed: 已盘点战斗状态组、触摸摇杆、状态标记、伤害数字、攻击预警、分隔线和缺失立绘；替换清单见 .game-dev/reports/ui-asset-inventory-2026-08-27.md",
                           "godotMigrationEvaluation":  "passed: 当前试玩版保留 Phaser 3 + TypeScript + Vite；Godot 4.7.1 作为后续玩法和 UI 冻结后的独立主工程候选，评估记录见 .game-dev/reports/godot-migration-evaluation-2026-08-27.md",
-                            "pendingAudit":  "revision 3648 后剩余 6 项：月度挑战线上支付与榜单闭环、动态非图片 UI 资源替换、主线敌人多皮肤轮换、购买按钮真实付费接口验收、真实平台排行榜验收、皮肤商城规则确认。",
+                            "pendingAudit":  "revision 3658 后剩余 5 项：月度挑战线上支付与榜单闭环、动态非图片 UI 资源替换、主线敌人多皮肤轮换、真实平台排行榜验收、皮肤商城规则确认。购买按钮待办已从飞书文档移除，代码仍保留 Builda pay.showPayPanel 接入。",
                           "pendingEvidence":  ".game-dev/evidence/pending-items-retest-2026-08-28.md",
                            "playerHitAspectFix":  "passed: 移除人物受击时的非等比 squash/stretch 缩放；自定义皮肤在受击和死亡状态保持自身立绘比例；30 项测试与生产构建通过。",
                            "upgradeCardCatalog":  "passed: 五类普通卡牌按蓝70%、紫20%、金10%抽取并使用阶梯数值；每日特殊卡与武器数量卡固定金色；说明模板、感染共振移除均集中到 src/upgradeCards.ts；32 项测试与生产构建通过。",
@@ -417,6 +411,6 @@
                            ,"buildTutorialShowcase":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 08:56）；仅有既有大 chunk 提示。"
                            ,"pngDraftBundleTutorialShowcase":  "passed: 最新代码重新构建并压缩 PNG；暂存包包含 340 张 PNG、0 张 WebP/GIF，290 张带透明源图均保留透明信息，bundle-check --webview-compatible 通过，包体 86340431 字节。"
                            ,"buildaDraftUploadTutorialShowcase":  "passed: 新手关爽局版本已同步创游世界草稿；gameId GD:48356599:1，versionId f378d7bc-049e-5744-99f5-bee4e604226f，bundleVersion 4357f14345c8e42f37e096855eea5894，bundleSize 86340431 字节，cysjSyncStatus=同步成功，公开发布待用户操作。"
-                           ,"documentFetchLatest":  "passed: 飞书文档 revision 3648；新增待处理意见为购买按钮真实付费接口验收和皮肤商城规则，当前代码已接入 pay.showPayPanel，平台真实扣款与商城设计仍待确认。"
+                           ,"documentFetchLatest":  "passed: 飞书文档 revision 3658；购买按钮待办已移除，当前剩余 5 项，保留皮肤商城规则待确认；代码已接入 pay.showPayPanel，真实扣款仍需平台宿主验证。"
                       }
 }
