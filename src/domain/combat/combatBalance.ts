@@ -27,6 +27,12 @@ export const MAX_WEAPON_ROTATION_SPEED = 9.5;
 
 export const MAX_ENEMY_HEALTH_MULTIPLIER = 2.8;
 
+/** 教程是展示用爽局，临时给玩家一套高强度配置并把敌人压力压低。 */
+export const TUTORIAL_WAVE_BUDGETS = [8, 12, 16, 20, 24, 1] as const;
+export const TUTORIAL_ENEMY_HEALTH_FACTOR = 0.12;
+export const TUTORIAL_ENEMY_DAMAGE_FACTOR = 0.12;
+export const TUTORIAL_INCOMING_DAMAGE_FACTOR = 0.08;
+
 const SMALL_ENEMY_SPEED_MULTIPLIER = 1.5;
 
 export const DEFAULT_PICKUP_RADIUS = 132;
@@ -297,6 +303,11 @@ export function enemyHealthMultiplier(level: number, weaponTier: number, ammo: n
   const weaponScale = 1 + Math.max(0, weaponTier) * 0.2;
   const ammoScale = 1 + Math.max(0, ammo - 1) * 0.05;
   return Math.min(MAX_ENEMY_HEALTH_MULTIPLIER, levelScale * weaponScale * ammoScale);
+}
+
+/** 教程专用敌人生命倍率，随玩家构筑增长但始终保持在轻松击杀范围。 */
+export function tutorialEnemyHealthMultiplier(level: number, weaponTier: number, ammo: number) {
+  return Math.min(0.45, enemyHealthMultiplier(level, weaponTier, ammo) * TUTORIAL_ENEMY_HEALTH_FACTOR);
 }
 
 /** 主线前三波普通敌人的实际生命上限，保证初始武器一击可击倒。 */

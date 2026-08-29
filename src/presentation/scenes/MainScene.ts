@@ -18,6 +18,10 @@ import {
   PAID_UPGRADE_REFRESH_SALE_ID,
   pickupPullSpeed,
   rotationsPerSecond,
+  TUTORIAL_ENEMY_DAMAGE_FACTOR,
+  TUTORIAL_INCOMING_DAMAGE_FACTOR,
+  TUTORIAL_WAVE_BUDGETS,
+  tutorialEnemyHealthMultiplier,
   TOTAL_HOSPITAL_FLOORS,
   volleyDamageMultiplier,
   waveSpawningComplete,
@@ -158,6 +162,21 @@ type PlayerAnimation = 'idle' | 'walk-left' | 'walk-right' | 'walk-up' | 'walk-d
 type BossVisualState = 'transform' | 'walk' | 'attack' | 'death';
 type MiniBossVisualState = 'walk' | 'attack' | 'death';
 type LazyAssetGroup = 'profile' | 'mainline' | 'daily' | 'weapon' | 'battle';
+
+const TUTORIAL_SHOWCASE_SKIN_ID = 'abyssal-oracle';
+const TUTORIAL_SHOWCASE_WEAPON_SKIN_IDS: Record<WeaponClass, string> = {
+  sword: 'sword-moon-moth-queen-gala',
+  gun: 'gun-moon-moth-queen-gala',
+  whip: 'whip-prism-energy',
+  cannon: 'cannon-cthulhu-eye',
+};
+const TUTORIAL_SHOWCASE_LEVEL = 30;
+const TUTORIAL_SHOWCASE_WEAPON_LEVEL = 20;
+const TUTORIAL_SHOWCASE_DAMAGE_BONUS = 180;
+const TUTORIAL_SHOWCASE_SHIELD = 999;
+const TUTORIAL_SHOWCASE_RUN_SPEED = 560;
+const TUTORIAL_SHOWCASE_PICKUP_RADIUS = 420;
+const TUTORIAL_SHOWCASE_MAGNET = 420;
 interface ProgressSave {
   maxFloor: number;
   mainlineIntroSeen?: boolean;
@@ -790,6 +809,14 @@ export class HospitalBattleScene extends Phaser.Scene {
       SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       SMALL_ENEMY_ATTACK_ARTS.forEach(({ key, path }) => image(key, path));
       this.weaponSkins.filter((skin) => skin.assetPath).forEach((skin) => image(skin.textureKey, skin.assetPath!));
+      const showcaseSkin = this.skins.find((skin) => skin.id === TUTORIAL_SHOWCASE_SKIN_ID);
+      if (showcaseSkin?.assetPrefix) {
+        const root = `/assets/art/skins/${showcaseSkin.assetPrefix}`;
+        image(this.skinFrontTextureKey(showcaseSkin), `${root}/front.png`);
+        (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
+          sheet(this.skinWalkTextureKey(showcaseSkin, direction), `${root}/walk-${direction}.png`, 192, 192);
+        });
+      }
       (['gun', 'whip', 'cannon'] as const).forEach((weaponClass) => image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.png`));
       image('effect-gun-neon-v1', '/assets/art/weapons/effect-gun-neon-v1.png');
       image('effect-cannon-neon-v1', '/assets/art/weapons/effect-cannon-neon-v1.png');
@@ -1683,9 +1710,21 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private equippedWeaponSkin(weaponClass: WeaponClass) {
+    if (this.tutorialRun) {
+      const showcaseId = TUTORIAL_SHOWCASE_WEAPON_SKIN_IDS[weaponClass];
+      const showcaseSkin = this.weaponSkins.find((skin) => skin.id === showcaseId && skin.weaponClass === weaponClass);
+      if (showcaseSkin) return showcaseSkin;
+    }
     const equippedId = this.progress.equippedWeaponSkinIds?.[weaponClass] ?? `${weaponClass}-default`;
     return this.weaponSkins.find((skin) => skin.id === equippedId && skin.weaponClass === weaponClass)
       ?? this.weaponSkins.find((skin) => skin.id === `${weaponClass}-default`)!;
+  }
+
+  private activePlayerSkin() {
+    if (this.tutorialRun) {
+      return this.skins.find((skin) => skin.id === TUTORIAL_SHOWCASE_SKIN_ID) ?? this.skins[0];
+    }
+    return this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
   }
 
   private weaponAssetKey(weapon?: Weapon) {
@@ -2342,7 +2381,8 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private isWeaponUnlocked(id: string) {
-    return this.progress.unlockedWeaponIds.includes(id);
+    // 教程是展示局，临时开放武器成长路线，但不写入玩家档案。
+    return this.tutorialRun || this.progress.unlockedWeaponIds.includes(id);
   }
 
   private createWeaponRoster(): Weapon[] {
@@ -3258,7 +3298,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const playerShadow = this.add.graphics();
     playerShadow.fillStyle(0x05090f, 0.24).fillEllipse(playerX, actorY + 112, 126, 22);
     stage.add(playerShadow);
-    const playerSprite = this.addPatientSprite(stage, playerX, actorY, 224);
+    const playerSprite = this.addPatientSprite(stage, playerX, actorY, 224, this.activePlayerSkin());
     if (playerSprite) {
       playerSprite.setAlpha(1).clearTint();
     }
@@ -4475,24 +4515,24 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.elapsed = 0;
     this.hp = 100;
     this.maxHp = 100;
-    this.shield = 0;
-    this.maxShield = 0;
+    this.shield = this.tutorialRun ? TUTORIAL_SHOWCASE_SHIELD : 0;
+    this.maxShield = this.tutorialRun ? TUTORIAL_SHOWCASE_SHIELD : 0;
     this.san = 100;
     this.xp = 0;
-    this.level = this.tutorialRun ? 8 : 1;
+    this.level = this.tutorialRun ? TUTORIAL_SHOWCASE_LEVEL : 1;
     this.xpNeed = experienceRequiredForLevel(this.level);
     this.kills = 0;
     this.sanPulse = 0;
     this.mutated = false;
-    this.damageBonus = 0;
+    this.damageBonus = this.tutorialRun ? TUTORIAL_SHOWCASE_DAMAGE_BONUS : 0;
     this.roundDamageBonus = 0;
-    this.rotationSpeedMultiplier = 1;
+    this.rotationSpeedMultiplier = this.tutorialRun ? 3 : 1;
     this.rotationUpgradeStacks = 0;
     this.rotationStacksConvertedToAmmo = 0;
     this.waveBossSpawned = false;
-    this.runSpeed = 380;
-    this.pickupRadius = DEFAULT_PICKUP_RADIUS;
-    this.magnet = 0;
+    this.runSpeed = this.tutorialRun ? TUTORIAL_SHOWCASE_RUN_SPEED : 380;
+    this.pickupRadius = this.tutorialRun ? TUTORIAL_SHOWCASE_PICKUP_RADIUS : DEFAULT_PICKUP_RADIUS;
+    this.magnet = this.tutorialRun ? TUTORIAL_SHOWCASE_MAGNET : 0;
     this.gameSpeed = this.developerMode.options.enabled && this.developerMode.options.initialGameSpeed !== undefined
       ? clamp(this.developerMode.options.initialGameSpeed, 0.25, 8)
       : 1;
@@ -4515,9 +4555,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     }
     const starting = this.currentWeapon();
     if (starting) {
-      starting.level = this.tutorialRun ? 4 : 1;
-      starting.copies = this.tutorialRun ? 3 : 1;
-      starting.ammo = this.tutorialRun ? 3 : 1;
+      starting.level = this.tutorialRun ? TUTORIAL_SHOWCASE_WEAPON_LEVEL : 1;
+      starting.copies = this.tutorialRun ? MAX_WEAPON_COPIES : 1;
+      starting.ammo = this.tutorialRun ? 8 : 1;
     }
     this.applyEquippedSkinBonus();
     this.dailyBossRewardGranted = false;
@@ -4550,7 +4590,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.player.add(bodyLayer);
     this.player.add(weaponLayer);
     this.playerSprite = undefined;
-    const equippedSkin = this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
+    const equippedSkin = this.activePlayerSkin();
     const skinColor = equippedSkin.color;
     this.playerGlow = this.add.circle(0, 0, 42, this.mutated ? 0xed716e : 0x6bd3c1, 0);
     bodyLayer.add(this.playerGlow);
@@ -4606,7 +4646,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private playPlayerAnimation(animation: PlayerAnimation, force = false) {
     const sprite = this.playerSprite;
     if (!sprite) return;
-    const equippedSkin = this.skins.find((skin) => skin.id === this.progress.equippedSkinId) ?? this.skins[0];
+    const equippedSkin = this.activePlayerSkin();
     // Custom skins do not ship a separate hit/death sheet. Keep their own
     // portrait frame so the silhouette never changes aspect during damage.
     if ((animation === 'hit' || animation === 'death') && this.skinHasCustomArt(equippedSkin)) {
@@ -4649,7 +4689,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private applyEquippedSkinBonus() {
-    const skin = this.skins.find((candidate) => candidate.id === this.progress.equippedSkinId);
+    const skin = this.activePlayerSkin();
     if (!skin) return;
     if (skin.id === 'street-runner') this.runSpeed *= 1.05;
     if (skin.id === 'cthulhu-dark') this.damageBonus += 8;
@@ -4760,7 +4800,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     hpBar.fillStyle(color, 1).fillRect(-visualWidth / 2 - 4, -visualHeight / 2 - 12, visualWidth + 8, 4);
     node.add(hpBar);
     this.world.add(node);
-    const enemy: Enemy = { kind, node, body, baseHp, hpScale, hp, maxHp: hp, speed: stats.speed, damage: stats.damage, radius, visualWidth, visualHeight, facingRight: false, attackCd: 0.2, shootCd: 1.8, areaCd: 2.5, flash: 0, meleeHitCd: 0, deathTimer: 0, statusTimer: 0, statusTick: 0 };
+    const enemy: Enemy = { kind, node, body, baseHp, hpScale, hp, maxHp: hp, speed: this.tutorialRun ? stats.speed * 0.72 : stats.speed, damage: stats.damage, radius, visualWidth, visualHeight, facingRight: false, attackCd: 0.2, shootCd: 1.8, areaCd: 2.5, flash: 0, meleeHitCd: 0, deathTimer: 0, statusTimer: 0, statusTick: 0 };
     if (bossVisual) enemy.bossVisual = bossVisual;
     if (miniBossVisual) enemy.miniBossVisual = miniBossVisual;
     (node as Phaser.GameObjects.Container & { hpBar?: Phaser.GameObjects.Graphics }).hpBar = hpBar;
@@ -4814,6 +4854,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private spawnIntervalForWave() {
+    if (this.tutorialRun) return 1.15;
     if (this.runMode === 'daily') return Math.max(0.25, 0.62 * dailyWaveScaling(this.wave).spawnIntervalMultiplier);
     if (this.wave === 1) return 0.72;
     return Math.max(0.24, 0.72 - this.wave * 0.022);
@@ -4821,7 +4862,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private spawnBudgetForWave() {
     if (this.tutorialRun) {
-      return [10, 20, 30, 40, 50, 1][clamp(this.wave, 1, 6) - 1];
+      return TUTORIAL_WAVE_BUDGETS[clamp(this.wave, 1, TUTORIAL_WAVE_BUDGETS.length) - 1];
     }
     const paceBudget = Math.ceil(this.durationForWave() / Math.max(0.1, this.spawnIntervalForWave() * this.spawnRateMultiplier()));
     if (this.runMode === 'daily') {
@@ -4856,6 +4897,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private enemyHealthMultiplier() {
     const weapon = this.currentWeapon();
+    if (this.tutorialRun) return tutorialEnemyHealthMultiplier(this.level, this.currentWeaponTier(), weapon?.ammo ?? 1);
     const buildScale = calculateEnemyHealthMultiplier(this.level, this.currentWeaponTier(), weapon?.ammo ?? 1);
     return this.runMode === 'daily' ? buildScale * dailyWaveScaling(this.wave).healthMultiplier : buildScale;
   }
@@ -4877,6 +4919,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private enemyDamageMultiplier() {
+    if (this.tutorialRun) return TUTORIAL_ENEMY_DAMAGE_FACTOR;
     let multiplier = 1;
     if (this.mutated) multiplier *= 1.3;
     if (this.runMode === 'daily') multiplier *= dailyWaveScaling(this.wave).damageMultiplier;
@@ -4888,7 +4931,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private incomingDamageMultiplier() {
-    let multiplier = this.mutated ? 1.22 : 1;
+    let multiplier = this.tutorialRun ? TUTORIAL_INCOMING_DAMAGE_FACTOR : this.mutated ? 1.22 : 1;
     if (this.dailyBloodPact > 0) multiplier *= 1 + this.dailyBloodPact * 0.08;
     return multiplier;
   }
@@ -6407,7 +6450,7 @@ export class HospitalBattleScene extends Phaser.Scene {
 
   private durationForWave() {
     const waves = this.wavesPerFloor();
-    if (this.tutorialRun) return this.wave === waves ? 34 : 18;
+    if (this.tutorialRun) return this.wave === waves ? 18 : 12;
     if (this.runMode === 'daily') {
       if (this.isFloorBossWave()) return 52;
       if (this.wave === waves) return 52;

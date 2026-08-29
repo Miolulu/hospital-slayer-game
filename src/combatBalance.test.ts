@@ -25,6 +25,9 @@ import {
   wavesPerFloorForFloor,
   weaponAttackRange,
   weaponDamageAtLevel,
+  TUTORIAL_ENEMY_HEALTH_FACTOR,
+  TUTORIAL_WAVE_BUDGETS,
+  tutorialEnemyHealthMultiplier,
   WEAPON_DAMAGE,
 } from './combatBalance';
 
@@ -175,6 +178,13 @@ describe('hospital battle balance', () => {
     expect(enemyHealthMultiplier(1, 0, 1)).toBe(1);
     expect(enemyHealthMultiplier(5, 2, 3)).toBeGreaterThan(enemyHealthMultiplier(1, 0, 1));
     expect(enemyHealthMultiplier(99, 99, 99)).toBe(MAX_ENEMY_HEALTH_MULTIPLIER);
+  });
+
+  it('keeps the tutorial showcase powerful while limiting enemy durability', () => {
+    expect(TUTORIAL_WAVE_BUDGETS).toEqual([8, 12, 16, 20, 24, 1]);
+    expect(TUTORIAL_ENEMY_HEALTH_FACTOR).toBeLessThan(0.2);
+    expect(tutorialEnemyHealthMultiplier(30, 0, 8)).toBeLessThan(0.45);
+    expect(tutorialEnemyHealthMultiplier(1, 0, 1)).toBeCloseTo(TUTORIAL_ENEMY_HEALTH_FACTOR);
   });
 
   it('ramps daily challenge pressure on every wave', () => {

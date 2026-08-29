@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3624,
-                     "lastCheckedAt":  "2026-08-29T07:05:37+08:00",
+                     "lastCheckedAt":  "2026-08-29T09:00:15+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -272,7 +272,7 @@
                                "summary":  "新手关 6 波递增怪物、首领和白日病房前后自述对白",
                                "status":  "done",
                                "implementedIn":  "src/main.ts",
-                               "evidence":  "npm.cmd test；npm.cmd run build；6 波预算、递增怪物池和教程转场逻辑复核"
+                                "evidence":  "npm.cmd test；npm.cmd run build；6 波预算、递增怪物池和教程转场逻辑复核；本轮改为满配爽局"
                            },
                            {
                                "summary":  "调查员女正常版静态图与四向行走序列去除白色毛刺",
@@ -296,8 +296,14 @@
                                "summary":  "武器选择页分页箭头补齐并修复第二页缺失贴图",
                                "status":  "done",
                                "implementedIn":  "src/presentation/scenes/MainScene.ts, public/assets/art/ui/profile-arrow-left-v1.png, public/assets/art/ui/profile-arrow-right-v1.png",
-                               "evidence":  "896x504 手机横屏复测：武器选择第一页、第二页左右箭头均可见，第二页不再出现 Phaser 绿色缺失贴图方框"
-                           }
+                                "evidence":  "896x504 手机横屏复测：武器选择第一页、第二页左右箭头均可见，第二页不再出现 Phaser 绿色缺失贴图方框"
+                            },
+                            {
+                                "summary":  "新手关调整为满配华丽皮肤爽局并降低通关压力",
+                                "status":  "done",
+                                "implementedIn":  "src/presentation/scenes/MainScene.ts, src/domain/combat/combatBalance.ts, src/combatBalance.ts, src/combatBalance.test.ts",
+                                "evidence":  "教程临时使用深渊祷告角色与四类华丽武器皮肤；等级 30、武器等级 20、5 把武器、护盾 999、移速/拾取范围提升；敌人生命、伤害、速度和波次时长下调；npm.cmd test（52 项）与 npm.cmd run build 通过"
+                            }
                        ],
      "pendingItems":  [
                          {
@@ -401,6 +407,10 @@
                           "buildBossAdLatest":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29）；仅有既有大 chunk 提示。"
                           ,"mobileAdBossRetest":  "passed: 创游本地宿主横屏触摸复测广告成功解锁、失败 Toast 自动消失，以及新手关第 6 波首领入场倒计时和战斗恢复；控制台无错误。"
                           ,"pngDraftBundleBossAdLatest":  "passed: 最新代码重新构建并压缩 PNG；包内 340 张 PNG、0 张 WebP，根目录含 index.html/builda-sdk.js，bundle-check --webview-compatible 通过，包体 87799545 字节。"
-                          ,"buildaDraftUploadBossAdLatest":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 32f02eb2-9aa9-53ad-aefa-bc124900ed77，bundleVersion 883e8681fdb4ca6375856758082056a9，bundleSize 87799545 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                           ,"buildaDraftUploadBossAdLatest":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 32f02eb2-9aa9-53ad-aefa-bc124900ed77，bundleVersion 883e8681fdb4ca6375856758082056a9，bundleSize 87799545 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                           ,"testsTutorialShowcase":  "passed: npm.cmd test，10 个测试文件、52 项全部通过（2026-08-29 08:56）；覆盖教程爽局平衡参数和既有广告、首领流程。"
+                           ,"buildTutorialShowcase":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 08:56）；仅有既有大 chunk 提示。"
+                           ,"pngDraftBundleTutorialShowcase":  "passed: 最新代码重新构建并压缩 PNG；暂存包包含 340 张 PNG、0 张 WebP/GIF，290 张带透明源图均保留透明信息，bundle-check --webview-compatible 通过，包体 86340431 字节。"
+                           ,"buildaDraftUploadTutorialShowcase":  "passed: 新手关爽局版本已同步创游世界草稿；gameId GD:48356599:1，versionId f378d7bc-049e-5744-99f5-bee4e604226f，bundleVersion 4357f14345c8e42f37e096855eea5894，bundleSize 86340431 字节，cysjSyncStatus=同步成功，公开发布待用户操作。"
                       }
 }
