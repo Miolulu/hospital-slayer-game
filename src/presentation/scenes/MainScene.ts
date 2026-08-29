@@ -781,6 +781,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       (['first', 'second', 'third'] as const).forEach((rank) => image(`daily-rank-${rank}-v1`, `/assets/art/daily/daily-rank-${rank}-v1.png`));
       uiText(['daily', 'boss-month', 'ranking', 'boss-drop', 'start-challenge']);
       MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => image(key, path));
+      MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => image(relic, `/assets/art/${relic}.png`));
     }
 
@@ -804,8 +805,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (group === 'battle') {
       image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
       MAINLINE_BOSS_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
-      MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => image(key, path));
-      MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       SMALL_ENEMY_ATTACK_ARTS.forEach(({ key, path }) => image(key, path));
       this.weaponSkins.filter((skin) => skin.assetPath).forEach((skin) => image(skin.textureKey, skin.assetPath!));
@@ -4478,6 +4477,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private startRun(targetFloor = this.floor, mode: RunMode = this.runMode, weaponId = this.selectedWeaponId) {
+    if (mode === 'daily' && !this.ensureAssetGroup('daily', () => this.startRun(targetFloor, mode, weaponId))) return;
     if (!this.ensureAssetGroup('battle', () => this.startRun(targetFloor, mode, weaponId))) return;
     this.startRunInternal(targetFloor, mode, weaponId);
   }
