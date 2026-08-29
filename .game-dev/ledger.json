@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3658,
-                     "lastCheckedAt":  "2026-08-29T11:22:11+08:00",
+                     "lastCheckedAt":  "2026-08-29T11:37:47+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -414,6 +414,9 @@
                            ,"documentFetchLatest":  "passed: 飞书文档 revision 3658；本轮复查无新增意见，当前剩余 5 项，保留皮肤商城规则待确认；代码已接入 pay.showPayPanel，真实扣款仍需平台宿主验证（2026-08-29 11:22）。",
                            "testsDraftSyncLatest":  "passed: npm.cmd test，10 个测试文件、52 项全部通过（2026-08-29 11:16）；npm.cmd run build 的 tsc 与 vite 构建通过。",
                            "pngDraftBundleCurrent":  "passed: 基于最新代码重新打包并压缩 PNG；包内 340 张 PNG、0 张 WebP、33 张 GIF，332 张 PNG 保留透明信息，bundle-check --webview-compatible 通过，包体 87772899 字节。",
-                           "buildaDraftUploadCurrent":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 191776ef-4b48-522f-8eec-0a41bf02b3db，bundleVersion 837decbadb94a4ab07cc36cdb50d6d44，bundleSize 87772899 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                           "buildaDraftUploadCurrent":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 191776ef-4b48-522f-8eec-0a41bf02b3db，bundleVersion 837decbadb94a4ab07cc36cdb50d6d44，bundleSize 87772899 字节，cysjSyncStatus=synced，公开发布待用户操作。",
+                           "customSkinAlphaFix":  "passed: 自定义皮肤战斗与档案预览显式恢复不透明度和正常混合模式，避免移动端透明画布导致立绘发灰；npm.cmd test 与 npm.cmd run build 通过（2026-08-29 11:35）。",
+                           "pngDraftBundleSkinAlphaFix":  "passed: 基于皮肤透明度修复重新打包并压缩 PNG；包内 340 张 PNG、0 张 WebP、33 张 GIF，bundle-check --webview-compatible 通过，包体 87772957 字节。",
+                           "buildaDraftUploadSkinAlphaFix":  "passed: 皮肤透明度修复已同步创游世界草稿；gameId GD:48356599:1，currentVersionId da122c31-b062-5176-a00c-48fa2892a99b，bundleVersion b6297e24c3736f3ec2b22483997b5962，bundleSize 87772957 字节，cysjSyncStatus=synced，公开发布待用户操作。"
                       }
 }

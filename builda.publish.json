@@ -179,12 +179,12 @@
     "minIOSMajor":  15,
     "assetsManifestUrl":  "https://builda-godot-play.poni.fun/cysj2/release/assets/GD_48356599_1/ast_24d922f83e43e3c96f3c88764be74552/assets.json",
     "buildEntry":  "index.html",
-    "bundleSize":  87772899,
-    "buildSize":  90357392,
-    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/837decbadb94a4ab07cc36cdb50d6d44.zip",
+    "bundleSize":  87772957,
+    "buildSize":  90357713,
+    "bundleUrl":  "https://builda-godot-play.poni.fun/cysj2/release/bundles/b6297e24c3736f3ec2b22483997b5962.zip",
     "bundleEntry":  "index.html",
-    "buildPrefix":  "builds/837decbadb94a4ab07cc36cdb50d6d44",
-    "bundleVersion":  "837decbadb94a4ab07cc36cdb50d6d44",
-    "bundleMd5":  "a0fe7e04d4d5dad106f02fc6be87901a",
+    "buildPrefix":  "builds/b6297e24c3736f3ec2b22483997b5962",
+    "bundleVersion":  "b6297e24c3736f3ec2b22483997b5962",
+    "bundleMd5":  "df5a8edb963603c37a5305fbdf579285",
     "sdkVersion":  "0.4.37"
 }

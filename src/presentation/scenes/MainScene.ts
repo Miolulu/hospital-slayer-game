@@ -4620,6 +4620,9 @@ export class HospitalBattleScene extends Phaser.Scene {
     const textureKey = this.skinHasCustomArt(selectedSkin) ? this.skinFrontTextureKey(selectedSkin) : 'patient-boy';
     if (!this.textures.exists(textureKey)) return undefined;
     const sprite = this.add.sprite(x, y, textureKey).setOrigin(0.5);
+    // Custom skin portraits must remain fully opaque on mobile, where their
+    // transparent canvas already blends with the scene background.
+    if (this.skinHasCustomArt(selectedSkin)) sprite.setAlpha(1).setBlendMode(Phaser.BlendModes.NORMAL);
     this.playerSpriteTargetHeight = targetHeight;
     this.fitPlayerSprite(sprite);
     parent.add(sprite);
@@ -4639,6 +4642,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       ?? (this.textures.exists('patient-idle-front') ? 'patient-idle-front' : 'patient-boy');
     if (!this.textures.exists(textureKey)) return undefined;
     const sprite = this.add.image(x, y, textureKey).setOrigin(0.5);
+    if (this.skinHasCustomArt(selectedSkin)) sprite.setAlpha(1).setBlendMode(Phaser.BlendModes.NORMAL);
     sprite.setDisplaySize(targetHeight * sprite.width / sprite.height, targetHeight);
     parent.add(sprite);
     return sprite;
