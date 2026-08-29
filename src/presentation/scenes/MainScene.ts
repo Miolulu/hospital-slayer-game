@@ -817,6 +817,7 @@ export class HospitalBattleScene extends Phaser.Scene {
         });
       }
       (['gun', 'whip', 'cannon'] as const).forEach((weaponClass) => image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.png`));
+      image('effect-sword-neon-v1', '/assets/art/weapons/effect-sword-neon-v1.png');
       image('effect-gun-neon-v1', '/assets/art/weapons/effect-gun-neon-v1.png');
       image('effect-cannon-neon-v1', '/assets/art/weapons/effect-cannon-neon-v1.png');
       image('effect-whip-neon-v1', '/assets/art/weapons/effect-whip-neon-v1.png');
@@ -2538,7 +2539,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const skinGridColumnGap = Math.min(146, skinPanelWidth * 0.27);
     const skinGridTop = skinPanelTopY + 126;
     const skinGridRowGap = 104;
-    const skinCardImageSize = 84;
+    const skinCardImageSize = this.compactUi() ? 92 : 104;
     pageSkins.forEach((skin, index) => {
       const column = index % 3;
       const row = Math.floor(index / 3);
@@ -2556,8 +2557,8 @@ export class HospitalBattleScene extends Phaser.Scene {
         card.add(this.add.rectangle(0, -4, 132, skinCardImageSize, 0x05090f, 0.36));
         card.add(this.add.text(0, -4, '锁定', { fontFamily: 'Microsoft YaHei', fontSize: `${this.uiFontSize(13)}px`, color: palette.amber }).setOrigin(0.5));
       }
-      const skinLabelWidth = this.compactUi() ? Math.max(96, Math.round(skinGridColumnGap * 0.92)) : 172;
-      const skinLabelOffset = this.compactUi() ? 12 : 26;
+      const skinLabelWidth = this.compactUi() ? Math.max(112, Math.round(skinGridColumnGap * 0.98)) : 184;
+      const skinLabelOffset = this.compactUi() ? 16 : 30;
       card.add(this.add.text(0, skinCardImageSize / 2 + skinLabelOffset, this.uiLabel(skin.name, 4), {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${this.uiFontSize(20, 1.2)}px`,
@@ -6230,7 +6231,11 @@ export class HospitalBattleScene extends Phaser.Scene {
     const cardY = clamp(frameY - 18, frameTop + 260, frameBottom - cardHeight / 2 - 82);
     choices.forEach((choice, index) => {
       const x = cardXBase + index * cardSpacing;
-      const card = this.add.container(x, cardY).setSize(cardWidth, cardHeight).setInteractive({ useHandCursor: true });
+      const card = this.add.container(x, cardY).setSize(cardWidth, cardHeight).setInteractive(
+        new Phaser.Geom.Rectangle(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      card.input!.cursor = 'pointer';
       const rarity = choice.rarity ?? 'blue';
       const rarityColor = rarity === 'gold' ? 0xffd18a : rarity === 'purple' ? 0xb798e2 : 0x5f9dff;
       const cardTextColor = rarity === 'blue' ? '#e7f7f8' : rarity === 'purple' ? '#321b3b' : '#45270f';
