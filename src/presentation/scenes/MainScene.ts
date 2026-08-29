@@ -495,6 +495,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
   private bossIntroActive = false;
+  private bossIntroElapsed = 0;
   private bossDeathActive = false;
   private bossPreviewActive = false;
   private activeAttackStatus?: AttackStatus;
@@ -1273,6 +1274,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     if (!enemy.bossVisual) return;
     audio.playBossEntrance();
     this.bossIntroActive = true;
+    this.bossIntroElapsed = 0;
     this.phase = 'boss-intro';
     this.ui?.setVisible(true);
     enemy.bossVisual.stateTimer = enemy.bossVisual.introDuration;
@@ -1294,12 +1296,16 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.phase = 'battle';
       return;
     }
-    boss.bossVisual.stateTimer = Math.max(0, boss.bossVisual.stateTimer - dt);
-    const introDuration = Math.max(0.1, boss.bossVisual.introDuration);
+    const introDuration = Number.isFinite(boss.bossVisual.introDuration)
+      ? Math.max(0.1, boss.bossVisual.introDuration)
+      : 0.1;
+    const stateTimer = Number.isFinite(boss.bossVisual.stateTimer) ? boss.bossVisual.stateTimer : 0;
+    this.bossIntroElapsed += Math.max(0, dt);
+    boss.bossVisual.stateTimer = Math.max(0, stateTimer - dt);
     const progress = 1 - clamp(boss.bossVisual.stateTimer / introDuration, 0, 1);
     boss.bossVisual.aura.setAlpha(0.15 + progress * 0.55);
     boss.bossVisual.aura.setScale(0.95 + progress * 0.18);
-    if (boss.bossVisual.stateTimer <= 0 && !boss.bossVisual.introComplete) {
+    if ((boss.bossVisual.stateTimer <= 0 || this.bossIntroElapsed >= introDuration + 0.35) && !boss.bossVisual.introComplete) {
       boss.bossVisual.introComplete = true;
       this.setBossVisualState(boss, 'walk');
       boss.bossVisual.walk.setAlpha(1);
@@ -1307,6 +1313,7 @@ export class HospitalBattleScene extends Phaser.Scene {
       boss.bossVisual.transform?.anims.stop();
       boss.bossVisual.transform?.setVisible(false);
       this.bossIntroActive = false;
+      this.bossIntroElapsed = 0;
       this.phase = 'battle';
       this.ui?.setVisible(true);
       this.floatText(boss.node.x, boss.node.y - boss.visualHeight / 2 - 8, boss.bossVisual.artId === 'moon-moth-queen' ? '变身完成' : '首领就位', palette.green, 14, 20, 800);
@@ -1487,7 +1494,13 @@ export class HospitalBattleScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.05) * this.gameSpeed;
     this.updateTutorialGuide(dt);
     if (this.phase === 'boss-intro') {
+      // The entrance animation pauses attacks, but the player must still be
+      // able to reposition with touch while the boss is revealed.
+      this.elapsed += dt;
       this.updateBossIntro(dt);
+      this.updatePlayer(dt);
+      this.updateWeaponOrbit(dt);
+      this.updateMutation(dt);
       this.updateHud();
       return;
     }
@@ -7001,7 +7014,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
-    if (this.phase !== 'battle' || this.pendingUiAction) return;
+    if ((this.phase !== 'battle' && this.phase !== 'boss-intro') || this.pendingUiAction) return;
     if (this.hud.skill?.visible && this.hud.skill.getBounds().contains(pointer.x, pointer.y)) return;
     this.joystickPointer = pointer.id;
     this.joystickOrigin = { x: pointer.x, y: pointer.y };

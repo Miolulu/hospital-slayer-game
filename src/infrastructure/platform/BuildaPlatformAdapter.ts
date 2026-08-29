@@ -3,12 +3,41 @@ import type {
   BuildaPlayer,
   BuildaRankList,
   BuildaResult,
+  BuildaRewardAdResult,
   BuildaSafeArea,
   BuildaSDK,
 } from '../../../.builda-agent/sdk/web/builda-sdk';
 
 const EMPTY_SAFE_AREA: BuildaSafeArea = { top: 0, right: 0, bottom: 0, left: 0 };
 const EMPTY_CAPSULE: BuildaCapsuleMenuRect = { top: 0, right: 0, width: 0, height: 0 };
+
+type RewardAdPayload = BuildaRewardAdResult & {
+  completed?: boolean;
+  rewarded?: boolean;
+};
+
+/**
+ * Builda's success flag is authoritative. Older hosts have also returned a
+ * completion/reward flag or only a transaction id. A few early hosts returned
+ * the payload without the Result envelope, so normalize that shape as well.
+ */
+export function rewardAdCompleted(result: unknown) {
+  if (!result || typeof result !== 'object') return false;
+  const envelope = result as { ok?: unknown; data?: unknown };
+  const data = 'ok' in envelope
+    ? envelope.ok === true ? envelope.data : undefined
+    : result;
+  if (!data || typeof data !== 'object') return false;
+  const payload = data as Partial<RewardAdPayload> & { success?: unknown };
+  const success: unknown = payload.success;
+  if (success !== undefined) {
+    if (success === true) return true;
+    if (typeof success === 'string' && success.trim().toLowerCase() === 'true') return true;
+    return false;
+  }
+  if (payload.completed === true || payload.rewarded === true) return true;
+  return typeof payload.transId === 'string' && payload.transId.trim().length > 0;
+}
 
 /** 统一承接宿主能力，场景只依赖游戏需要的业务动作。 */
 export class BuildaPlatformAdapter {
@@ -55,7 +84,7 @@ export class BuildaPlatformAdapter {
     if (!this.sdk?.ad?.showRewardAd) return false;
     try {
       const result = await this.sdk.ad.showRewardAd(posId, { timeoutMs: 15000 });
-      return result.ok && result.data.success;
+      return rewardAdCompleted(result);
     } catch { return false; }
   }
 

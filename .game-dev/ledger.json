@@ -394,6 +394,13 @@
                          "testsLatest":  "passed: npm.cmd test，9 个测试文件、46 项全部通过（2026-08-29 06:56）",
                          "buildLatest":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29 06:56）；仅有既有大 chunk 提示。",
                          "pngDraftBundleLatest":  "passed: 当前 dist 临时副本排除全部 WebP 并压缩 PNG；包内 340 张 PNG、0 张 WebP，根目录 index.html/builda-sdk.js 均存在，bundle-check --webview-compatible 通过，包体 87756767 字节。",
-                         "buildaDraftUploadMobileUiLatest":  "passed: 移动端六项体验修复已同步创游世界草稿；gameId GD:48356599:1，currentVersionId 52481de0-5e08-5f81-8657-dd4985299e61，bundleVersion 42f147f547f4ab95ace27624571cd77f，bundleSize 87756767 字节，cysjSyncStatus=synced，公开发布待用户操作。"
-                     }
+                          "buildaDraftUploadMobileUiLatest":  "passed: 移动端六项体验修复已同步创游世界草稿；gameId GD:48356599:1，currentVersionId 52481de0-5e08-5f81-8657-dd4985299e61，bundleVersion 42f147f547f4ab95ace27624571cd77f，bundleSize 87756767 字节，cysjSyncStatus=synced，公开发布待用户操作。",
+                          "bossEntranceRecovery":  "passed: 第 6 波首领登场阶段增加有限时钟兜底；入场期间继续更新玩家移动、武器环绕、SAN 异化和 HUD，结束后明确切回 battle，触摸移动热区同步放开；真实触摸画面因当前无浏览器实例暂未验收。",
+                          "rewardAdResultCompatibility":  "passed: 激励广告结果按 Builda Result.ok + data.success 判定，同时兼容旧宿主的 completed、rewarded、transId 以及未包裹 payload 和字符串 success；失败、取消、空结果不发放临时皮肤或武器体验。",
+                          "testsBossAdLatest":  "passed: npm.cmd test，10 个测试文件、51 项全部通过（2026-08-29）；覆盖广告结果归一化、失败回调和第 6 波相关战斗平衡回归。",
+                          "buildBossAdLatest":  "passed: npm.cmd run build，tsc --noEmit 与 vite build 通过（2026-08-29）；仅有既有大 chunk 提示。"
+                          ,"mobileAdBossRetest":  "passed: 创游本地宿主横屏触摸复测广告成功解锁、失败 Toast 自动消失，以及新手关第 6 波首领入场倒计时和战斗恢复；控制台无错误。"
+                          ,"pngDraftBundleBossAdLatest":  "passed: 最新代码重新构建并压缩 PNG；包内 340 张 PNG、0 张 WebP，根目录含 index.html/builda-sdk.js，bundle-check --webview-compatible 通过，包体 87799545 字节。"
+                          ,"buildaDraftUploadBossAdLatest":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 32f02eb2-9aa9-53ad-aefa-bc124900ed77，bundleVersion 883e8681fdb4ca6375856758082056a9，bundleSize 87799545 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                      }
 }
