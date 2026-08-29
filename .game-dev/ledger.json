@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3658,
-                     "lastCheckedAt":  "2026-08-29T11:58:43+08:00",
+                     "lastCheckedAt":  "2026-08-29T12:08:21+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -421,6 +421,9 @@
                            "pngLosslessCompressionAuditLatest":  "passed: 当前 292 张已跟踪 PNG 与 HEAD 逐张解码比对，尺寸、RGBA 像素和透明通道全部一致；未发现有损变化。",
                            "testsBuildAfterPngAudit":  "passed: npm.cmd test，10 个测试文件、52 项全部通过（2026-08-29 11:55）；npm.cmd run build 的 tsc 与 vite 构建通过（仅有既有大 chunk 提示）。",
                            "pngDraftBundleCurrentR8":  "passed: 基于最新 dist 在暂存副本排除全部 WebP 并压缩 PNG；包内 340 张 PNG、0 张 WebP、33 张 GIF，bundle-check --webview-compatible 通过，包体 88195110 字节。",
-                           "buildaDraftUploadCurrentR8":  "passed: 最新 PNG 草稿同步完成；gameId GD:48356599:1，currentVersionId d600f288-f383-5c32-bd75-01a3589e30f2，bundleVersion f6f3718137e0a072413aec2449289ac9，bundleSize 88195110 字节，cysjSyncStatus=synced，公开发布待用户操作。"
+                           "buildaDraftUploadCurrentR8":  "passed: 最新 PNG 草稿同步完成；gameId GD:48356599:1，currentVersionId d600f288-f383-5c32-bd75-01a3589e30f2，bundleVersion f6f3718137e0a072413aec2449289ac9，bundleSize 88195110 字节，cysjSyncStatus=synced，公开发布待用户操作。",
+                           "pngAlphaAuditR9":  "passed: R9 暂存包 340 张 PNG 中 290 张含透明通道，逐像素比较 alpha 与 dist 完全一致；无 alpha 差异。",
+                           "pngDraftBundleAlphaPreservingR9":  "passed: 重新保留原始 alpha 通道后打包；包内 340 张 PNG、0 张 WebP、33 张 GIF，bundle-check --webview-compatible 通过，包体 144181036 字节。",
+                           "buildaDraftUploadAlphaPreservingR9":  "passed: alpha 保真 PNG 草稿同步完成；gameId GD:48356599:1，currentVersionId 987c6c21-6d08-5888-bab3-4e574fefc3e3，bundleVersion a2ee76f5aa4225f305261036109c4b5e，bundleSize 144181036 字节，cysjSyncStatus=synced，公开发布待用户操作。"
                       }
 }
