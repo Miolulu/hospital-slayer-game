@@ -412,7 +412,7 @@
                            ,"pngDraftBundleTutorialShowcase":  "passed: 最新代码重新构建并压缩 PNG；暂存包包含 340 张 PNG、0 张 WebP/GIF，290 张带透明源图均保留透明信息，bundle-check --webview-compatible 通过，包体 86340431 字节。"
                            ,"buildaDraftUploadTutorialShowcase":  "passed: 新手关爽局版本已同步创游世界草稿；gameId GD:48356599:1，versionId f378d7bc-049e-5744-99f5-bee4e604226f，bundleVersion 4357f14345c8e42f37e096855eea5894，bundleSize 86340431 字节，cysjSyncStatus=同步成功，公开发布待用户操作。"
                            ,"documentFetchLatest":  "passed: 飞书文档 revision 3658；2026-08-30 16:01 复查无新增意见，当前剩余 5 项，保留皮肤商城规则待确认；代码已接入 pay.showPayPanel，真实扣款仍需平台宿主验证。",
-                           "testsDraftSyncLatest":  "passed: npm.cmd test，10 个测试文件、52 项全部通过（2026-08-29 11:16）；npm.cmd run build 的 tsc 与 vite 构建通过。",
+                           "testsDraftSyncLatest":  "passed: npm.cmd test，10 个测试文件、52 项全部通过（2026-08-30 16:05）；npm.cmd run build 的 tsc 与 vite 构建通过。",
                            "pngDraftBundleCurrent":  "passed: 基于最新代码重新打包并压缩 PNG；包内 340 张 PNG、0 张 WebP、33 张 GIF，332 张 PNG 保留透明信息，bundle-check --webview-compatible 通过，包体 87772899 字节。",
                            "buildaDraftUploadCurrent":  "passed: 创游世界草稿同步完成；gameId GD:48356599:1，currentVersionId 191776ef-4b48-522f-8eec-0a41bf02b3db，bundleVersion 837decbadb94a4ab07cc36cdb50d6d44，bundleSize 87772899 字节，cysjSyncStatus=synced，公开发布待用户操作。",
                            "customSkinAlphaFix":  "passed: 自定义皮肤战斗与档案预览显式恢复不透明度和正常混合模式，避免移动端透明画布导致立绘发灰；npm.cmd test 与 npm.cmd run build 通过（2026-08-29 11:35）。",
