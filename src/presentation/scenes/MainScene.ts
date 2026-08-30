@@ -625,7 +625,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     hp: undefined as Phaser.GameObjects.Text | undefined,
     san: undefined as Phaser.GameObjects.Text | undefined,
     xp: undefined as Phaser.GameObjects.Text | undefined,
-    weapon: undefined as Phaser.GameObjects.Text | undefined,
     kills: undefined as Phaser.GameObjects.Text | undefined,
     status: undefined as Phaser.GameObjects.Text | undefined,
     skill: undefined as Phaser.GameObjects.Text | undefined,
@@ -633,7 +632,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     hpLabel: undefined as Phaser.GameObjects.Text | undefined,
     xpLabel: undefined as Phaser.GameObjects.Text | undefined,
     sanLabel: undefined as Phaser.GameObjects.Text | undefined,
-    weaponIcon: undefined as Phaser.GameObjects.Image | undefined,
     bar: undefined as Phaser.GameObjects.Graphics | undefined,
     sanBar: undefined as Phaser.GameObjects.Graphics | undefined,
     xpBar: undefined as Phaser.GameObjects.Graphics | undefined,
@@ -1658,27 +1656,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     wavePanel.add(this.hud.waveCleared);
     this.hud.xpBar = this.add.graphics();
     this.hud.sanBar = this.add.graphics();
-    if (this.textures.exists('hud-status-frame-v2')) {
-      // The source frame is a 2:3 portrait asset. Keep its aspect ratio so the
-      // two vertical slots and the lower weapon circle stay aligned.
-      panel.add(this.add.image(120, -170, 'hud-status-frame-v2').setOrigin(0.5).setDisplaySize(250, 375).setAlpha(0.92).setDepth(0));
-    }
     panel.add(this.hud.xpBar);
     panel.add(this.hud.sanBar);
     this.hud.xpBar.setDepth(1);
     this.hud.sanBar.setDepth(1);
     // 手机端把资源条改为横向，缩窄屏幕时仍能一眼分辨余量；状态面板不再叠加整块底框。
-    const hudCenterX = 120;
     this.hud.xp = text(98, -337, 'XP 0%', this.uiFontSize(15, 1.55), palette.cyan).setOrigin(0.5).setDepth(4).setFontStyle('bold');
     this.hud.san = text(175, -337, 'SAN 100', this.uiFontSize(15, 1.55), palette.cream).setOrigin(0.5).setDepth(4).setFontStyle('bold');
-    if (this.textures.exists('ui-round-frame')) {
-      panel.add(this.add.image(hudCenterX, -26, 'ui-round-frame').setOrigin(0.5).setDisplaySize(78, 78).setDepth(2).setAlpha(0.96));
-    }
-    this.hud.weaponIcon = this.add.image(hudCenterX, -26, 'weapon-sword').setOrigin(0.5).setDepth(4);
-    this.fitImageToBox(this.hud.weaponIcon, 46, 46);
-    panel.add(this.hud.weaponIcon);
-    this.hud.weapon = text(hudCenterX, 16, '病院刀', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setFixedSize(196, 32).setAlign('center').setDepth(4).setFontStyle('bold');
-    panel.add([this.hud.xp, this.hud.san, this.hud.weapon]);
+    panel.add([this.hud.xp, this.hud.san]);
     this.pinHudToViewport();
   }
 
@@ -1929,14 +1914,6 @@ export class HospitalBattleScene extends Phaser.Scene {
     const sanRatio = clamp(this.san / 100, 0, 1);
     this.hud.xp?.setText(`XP ${Math.round(xpRatio * 100)}%`);
     this.hud.san?.setText(`SAN ${Math.ceil(this.san)}`);
-    const weapon = this.currentWeapon();
-    this.hud.weapon?.setText(weapon
-      ? weapon.name
-      : '未装备武器');
-    if (this.hud.weaponIcon) {
-      this.hud.weaponIcon.setTexture(this.weaponAssetKey(weapon)).setVisible(true);
-      this.fitImageToBox(this.hud.weaponIcon, 46, 46);
-    }
     this.hud.kills?.setText(`击破 ${this.kills}`);
     this.hud.san?.setColor(this.san < 30 ? palette.danger : palette.cream);
     const sanAlert = this.mutated;
