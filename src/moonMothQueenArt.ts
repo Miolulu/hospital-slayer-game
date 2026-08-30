@@ -35,8 +35,7 @@ export const MOON_MOTH_QUEEN_ART_IMAGES: BossArtImageSpec[] = [
 ];
 
 export const MOON_MOTH_QUEEN_ART_SHEETS: BossArtSheetSpec[] = [
-  // The mobile-safe sheets keep the four 543x724 frames below the common
-  // 2048px texture limit by arranging them in a 2x2 grid.
+  // 素材按 2x2 网格排列四帧，适配 2048 像素纹理限制。
   { key: MOON_MOTH_QUEEN_ART.walkKey, path: '/assets/art/enemies/bosses/moon-moth-queen/walk-mobile.png', frameWidth: 543, frameHeight: 724 },
   { key: MOON_MOTH_QUEEN_ART.attackKey, path: '/assets/art/enemies/bosses/moon-moth-queen/attack-mobile.png', frameWidth: 543, frameHeight: 724 },
 ];

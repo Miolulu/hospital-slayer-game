@@ -1,16 +1,16 @@
 import Phaser from 'phaser';
 
-/** Shared local face and fallback stack for every Phaser text object. */
-export const UI_FONT_FACE = 'HospitalPixel';
-export const UI_FONT_STACK = '"HospitalPixel", "Noto Sans SC", "Microsoft YaHei", sans-serif';
-export const UI_MONO_STACK = '"HospitalPixel", "Noto Sans SC", "Courier New", monospace';
+/** Use browser system fonts so the HTML5 bundle does not ship a CJK font. */
+export const UI_FONT_FACE = 'Microsoft YaHei';
+export const UI_FONT_STACK = '"Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif';
+export const UI_MONO_STACK = 'ui-monospace, "Microsoft YaHei", monospace';
 
 let installed = false;
 
 /**
  * Phaser call sites historically supplied several different system fonts.
  * Normalize them at the factory boundary so existing screens keep their
- * layout while sharing one locally bundled Chinese-capable face.
+ * layout while sharing one browser-provided Chinese-capable stack.
  */
 export function installUiTextTheme() {
   if (installed) return;

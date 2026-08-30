@@ -7,8 +7,7 @@
     <meta name="orientation" content="landscape" />
     <meta name="x5-orientation" content="landscape" />
     <meta name="theme-color" content="#0b1117" />
-    <link rel="preload" href="/assets/fonts/hospital-ui.otf" as="font" type="font/otf" crossorigin />
-    <script src="/builda-sdk.js"></script>
+    <script src="builda-sdk.js"></script>
     <script>
       window.Builda = window.Builda || {};
     </script>
@@ -25,6 +24,7 @@
             <div id="loading-progress-value" class="loading-progress-value">0%</div>
           </div>
           <div id="loading-status" class="loading-status">正在加载病区资源  0%</div>
+          <button id="loading-retry" class="loading-retry" type="button" hidden>重试加载资源</button>
         </div>
       </div>
       <div id="game-shell"></div>

@@ -108,7 +108,8 @@ const MAX_WEAPON_COPIES = 5;
 const TOTAL_FLOORS = TOTAL_HOSPITAL_FLOORS;
 const SKIN_TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
 // 远程 DEMO 更新保留了首波首领测试开关，正式玩法仍可通过开发者模式覆盖波次。
-const TEMP_FIRST_WAVE_BOSS_TEST = true;
+// 正式关卡使用正常出怪节奏：主线小首领第 10 波，每日挑战首领第 50 波。
+const TEMP_FIRST_WAVE_BOSS_TEST = false;
 const FULL_TURN = Math.PI * 2;
 const ARENA = { left: 160, right: 1120, top: 116, bottom: 642 };
 const WORLD_BOUNDS = { left: -720, right: 2000, top: -520, bottom: 1700 };
@@ -782,6 +783,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       uiText(['daily', 'boss-month', 'ranking', 'boss-drop', 'start-challenge']);
       MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => image(key, path));
       MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
+      // Relic assets are staged as WebP in the web bundle. Keep the runtime
+      // paths aligned with the staged files so Daily Challenge does not
+      // report missing relic-crown/relic-hood textures.
       (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => image(relic, `/assets/art/${relic}.png`));
     }
 
@@ -1640,7 +1644,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui.add(panel);
     this.hud.sanOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0xc44557, 0).setDepth(0);
     this.ui.add(this.hud.sanOverlay);
-    const wavePanel = this.add.container(safe.centerX, 44).setDepth(26).setScrollFactor(0, 0, true);
+    const wavePanel = this.add.container(safe.centerX, this.safeTopY(24, 6)).setDepth(26).setScrollFactor(0, 0, true);
     this.hud.wavePanel = wavePanel;
     this.ui.add(wavePanel);
     this.hud.wave = text(0, -12, '第 1 / 10 波', this.uiFontSize(27, 1.65), palette.amber).setOrigin(0.5).setFontStyle('bold');
@@ -1651,20 +1655,26 @@ export class HospitalBattleScene extends Phaser.Scene {
     wavePanel.add(this.hud.waveCleared);
     this.hud.xpBar = this.add.graphics();
     this.hud.sanBar = this.add.graphics();
+    if (this.textures.exists('hud-status-frame-v2')) {
+      // The source frame is a 2:3 portrait asset. Keep its aspect ratio so the
+      // two vertical slots and the lower weapon circle stay aligned.
+      panel.add(this.add.image(120, -170, 'hud-status-frame-v2').setOrigin(0.5).setDisplaySize(250, 375).setAlpha(0.92).setDepth(0));
+    }
     panel.add(this.hud.xpBar);
     panel.add(this.hud.sanBar);
     this.hud.xpBar.setDepth(1);
     this.hud.sanBar.setDepth(1);
     // 手机端把资源条改为横向，缩窄屏幕时仍能一眼分辨余量；状态面板不再叠加整块底框。
     const hudCenterX = 120;
-    this.hud.xp = text(58, -112, 'XP 0%', this.uiFontSize(18, 1.85), palette.cyan).setOrigin(0.5).setDepth(4).setFontStyle('bold');
-    this.hud.san = text(182, -112, 'SAN 100', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setDepth(4).setFontStyle('bold');
+    this.hud.xp = text(98, -337, 'XP 0%', this.uiFontSize(15, 1.55), palette.cyan).setOrigin(0.5).setDepth(4).setFontStyle('bold');
+    this.hud.san = text(175, -337, 'SAN 100', this.uiFontSize(15, 1.55), palette.cream).setOrigin(0.5).setDepth(4).setFontStyle('bold');
     if (this.textures.exists('ui-round-frame')) {
-      panel.add(this.add.image(hudCenterX, 69, 'ui-round-frame').setOrigin(0.5).setDisplaySize(78, 78).setDepth(2).setAlpha(0.96));
+      panel.add(this.add.image(hudCenterX, -26, 'ui-round-frame').setOrigin(0.5).setDisplaySize(78, 78).setDepth(2).setAlpha(0.96));
     }
-    this.hud.weaponIcon = this.add.image(hudCenterX, 69, 'weapon-sword').setOrigin(0.5).setDisplaySize(72, 72).setDepth(4);
+    this.hud.weaponIcon = this.add.image(hudCenterX, -26, 'weapon-sword').setOrigin(0.5).setDepth(4);
+    this.fitImageToBox(this.hud.weaponIcon, 46, 46);
     panel.add(this.hud.weaponIcon);
-    this.hud.weapon = text(hudCenterX, 116, '病院刀', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setFixedSize(196, 32).setAlign('center').setDepth(4).setFontStyle('bold');
+    this.hud.weapon = text(hudCenterX, 16, '病院刀', this.uiFontSize(18, 1.85), palette.cream).setOrigin(0.5).setFixedSize(196, 32).setAlign('center').setDepth(4).setFontStyle('bold');
     panel.add([this.hud.xp, this.hud.san, this.hud.weapon]);
     this.pinHudToViewport();
   }
@@ -1920,24 +1930,27 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.hud.weapon?.setText(weapon
       ? weapon.name
       : '未装备武器');
-    this.hud.weaponIcon?.setTexture(this.weaponAssetKey(weapon)).setVisible(true).setDisplaySize(72, 72);
+    if (this.hud.weaponIcon) {
+      this.hud.weaponIcon.setTexture(this.weaponAssetKey(weapon)).setVisible(true);
+      this.fitImageToBox(this.hud.weaponIcon, 46, 46);
+    }
     this.hud.kills?.setText(`击破 ${this.kills}`);
     this.hud.san?.setColor(this.san < 30 ? palette.danger : palette.cream);
     const sanAlert = this.mutated;
     const pulse = 0.04 + (Math.sin(this.sanPulse * 8) + 1) * 0.025;
     this.hud.sanOverlay?.setAlpha(sanAlert ? pulse : this.san < 30 ? 0.025 : 0);
-    const barHeight = 15;
-    const barTop = -91;
-    const barWidth = 116;
-    const xpBarX = 0;
-    const sanBarX = 124;
+    const barTop = -300;
+    const barHeight = 220;
+    const barWidth = 30;
+    const xpBarX = 83;
+    const sanBarX = 127;
     this.hud.xpBar?.clear()
       .fillStyle(0x081116, 0.96).fillRect(xpBarX, barTop, barWidth, barHeight)
-      .fillStyle(0x4b8ee8, 1).fillRect(xpBarX, barTop, barWidth * xpRatio, barHeight)
+      .fillStyle(0x4b8ee8, 1).fillRect(xpBarX, barTop + barHeight * (1 - xpRatio), barWidth, barHeight * xpRatio)
       .lineStyle(2, 0x8ab8ff, 0.88).strokeRect(xpBarX, barTop, barWidth, barHeight);
     this.hud.sanBar?.clear()
       .fillStyle(0x12090d, 0.96).fillRect(sanBarX, barTop, barWidth, barHeight)
-      .fillStyle(this.mutated ? 0xff4258 : 0xd85462, 1).fillRect(sanBarX, barTop, barWidth * sanRatio, barHeight)
+      .fillStyle(this.mutated ? 0xff4258 : 0xd85462, 1).fillRect(sanBarX, barTop + barHeight * (1 - sanRatio), barWidth, barHeight * sanRatio)
       .lineStyle(2, this.mutated ? 0xff91a0 : 0xffa3a9, 0.88).strokeRect(sanBarX, barTop, barWidth, barHeight);
     this.updateHeldWeaponVisual();
   }
@@ -1990,7 +2003,11 @@ export class HospitalBattleScene extends Phaser.Scene {
   }
 
   private isWeaponSkinAvailable(id: string) {
-    return this.progress.unlockedWeaponSkinIds.includes(id) || this.isTemporaryUnlockActive(this.progress.weaponSkinTrialExpiresAt, id);
+    const skin = this.weaponSkins.find((candidate) => candidate.id === id);
+    const freeOpeningSkins = skin ? this.weaponSkinsFor(skin.weaponClass).slice(1, 4).map((candidate) => candidate.id) : [];
+    return freeOpeningSkins.includes(id)
+      || this.progress.unlockedWeaponSkinIds.includes(id)
+      || this.isTemporaryUnlockActive(this.progress.weaponSkinTrialExpiresAt, id);
   }
 
   private normalizeTemporaryUnlocks() {
@@ -2440,9 +2457,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       this.weaponSkinPage = 0;
     }
     const weaponSkins = this.weaponSkinsFor(selectedWeapon.weaponClass);
-    const weaponSkinPageCount = Math.max(1, Math.ceil(weaponSkins.length / 6));
+    const weaponSkinPageCount = Math.max(1, Math.ceil(weaponSkins.length / 3));
     this.weaponSkinPage = clamp(this.weaponSkinPage, 0, weaponSkinPageCount - 1);
-    const pageSkins = weaponSkins.slice(this.weaponSkinPage * 6, this.weaponSkinPage * 6 + 6);
+    const pageSkins = weaponSkins.slice(this.weaponSkinPage * 3, this.weaponSkinPage * 3 + 3);
     if (!this.weaponSelectPreviewSkinId || !this.weaponSkins.some((skin) => skin.id === this.weaponSelectPreviewSkinId && skin.weaponClass === selectedWeapon.weaponClass)) {
       this.weaponSelectPreviewSkinId = this.equippedWeaponSkin(selectedWeapon.weaponClass).id;
     }
@@ -2539,10 +2556,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const skinGridColumnGap = Math.min(146, skinPanelWidth * 0.27);
     const skinGridTop = skinPanelTopY + 126;
     const skinGridRowGap = 104;
-    const skinCardImageSize = this.compactUi() ? 92 : 104;
+    const skinCardImageSize = this.compactUi() ? 102 : 116;
     pageSkins.forEach((skin, index) => {
       const column = index % 3;
-      const row = Math.floor(index / 3);
+      const row = 0;
       const x = skinPanelX - skinGridColumnGap + column * skinGridColumnGap;
       const y = skinGridTop + row * skinGridRowGap;
       const unlocked = this.isWeaponSkinAvailable(skin.id);
@@ -2566,14 +2583,14 @@ export class HospitalBattleScene extends Phaser.Scene {
         wordWrap: { width: skinLabelWidth },
         align: 'center',
         lineSpacing: 1,
-      }).setOrigin(0.5).setFixedSize(skinLabelWidth, 50).setFontStyle('bold'));
+      }).setOrigin(0.5).setFixedSize(skinLabelWidth, 68).setFontStyle('bold'));
       layer.add(card);
       this.uiActionRegions.push({
         phase: this.phase,
         x,
         y,
         width: 150,
-        height: 104,
+        height: 132,
         callback: () => { this.weaponSelectPreviewSkinId = skin.id; this.showWeaponSelect(mode, this.selectedStartFloor); },
         setPressed: (pressed) => card.setScale(pressed ? 0.96 : 1),
       });
@@ -3749,10 +3766,10 @@ export class HospitalBattleScene extends Phaser.Scene {
     const skinPanelX = clamp(965 + layoutShift, safe.left + 285, safe.right - 285);
     const skinPanelY = this.safeBottomY(405, 250);
     const skinPanel = this.add.container(skinPanelX, skinPanelY);
-    if (this.textures.exists('profile-skin-background-v1')) skinPanel.add(this.add.image(0, 0, 'profile-skin-background-v1').setOrigin(0.5).setDisplaySize(560, 420).setAlpha(0.9));
-    else skinPanel.add(this.add.rectangle(0, 0, 560, 420, 0x09141b, 0.9));
+    if (this.textures.exists('profile-skin-background-v1')) skinPanel.add(this.add.image(0, 0, 'profile-skin-background-v1').setOrigin(0.5).setDisplaySize(620, 452).setAlpha(0.9));
+    else skinPanel.add(this.add.rectangle(0, 0, 620, 452, 0x09141b, 0.9));
     if (this.textures.exists('profile-skin-panel-frame-v1')) {
-      skinPanel.add(this.add.image(0, 0, 'profile-skin-panel-frame-v1').setOrigin(0.5).setDisplaySize(574, 383).setAlpha(0.96));
+      skinPanel.add(this.add.image(0, 0, 'profile-skin-panel-frame-v1').setOrigin(0.5).setDisplaySize(632, 422).setAlpha(0.96));
     }
     layer.add(skinPanel);
     const categories: Array<{ id: ProfileSkinCategory; label: string }> = [
@@ -3790,11 +3807,11 @@ export class HospitalBattleScene extends Phaser.Scene {
       });
     }
     const visibleSkins = this.skins.filter((skin) => this.profileSkinCategory === 'all' || this.profileSkinCategoryFor(skin) === this.profileSkinCategory);
-    const profileSkinPageCount = Math.max(1, Math.ceil(visibleSkins.length / 6));
+    const profileSkinPageCount = Math.max(1, Math.ceil(visibleSkins.length / 3));
     this.profileSkinPage = clamp(this.profileSkinPage, 0, profileSkinPageCount - 1);
-    const pageSkins = visibleSkins.slice(this.profileSkinPage * 6, this.profileSkinPage * 6 + 6);
+    const pageSkins = visibleSkins.slice(this.profileSkinPage * 3, this.profileSkinPage * 3 + 3);
     const skinGridTop = 324;
-    const skinGridColumnGap = 146;
+    const skinGridColumnGap = 154;
     // Keep the second row's nameplate inside the raster panel on compact
     // landscape viewports, with enough breathing room below the text.
     const skinGridGapY = 136;
@@ -3803,18 +3820,18 @@ export class HospitalBattleScene extends Phaser.Scene {
       const unlocked = this.isSkinAvailable(skin.id);
       const selected = skin.id === this.profilePreviewSkinId;
       const column = index % 3;
-      const row = Math.floor(index / 3);
+      const row = 0;
       const x = skinPanelX - skinGridColumnGap + column * skinGridColumnGap;
       const y = skinGridTop + row * skinGridGapY;
       const card = this.add.container(x, y);
       const frameIndex = unlocked ? (selected ? 1 : 0) : 2;
-      // Keep each page to two rows of three and enlarge the portrait without
+      // Keep each page to one centered row of three and enlarge the portrait without
       // changing its source aspect ratio.
       if (this.textures.exists('profile-skin-frame-v1')) {
-        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.58));
+        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(118, 220).setAlpha(unlocked ? 0.98 : 0.58));
       }
       const mini = this.addPatientSprite(card, 0, -8, 108, skin);
-      if (mini && mini.displayWidth > 68) mini.setDisplaySize(68, mini.displayHeight * 68 / mini.displayWidth);
+      if (mini && mini.displayWidth > 92) mini.setDisplaySize(92, mini.displayHeight * 92 / mini.displayWidth);
       if (mini && skin.id !== 'patient-default' && !this.skinHasCustomArt(skin)) mini.setTint(skin.color);
       // Keep locked skins fully readable; the lock frame and a light veil
       // communicate availability without making the character disappear.
@@ -3822,18 +3839,18 @@ export class HospitalBattleScene extends Phaser.Scene {
       // A second frame pass keeps lock seals and edge ornament above the
       // portrait while preserving the original portrait proportions.
       if (this.textures.exists('profile-skin-frame-v1')) {
-        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(88, 176).setAlpha(unlocked ? 0.98 : 0.58));
+        card.add(this.add.image(0, 0, 'profile-skin-frame-v1', frameIndex).setOrigin(0.5).setDisplaySize(118, 220).setAlpha(unlocked ? 0.98 : 0.58));
       }
-      card.add(this.add.text(0, 112, this.uiLabel(skin.name), {
+      card.add(this.add.text(0, 122, this.uiLabel(skin.name), {
         fontFamily: 'Microsoft YaHei',
         fontSize: `${this.uiFontSize(14)}px`,
         color: unlocked ? palette.cream : palette.muted,
         stroke: '#071015',
         strokeThickness: 3,
-        wordWrap: { width: 136 },
+        wordWrap: { width: 148 },
         align: 'center',
         lineSpacing: 1,
-      }).setOrigin(0.5).setFixedSize(136, 46).setFontStyle('bold'));
+      }).setOrigin(0.5).setFixedSize(158, 72).setFontStyle('bold'));
       layer.add(card);
       // Selecting a card immediately updates the larger preview on the left.
       this.uiActionRegions.push({ phase: this.phase, x, y, width: 150, height: 168, callback: () => this.previewSkin(skin.id), setPressed: (pressed) => card.setScale(pressed ? 0.97 : 1) });
@@ -6279,6 +6296,12 @@ export class HospitalBattleScene extends Phaser.Scene {
         wordWrap: { width: textWidth - 10 },
         lineSpacing: 4,
       }).setOrigin(0.5).setFixedSize(textWidth, 76));
+      // Keep the container as the single input target so the whole raster card
+      // responds consistently, including clicks on text and the icon.
+      card.list.forEach((child) => {
+        const inputChild = child as Phaser.GameObjects.GameObject & { disableInteractive?: () => void };
+        inputChild.disableInteractive?.();
+      });
       layer.add(card);
       const applyChoice = (fromCard = false) => {
         if (this.phase !== 'upgrade') return;
@@ -6306,7 +6329,32 @@ export class HospitalBattleScene extends Phaser.Scene {
       card.on('pointerover', () => selectionFrame.setVisible(true));
       card.on('pointerout', () => selectionFrame.setVisible(false));
       card.on('pointerdown', () => selectionFrame.setVisible(true));
-      card.on('pointerup', () => applyChoice(true));
+      // `pointertap` is the reliable Phaser gesture on touch devices; retain
+      // pointerup for desktop/mouse and guard duplicate activation per phase.
+      let cardActivated = false;
+      const activateCard = () => {
+        if (cardActivated || this.phase !== 'upgrade') return;
+        cardActivated = true;
+        applyChoice(true);
+      };
+      card.on('pointerup', activateCard);
+      card.on('pointertap', activateCard);
+      card.on('pointerupoutside', () => selectionFrame.setVisible(false));
+      // Register the card itself in the native canvas hit map. Mobile shells
+      // can swallow Phaser's container pointerup, while native pointer events
+      // still arrive reliably for touch input.
+      this.uiActionRegions.push({
+        phase: this.phase,
+        x,
+        y: cardY,
+        width: cardWidth,
+        height: cardHeight,
+        callback: () => applyChoice(true),
+        setPressed: (pressed) => selectionFrame.setVisible(pressed),
+      });
+      // Keep an explicit touch target below each card for mobile shells where
+      // container pointerup can be swallowed by the canvas gesture bridge.
+      this.addButton(layer, x, cardY + cardHeight / 2 + 28, Math.min(180, cardWidth - 20), 38, '选择', () => applyChoice(true), 'primary', 6);
     });
     const paidRefresh = upgradeRefreshRequiresPayment(this.upgradeRefreshCount);
     const refreshLabel = this.upgradePaymentPending

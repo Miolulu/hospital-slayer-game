@@ -1,14 +1,6 @@
-@font-face {
-  font-family: "HospitalPixel";
-  src: url("/assets/fonts/hospital-ui.otf") format("opentype");
-  font-style: normal;
-  font-weight: 400 800;
-  font-display: swap;
-}
-
 :root {
   color-scheme: dark;
-  font-family: "HospitalPixel", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
   background: #0b1117;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -89,7 +81,7 @@ html, body, #app, #game-shell {
   min-height: 18px;
   margin-top: 10px;
   color: var(--muted);
-  font: 12px/1.2 "HospitalPixel", "Noto Sans SC", sans-serif;
+  font: 12px/1.2 "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 
 .loading-status[data-error="true"] {
@@ -191,7 +183,7 @@ canvas {
 }
 
 .orientation-card strong {
-  font: 700 20px "HospitalPixel", "Noto Sans SC", sans-serif;
+  font: 700 20px "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 
 .orientation-card span {
@@ -201,7 +193,7 @@ canvas {
 
 .orientation-glyph {
   color: var(--amber);
-  font: 700 42px/1 "HospitalPixel", "Noto Sans SC", monospace;
+  font: 700 42px/1 ui-monospace, "Microsoft YaHei", monospace;
 }
 
 @media (orientation: portrait) {
