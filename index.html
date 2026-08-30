@@ -17,10 +17,10 @@
     <main id="app" aria-label="我在精神病院斩神 30 层克苏鲁像素风试玩">
       <div id="loading-screen" aria-live="polite" aria-busy="true">
         <div class="loading-stack" role="status">
-          <img src="/assets/art/ui/loading-octopus-v1.png" alt="" class="loading-octopus" />
-          <img src="/assets/art/ui/loading-title-v1.png" alt="正在进入病区..." class="loading-title-art" />
+          <img data-builda-asset="res/art/ui/loading-octopus-v1.png" alt="" class="loading-octopus" />
+          <img data-builda-asset="res/art/ui/loading-title-v1.png" alt="正在进入病区..." class="loading-title-art" />
           <div class="loading-progress-cluster">
-            <img id="loading-progress-ring" src="/assets/art/ui/loading-icon-v1.png" alt="" class="loading-progress-icon" style="--progress: 0%" />
+            <img id="loading-progress-ring" data-builda-asset="res/art/ui/loading-icon-v1.png" alt="" class="loading-progress-icon" style="--progress: 0%" />
             <div id="loading-progress-value" class="loading-progress-value">0%</div>
           </div>
           <div id="loading-status" class="loading-status">正在加载病区资源  0%</div>
@@ -36,6 +36,15 @@
         </div>
       </section>
     </main>
+    <script>
+      document.querySelectorAll('[data-builda-asset]').forEach(function (image) {
+        var path = image.getAttribute('data-builda-asset');
+        if (!path) return;
+        image.src = window.Builda && window.Builda.assets && window.Builda.assets.url
+          ? window.Builda.assets.url(path)
+          : '/' + path.replace(/^res\//, 'assets/');
+      });
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

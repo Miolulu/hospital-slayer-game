@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: './',
+  // Production art is uploaded as a Builda assets package under res/**.
+  // Keep public/ available in Vite dev, but do not duplicate it in dist/.
+  publicDir: command === 'build' ? false : 'public',
   plugins: [
     {
       name: 'builda-static-style-compat',
@@ -23,4 +26,4 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 1400,
   },
-});
+}));
