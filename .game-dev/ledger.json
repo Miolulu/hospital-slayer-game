@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3658,
-                     "lastCheckedAt":  "2026-08-30T19:30:31.524+08:00",
+                     "lastCheckedAt":  "2026-08-30T19:32:01.559+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -465,6 +465,7 @@
                            ,"documentFetchLatestR28": "passed: Feishu revision 3658 rechecked at 2026-08-30 19:27; no new opinions or version changes; five previously tracked pending items remain unchanged."
                            ,"documentFetchLatestR29": "passed: Feishu revision 3658 rechecked at 2026-08-30 19:29; no new opinions or version changes; five previously tracked pending items remain unchanged."
                            ,"documentFetchLatestR30": "passed: Feishu revision 3658 rechecked at 2026-08-30 19:30; no new opinions or version changes; five previously tracked pending items remain unchanged."
+                           ,"documentFetchLatestR31": "passed: Feishu revision 3658 rechecked at 2026-08-30 19:32; no new opinions or version changes; five previously tracked pending items remain unchanged."
                            ,"combatHudPositionR1": "passed: 波次提示继续上移 24 个逻辑像素，XP/SAN 状态栏移动到左下角；桌面与 844x390 手机横屏预览确认无裁切、无遮挡；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 17:35）。"
                       }
 }
