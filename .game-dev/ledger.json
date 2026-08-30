@@ -435,5 +435,6 @@
                            ,"upgradeCardTouchRetest":  "passed: 844x390 手机横屏预览中点击升级卡牌本体后成功回到第 2/10 波战斗；卡牌使用原生 PointerEvent 热区、指针捕获和取消清理；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 15:53）。"
                            ,"combatHudMinimal":  "passed: 战斗 HUD 左下移除 hud-status-frame-v2 外框、圆形武器槽、武器图标和名称，仅保留 XP/SAN 标签与竖向状态条；1280x720 与 844x390 预览确认；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 16:29）。",
                            "waveHudLayoutSpacing":  "passed: 波次 HUD 整体上移并拉开两行基线间距；桌面与手机横屏预览均无文字重叠；npm.cmd test 与 npm.cmd run build 通过（2026-08-30 16:57）。"
+                           ,"waveHudLayoutSpacingR2": "passed: wave HUD moved up by 24 logical pixels; desktop and 844x390 mobile landscape previews confirmed no top clipping or text overlap; npm.cmd test 52 tests passed and npm.cmd run build passed (2026-08-30 17:10)."
                       }
 }
