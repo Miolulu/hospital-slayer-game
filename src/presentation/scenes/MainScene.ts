@@ -1645,12 +1645,12 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui.add(panel);
     this.hud.sanOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0xc44557, 0).setDepth(0);
     this.ui.add(this.hud.sanOverlay);
-    const wavePanel = this.add.container(safe.centerX, this.safeTopY(14, 4)).setDepth(26).setScrollFactor(0, 0, true);
+    const wavePanel = this.add.container(safe.centerX, this.safeTopY(4, 2)).setDepth(26).setScrollFactor(0, 0, true);
     this.hud.wavePanel = wavePanel;
     this.ui.add(wavePanel);
-    this.hud.wave = text(0, -12, '第 1 / 10 波', this.uiFontSize(27, 1.65), palette.amber).setOrigin(0.5).setFontStyle('bold');
-    this.hud.timer = text(0, 19, '倒计时 30 秒', this.uiFontSize(18, 1.7), palette.cream).setOrigin(0.5);
-    this.hud.waveCleared = text(0, 47, '', this.uiFontSize(16, 1.55), palette.green).setOrigin(0.5).setFontStyle('bold');
+    this.hud.wave = text(0, -18, '第 1 / 10 波', this.uiFontSize(27, 1.65), palette.amber).setOrigin(0.5).setFontStyle('bold');
+    this.hud.timer = text(0, 23, '倒计时 30 秒', this.uiFontSize(18, 1.7), palette.cream).setOrigin(0.5);
+    this.hud.waveCleared = text(0, 55, '', this.uiFontSize(16, 1.55), palette.green).setOrigin(0.5).setFontStyle('bold');
     wavePanel.add(this.hud.wave);
     wavePanel.add(this.hud.timer);
     wavePanel.add(this.hud.waveCleared);
@@ -1798,7 +1798,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     const safe = this.pageSafeBounds(0);
     const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120 - safeBottom);
     this.hud.panel?.setPosition(panelAnchor.x, panelAnchor.y);
-    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(14, 4));
+    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(4, 2));
     this.hud.resourcePanel?.setPosition(W - 122 - Math.max(0, capsuleRight - 20), safeTop + 36);
   }
 
@@ -1950,7 +1950,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.hud.wave?.setScrollFactor(0, 0);
     this.hud.timer?.setScrollFactor(0, 0);
     this.hud.waveCleared?.setScrollFactor(0, 0);
-    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(14, 4)).setScrollFactor(0, 0, true).setDepth(26);
+    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(4, 2)).setScrollFactor(0, 0, true).setDepth(26);
     this.hud.resourcePanel?.setScrollFactor(0, 0, true).setDepth(26);
     this.hud.kills?.setScrollFactor(0, 0);
     this.hud.skillIcon?.setScrollFactor(0, 0);

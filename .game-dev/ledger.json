@@ -433,6 +433,7 @@
                            "buildaDraftUploadAlphaPreservingR9":  "passed: alpha 保真 PNG 草稿同步完成；gameId GD:48356599:1，currentVersionId 987c6c21-6d08-5888-bab3-4e574fefc3e3，bundleVersion a2ee76f5aa4225f305261036109c4b5e，bundleSize 144181036 字节，cysjSyncStatus=synced，公开发布待用户操作。"
                            ,"buildaDraftReconcileLatest":  "passed: 发现同一 Bundle a2ee76f5aa4225f305261036109c4b5e 被平台再次同步，当前草稿 versionId=0fb5b10c-7570-58a3-a08b-76e648045003，bundleSize=144181036 字节，未公开发布。源代码和素材无新增改动。"
                            ,"upgradeCardTouchRetest":  "passed: 844x390 手机横屏预览中点击升级卡牌本体后成功回到第 2/10 波战斗；卡牌使用原生 PointerEvent 热区、指针捕获和取消清理；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 15:53）。"
-                           ,"combatHudMinimal":  "passed: 战斗 HUD 左下移除 hud-status-frame-v2 外框、圆形武器槽、武器图标和名称，仅保留 XP/SAN 标签与竖向状态条；1280x720 与 844x390 预览确认；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 16:29）。"
+                           ,"combatHudMinimal":  "passed: 战斗 HUD 左下移除 hud-status-frame-v2 外框、圆形武器槽、武器图标和名称，仅保留 XP/SAN 标签与竖向状态条；1280x720 与 844x390 预览确认；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 16:29）。",
+                           "waveHudLayoutSpacing":  "passed: 波次 HUD 整体上移并拉开两行基线间距；桌面与手机横屏预览均无文字重叠；npm.cmd test 与 npm.cmd run build 通过（2026-08-30 16:57）。"
                       }
 }
