@@ -3,7 +3,7 @@
                      "url":  "https://kbcineyoxn.feishu.cn/wiki/EmhWwixTyi3ATuk6MhNcGYFpnWc",
                      "documentId":  "MivtdorwjoYUORxTQYgcGRIjnad",
                      "revision":  3658,
-                     "lastCheckedAt":  "2026-08-30T16:39:28.697+08:00",
+                     "lastCheckedAt":  "2026-08-30T17:35:20.000+08:00",
                      "completedCheckboxes":  54,
                      "pendingCheckboxes":  5
                  },
@@ -436,6 +436,7 @@
                            ,"combatHudMinimal":  "passed: 战斗 HUD 左下移除 hud-status-frame-v2 外框、圆形武器槽、武器图标和名称，仅保留 XP/SAN 标签与竖向状态条；1280x720 与 844x390 预览确认；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 16:29）。",
                            "waveHudLayoutSpacing":  "passed: 波次 HUD 整体上移并拉开两行基线间距；桌面与手机横屏预览均无文字重叠；npm.cmd test 与 npm.cmd run build 通过（2026-08-30 16:57）。"
                            ,"waveHudLayoutSpacingR2": "passed: wave HUD moved up by 24 logical pixels; desktop and 844x390 mobile landscape previews confirmed no top clipping or text overlap; npm.cmd test 52 tests passed and npm.cmd run build passed (2026-08-30 17:10)."
-                           ,"documentFetchLatestR2": "passed: Feishu revision 3658 rechecked at 2026-08-30 17:15; no new opinions or version changes; five previously tracked pending items remain unchanged."
+                           ,"documentFetchLatestR2": "passed: Feishu revision 3658 rechecked at 2026-08-30 17:35; no new opinions or version changes; five previously tracked pending items remain unchanged."
+                           ,"combatHudPositionR1": "passed: 波次提示继续上移 24 个逻辑像素，XP/SAN 状态栏移动到左下角；桌面与 844x390 手机横屏预览确认无裁切、无遮挡；npm.cmd test 52 项通过，npm.cmd run build 通过（2026-08-30 17:35）。"
                       }
 }

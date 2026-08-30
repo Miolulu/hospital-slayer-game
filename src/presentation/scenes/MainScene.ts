@@ -1635,7 +1635,7 @@ export class HospitalBattleScene extends Phaser.Scene {
   private buildHud() {
     const text = (x: number, y: number, value: string, size = 16, color = palette.cream) => this.add.text(x, y, value, { fontFamily: 'Microsoft YaHei', fontSize: `${size}px`, color, lineSpacing: 3 });
     const safe = this.pageSafeBounds(0);
-    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120);
+    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 24);
     // 固定 HUD 只保留 SAN、经验和当前武器，统一放进美术贴图预留区。
     // Keep the compact status group inside the left safe edge. The bars and
     // weapon slot are laid out from a single fixed anchor so no part clips on
@@ -1645,7 +1645,7 @@ export class HospitalBattleScene extends Phaser.Scene {
     this.ui.add(panel);
     this.hud.sanOverlay = this.add.rectangle(W / 2, H / 2, W, H, 0xc44557, 0).setDepth(0);
     this.ui.add(this.hud.sanOverlay);
-    const wavePanel = this.add.container(safe.centerX, this.safeTopY(4, 2) - 24).setDepth(26).setScrollFactor(0, 0, true);
+    const wavePanel = this.add.container(safe.centerX, this.safeTopY(4, 2) - 48).setDepth(26).setScrollFactor(0, 0, true);
     this.hud.wavePanel = wavePanel;
     this.ui.add(wavePanel);
     this.hud.wave = text(0, -18, '第 1 / 10 波', this.uiFontSize(27, 1.65), palette.amber).setOrigin(0.5).setFontStyle('bold');
@@ -1796,9 +1796,9 @@ export class HospitalBattleScene extends Phaser.Scene {
       : this.buildaSafeArea.right * scaleX + 20;
     const safeBottom = this.buildaSafeArea.bottom * scaleY;
     const safe = this.pageSafeBounds(0);
-    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120 - safeBottom);
+    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 24 - safeBottom);
     this.hud.panel?.setPosition(panelAnchor.x, panelAnchor.y);
-    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(4, 2) - 24);
+    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(4, 2) - 48);
     this.hud.resourcePanel?.setPosition(W - 122 - Math.max(0, capsuleRight - 20), safeTop + 36);
   }
 
@@ -1943,14 +1943,14 @@ export class HospitalBattleScene extends Phaser.Scene {
     const scaleY = canvasRect?.height ? H / canvasRect.height : 1;
     const safeBottom = this.buildaSafeArea.bottom * scaleY;
     const safe = this.pageSafeBounds(0);
-    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 120 - safeBottom);
+    const panelAnchor = this.cameraZoomAdjustedUiPoint(safe.left + 12, H - 24 - safeBottom);
     this.ui.setPosition(0, 0).setDepth(100).setAlpha(1).setScrollFactor(0, 0, true).setVisible(visible);
     this.hud.panel?.setPosition(panelAnchor.x, panelAnchor.y).setScrollFactor(0, 0, true).setDepth(25);
     this.hud.sanOverlay?.setScrollFactor(0, 0);
     this.hud.wave?.setScrollFactor(0, 0);
     this.hud.timer?.setScrollFactor(0, 0);
     this.hud.waveCleared?.setScrollFactor(0, 0);
-    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(4, 2) - 24).setScrollFactor(0, 0, true).setDepth(26);
+    this.hud.wavePanel?.setPosition(safe.centerX, this.safeTopY(4, 2) - 48).setScrollFactor(0, 0, true).setDepth(26);
     this.hud.resourcePanel?.setScrollFactor(0, 0, true).setDepth(26);
     this.hud.kills?.setScrollFactor(0, 0);
     this.hud.skillIcon?.setScrollFactor(0, 0);
