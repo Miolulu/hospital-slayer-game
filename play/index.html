@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="screen-orientation" content="landscape" />
+    <meta name="orientation" content="landscape" />
+    <meta name="x5-orientation" content="landscape" />
+    <meta name="theme-color" content="#0b1117" />
+    <script src="builda-sdk.js"></script>
+    <script>
+      window.Builda = window.Builda || {};
+    </script>
+    <title>我在精神病院斩神 · 30 层完整试玩</title>
+    <script type="module" src="./assets/index-MdYvOVOY.js"></script>
+    <link rel="stylesheet" href="./assets/index-CQtNa0x3.css">
+  </head>
+  <body>
+    <main id="app" aria-label="我在精神病院斩神 30 层克苏鲁像素风试玩">
+      <div id="loading-screen" aria-live="polite" aria-busy="true">
+        <div class="loading-stack" role="status">
+          <img data-builda-asset="res/art/ui/loading-octopus-v1.png" alt="" class="loading-octopus" />
+          <img data-builda-asset="res/art/ui/loading-title-v1.png" alt="正在进入病区..." class="loading-title-art" />
+          <div class="loading-progress-cluster">
+            <img id="loading-progress-ring" data-builda-asset="res/art/ui/loading-icon-v1.png" alt="" class="loading-progress-icon" style="--progress: 0%" />
+            <div id="loading-progress-value" class="loading-progress-value">0%</div>
+          </div>
+          <div id="loading-status" class="loading-status">正在加载病区资源  0%</div>
+          <button id="loading-retry" class="loading-retry" type="button" hidden>重试加载资源</button>
+        </div>
+      </div>
+      <div id="game-shell"></div>
+      <section id="orientation-guard" aria-live="polite">
+        <div class="orientation-card">
+          <div class="orientation-glyph" aria-hidden="true">↔</div>
+          <strong>请旋转设备至横屏</strong>
+          <span>本 Demo 仅支持横屏战斗</span>
+        </div>
+      </section>
+    </main>
+    <script>
+      document.querySelectorAll('[data-builda-asset]').forEach(function (image) {
+        var path = image.getAttribute('data-builda-asset');
+        if (!path) return;
+        image.src = window.Builda && window.Builda.assets && window.Builda.assets.url
+          ? window.Builda.assets.url(path)
+          : '/' + path.replace(/^res\//, 'assets/');
+      });
+    </script>
+  </body>
+</html>
