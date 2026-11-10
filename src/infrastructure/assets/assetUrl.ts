@@ -7,6 +7,13 @@ export function assetUrl(path: string): string {
   // Catalog modules may resolve paths during startup. Keep a second resolve
   // idempotent so those absolute CDN URLs are safe to pass to the loader.
   if (/^https?:\/\//i.test(path.trim())) return path;
+  // The same assetUrl() is applied both when a catalog module builds its
+  // definition and again when MainScene wraps that definition for lazy loading.
+  // If the input is already a resolved asset URL (the Builda SDK prefixes its
+  // base, which always ends in "public/assets/"), reuse it verbatim instead of
+  // re-prefixing the base a second time (that double prefix 404s every
+  // enemy/boss/skin/upgrade texture once you enter a battle).
+  if (normalized.includes('public/assets')) return `/${normalized}`;
   const remotePath = normalized.startsWith('assets/')
     ? `res/${normalized.slice('assets/'.length)}`
     : normalized.startsWith('res/') ? normalized : `res/${normalized}`;
