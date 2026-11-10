@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 /** Use browser system fonts so the HTML5 bundle does not ship a CJK font. */
 export const UI_FONT_FACE = 'Microsoft YaHei';
-export const UI_FONT_STACK = '"Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif';
+export const UI_FONT_STACK = '"hospital-ui", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif';
 export const UI_MONO_STACK = 'ui-monospace, "Microsoft YaHei", monospace';
 
 let installed = false;
@@ -14,6 +14,10 @@ let installed = false;
  */
 export function installUiTextTheme() {
   if (installed) return;
+  // Warm up the bundled hospital-ui webfont so canvas text can adopt it without a long fallback flash.
+  if (typeof document !== 'undefined' && 'fonts' in document) {
+    document.fonts.load('16px "hospital-ui"').catch(() => {});
+  }
   const factory = Phaser.GameObjects.GameObjectFactory.prototype as unknown as {
     text: (
       x: number,
