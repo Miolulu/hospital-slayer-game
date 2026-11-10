@@ -16,12 +16,12 @@ const attack = (kind: SmallEnemyAttackKind, file: string): SmallEnemyAttackArt =
 });
 
 export const SMALL_ENEMY_ATTACK_ARTS = [
-  attack('chaser', 'chaser-attack.png'),
-  attack('shooter', 'shooter-attack.png'),
-  attack('disruptor', 'disruptor-attack.png'),
-  attack('tentacle', 'tentacle-attack.png'),
-  attack('bomber', 'bomber-attack.png'),
-  attack('eye', 'eye-attack.png'),
+  attack('chaser', 'chaser-attack.webp'),
+  attack('shooter', 'shooter-attack.webp'),
+  attack('disruptor', 'disruptor-attack.webp'),
+  attack('tentacle', 'tentacle-attack.webp'),
+  attack('bomber', 'bomber-attack.webp'),
+  attack('eye', 'eye-attack.webp'),
 ] as const satisfies readonly SmallEnemyAttackArt[];
 
 export const SMALL_ENEMY_ATTACK_ART_BY_KIND = Object.fromEntries(

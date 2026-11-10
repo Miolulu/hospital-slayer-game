@@ -26,18 +26,18 @@ export const MOON_MOTH_QUEEN_ART = {
 } as const;
 
 export const MOON_MOTH_QUEEN_ART_IMAGES: BossArtImageSpec[] = [
-  { key: MOON_MOTH_QUEEN_ART.portraitKey, path: '/assets/art/enemies/bosses/moon-moth-queen/portrait.png' },
-  { key: MOON_MOTH_QUEEN_ART.deathKey, path: '/assets/art/enemies/bosses/moon-moth-queen/death-transparent.png' },
+  { key: MOON_MOTH_QUEEN_ART.portraitKey, path: '/assets/art/enemies/bosses/moon-moth-queen/portrait.webp' },
+  { key: MOON_MOTH_QUEEN_ART.deathKey, path: '/assets/art/enemies/bosses/moon-moth-queen/death-transparent.webp' },
   ...MOON_MOTH_QUEEN_ART.transformKeys.map((key, index) => ({
     key,
-    path: `/assets/art/enemies/bosses/moon-moth-queen/transform-${index + 1}.png`,
+    path: `/assets/art/enemies/bosses/moon-moth-queen/transform-${index + 1}.webp`,
   })),
 ];
 
 export const MOON_MOTH_QUEEN_ART_SHEETS: BossArtSheetSpec[] = [
   // 素材按 2x2 网格排列四帧，适配 2048 像素纹理限制。
-  { key: MOON_MOTH_QUEEN_ART.walkKey, path: '/assets/art/enemies/bosses/moon-moth-queen/walk-mobile.png', frameWidth: 543, frameHeight: 724 },
-  { key: MOON_MOTH_QUEEN_ART.attackKey, path: '/assets/art/enemies/bosses/moon-moth-queen/attack-mobile.png', frameWidth: 543, frameHeight: 724 },
+  { key: MOON_MOTH_QUEEN_ART.walkKey, path: '/assets/art/enemies/bosses/moon-moth-queen/walk-mobile.webp', frameWidth: 543, frameHeight: 724 },
+  { key: MOON_MOTH_QUEEN_ART.attackKey, path: '/assets/art/enemies/bosses/moon-moth-queen/attack-mobile.webp', frameWidth: 543, frameHeight: 724 },
 ];
 
 export const MOON_MOTH_QUEEN_WALK_FRAME_RATE = 7;

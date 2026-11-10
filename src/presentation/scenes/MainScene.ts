@@ -481,36 +481,36 @@ export class HospitalBattleScene extends Phaser.Scene {
   private skins: SkinDef[] = SKINS;
   private weaponSkins: WeaponSkinDef[] = [
     { id: 'sword-default', name: '基础病院刀', weaponClass: 'sword', color: 0xed716e, cost: 0, textureKey: 'weapon-sword', category: 'basic' },
-    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 10000, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.png', category: 'store' },
-    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.png', category: 'store' },
-    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.png', category: 'store' },
-    { id: 'sword-black-tide', name: '黑潮断罪刃', weaponClass: 'sword', color: 0x3b5164, cost: 40000, textureKey: 'weapon-skin-sword-black-tide', assetPath: '/assets/art/weapon-select/skin-sword-black-tide-clean.png', category: 'store' },
-    { id: 'sword-old-god-ritual', name: '旧神祭器刃', weaponClass: 'sword', color: 0x9a6bd1, cost: 40000, textureKey: 'weapon-skin-sword-old-god-ritual', assetPath: '/assets/art/weapon-select/skin-sword-old-god-ritual-clean.png', category: 'store' },
-    { id: 'sword-abyss-mouth', name: '深渊口器刃', weaponClass: 'sword', color: 0xe78a57, cost: 40000, textureKey: 'weapon-skin-sword-abyss-mouth', assetPath: '/assets/art/weapon-select/skin-sword-abyss-mouth-clean.png', category: 'store' },
-    { id: 'sword-moon-moth', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-sword-moon-moth', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-clean.png', dropOnly: true, category: 'boss' },
-    { id: 'sword-moon-moth-queen', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 45000, textureKey: 'weapon-skin-sword-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-clean.png', category: 'store' },
-    { id: 'sword-moon-moth-queen-gala', name: '月蚀蝶刃·华丽版', weaponClass: 'sword', color: 0xe8d4ff, cost: 50000, textureKey: 'weapon-skin-sword-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-gala-clean.png', category: 'store' },
+    { id: 'sword-cthulhu', name: '深渊裂刃', weaponClass: 'sword', color: 0x6bd3c1, cost: 10000, textureKey: 'weapon-skin-sword-cthulhu', assetPath: '/assets/art/weapon-select/skin-sword-cthulhu-clean.webp', category: 'store' },
+    { id: 'sword-fairytale', name: '怪诞童话', weaponClass: 'sword', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-sword-fairytale', assetPath: '/assets/art/weapon-select/skin-sword-fairytale-clean.webp', category: 'store' },
+    { id: 'sword-hero-tech', name: '英雄科技', weaponClass: 'sword', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-sword-hero-tech', assetPath: '/assets/art/weapon-select/skin-sword-hero-tech-clean.webp', category: 'store' },
+    { id: 'sword-black-tide', name: '黑潮断罪刃', weaponClass: 'sword', color: 0x3b5164, cost: 40000, textureKey: 'weapon-skin-sword-black-tide', assetPath: '/assets/art/weapon-select/skin-sword-black-tide-clean.webp', category: 'store' },
+    { id: 'sword-old-god-ritual', name: '旧神祭器刃', weaponClass: 'sword', color: 0x9a6bd1, cost: 40000, textureKey: 'weapon-skin-sword-old-god-ritual', assetPath: '/assets/art/weapon-select/skin-sword-old-god-ritual-clean.webp', category: 'store' },
+    { id: 'sword-abyss-mouth', name: '深渊口器刃', weaponClass: 'sword', color: 0xe78a57, cost: 40000, textureKey: 'weapon-skin-sword-abyss-mouth', assetPath: '/assets/art/weapon-select/skin-sword-abyss-mouth-clean.webp', category: 'store' },
+    { id: 'sword-moon-moth', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-sword-moon-moth', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-clean.webp', dropOnly: true, category: 'boss' },
+    { id: 'sword-moon-moth-queen', name: '月蚀蝶刃', weaponClass: 'sword', color: 0xb798e2, cost: 45000, textureKey: 'weapon-skin-sword-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-clean.webp', category: 'store' },
+    { id: 'sword-moon-moth-queen-gala', name: '月蚀蝶刃·华丽版', weaponClass: 'sword', color: 0xe8d4ff, cost: 50000, textureKey: 'weapon-skin-sword-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-sword-moon-moth-queen-gala-clean.webp', category: 'store' },
     { id: 'gun-default', name: '基础灯枪', weaponClass: 'gun', color: 0xf2bf62, cost: 0, textureKey: 'weapon-gun', category: 'basic' },
-    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.png', category: 'store' },
-    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.png', category: 'store' },
-    { id: 'gun-moon-moth', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-gun-moon-moth', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-clean.png', dropOnly: true, category: 'boss' },
-    { id: 'gun-ritual-relic', name: '教团遗物枪', weaponClass: 'gun', color: 0xe0c076, cost: 40000, textureKey: 'weapon-skin-gun-ritual-relic', assetPath: '/assets/art/weapon-select/skin-gun-ritual-relic-clean.png', category: 'store' },
-    { id: 'gun-cthulhu-eye', name: '克苏鲁眼脉冲器', weaponClass: 'gun', color: 0x6bd3c1, cost: 40000, textureKey: 'weapon-skin-gun-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-eye-clean.png', category: 'store' },
-    { id: 'gun-abyss-machinery', name: '深渊机件射器', weaponClass: 'gun', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-gun-abyss-machinery', assetPath: '/assets/art/weapon-select/skin-gun-abyss-machinery-clean.png', category: 'store' },
-    { id: 'gun-moon-moth-queen', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 45000, textureKey: 'weapon-skin-gun-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-clean.png', category: 'store' },
-    { id: 'gun-moon-moth-queen-gala', name: '蝶瞳脉冲枪·华丽版', weaponClass: 'gun', color: 0xe8d4ff, cost: 50000, textureKey: 'weapon-skin-gun-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-gala-clean.png', category: 'store' },
+    { id: 'gun-cthulhu', name: '深渊灯枪', weaponClass: 'gun', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-gun-cthulhu', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-clean.webp', category: 'store' },
+    { id: 'gun-fairytale', name: '童话脉冲枪', weaponClass: 'gun', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-gun-fairytale', assetPath: '/assets/art/weapon-select/skin-gun-fairytale-clean.webp', category: 'store' },
+    { id: 'gun-moon-moth', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 0, textureKey: 'weapon-skin-gun-moon-moth', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-clean.webp', dropOnly: true, category: 'boss' },
+    { id: 'gun-ritual-relic', name: '教团遗物枪', weaponClass: 'gun', color: 0xe0c076, cost: 40000, textureKey: 'weapon-skin-gun-ritual-relic', assetPath: '/assets/art/weapon-select/skin-gun-ritual-relic-clean.webp', category: 'store' },
+    { id: 'gun-cthulhu-eye', name: '克苏鲁眼脉冲器', weaponClass: 'gun', color: 0x6bd3c1, cost: 40000, textureKey: 'weapon-skin-gun-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-gun-cthulhu-eye-clean.webp', category: 'store' },
+    { id: 'gun-abyss-machinery', name: '深渊机件射器', weaponClass: 'gun', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-gun-abyss-machinery', assetPath: '/assets/art/weapon-select/skin-gun-abyss-machinery-clean.webp', category: 'store' },
+    { id: 'gun-moon-moth-queen', name: '蝶瞳脉冲枪', weaponClass: 'gun', color: 0xb798e2, cost: 45000, textureKey: 'weapon-skin-gun-moon-moth-queen', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-clean.webp', category: 'store' },
+    { id: 'gun-moon-moth-queen-gala', name: '蝶瞳脉冲枪·华丽版', weaponClass: 'gun', color: 0xe8d4ff, cost: 50000, textureKey: 'weapon-skin-gun-moon-moth-queen-gala', assetPath: '/assets/art/weapon-select/skin-gun-moon-moth-queen-gala-clean.webp', category: 'store' },
     { id: 'whip-default', name: '基础长鞭', weaponClass: 'whip', color: 0x8fd17c, cost: 0, textureKey: 'weapon-whip', category: 'basic' },
-    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 30000, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.png', category: 'store' },
-    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.png', category: 'store' },
-    { id: 'whip-bone-scale', name: '骨鳞祭鞭', weaponClass: 'whip', color: 0xd99263, cost: 40000, textureKey: 'weapon-skin-whip-bone-scale', assetPath: '/assets/art/weapon-select/skin-whip-bone-scale-clean.png', category: 'store' },
-    { id: 'whip-living-crown', name: '活体王冠鞭', weaponClass: 'whip', color: 0xb798e2, cost: 40000, textureKey: 'weapon-skin-whip-living-crown', assetPath: '/assets/art/weapon-select/skin-whip-living-crown-clean.png', category: 'store' },
-    { id: 'whip-prism-energy', name: '棱晶能量鞭', weaponClass: 'whip', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-whip-prism-energy', assetPath: '/assets/art/weapon-select/skin-whip-prism-energy-clean.png', category: 'store' },
+    { id: 'whip-cthulhu', name: '古神触须鞭', weaponClass: 'whip', color: 0x9a6bd1, cost: 30000, textureKey: 'weapon-skin-whip-cthulhu', assetPath: '/assets/art/weapon-select/skin-whip-cthulhu-clean.webp', category: 'store' },
+    { id: 'whip-fairytale', name: '梦魇童话鞭', weaponClass: 'whip', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-whip-fairytale', assetPath: '/assets/art/weapon-select/skin-whip-fairytale-clean.webp', category: 'store' },
+    { id: 'whip-bone-scale', name: '骨鳞祭鞭', weaponClass: 'whip', color: 0xd99263, cost: 40000, textureKey: 'weapon-skin-whip-bone-scale', assetPath: '/assets/art/weapon-select/skin-whip-bone-scale-clean.webp', category: 'store' },
+    { id: 'whip-living-crown', name: '活体王冠鞭', weaponClass: 'whip', color: 0xb798e2, cost: 40000, textureKey: 'weapon-skin-whip-living-crown', assetPath: '/assets/art/weapon-select/skin-whip-living-crown-clean.webp', category: 'store' },
+    { id: 'whip-prism-energy', name: '棱晶能量鞭', weaponClass: 'whip', color: 0x7ab9d0, cost: 40000, textureKey: 'weapon-skin-whip-prism-energy', assetPath: '/assets/art/weapon-select/skin-whip-prism-energy-clean.webp', category: 'store' },
     { id: 'cannon-default', name: '基础回声炮', weaponClass: 'cannon', color: 0xb798e2, cost: 0, textureKey: 'weapon-cannon', category: 'basic' },
-    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.png', category: 'store' },
-    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.png', category: 'store' },
-    { id: 'cannon-old-god-ring', name: '旧神骨环炮', weaponClass: 'cannon', color: 0xe5d47a, cost: 40000, textureKey: 'weapon-skin-cannon-old-god-ring', assetPath: '/assets/art/weapon-select/skin-cannon-old-god-ring-clean.png', category: 'store' },
-    { id: 'cannon-cthulhu-eye', name: '克苏鲁之眼炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 40000, textureKey: 'weapon-skin-cannon-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-eye-clean.png', category: 'store' },
-    { id: 'cannon-abyss-maw', name: '深渊巨口炮', weaponClass: 'cannon', color: 0xe78a57, cost: 40000, textureKey: 'weapon-skin-cannon-abyss-maw', assetPath: '/assets/art/weapon-select/skin-cannon-abyss-maw-clean.png', category: 'store' },
+    { id: 'cannon-cthulhu', name: '深渊回声炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 30000, textureKey: 'weapon-skin-cannon-cthulhu', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-clean.webp', category: 'store' },
+    { id: 'cannon-fairytale', name: '童话星陨炮', weaponClass: 'cannon', color: 0xed716e, cost: 30000, textureKey: 'weapon-skin-cannon-fairytale', assetPath: '/assets/art/weapon-select/skin-cannon-fairytale-clean.webp', category: 'store' },
+    { id: 'cannon-old-god-ring', name: '旧神骨环炮', weaponClass: 'cannon', color: 0xe5d47a, cost: 40000, textureKey: 'weapon-skin-cannon-old-god-ring', assetPath: '/assets/art/weapon-select/skin-cannon-old-god-ring-clean.webp', category: 'store' },
+    { id: 'cannon-cthulhu-eye', name: '克苏鲁之眼炮', weaponClass: 'cannon', color: 0x6bd3c1, cost: 40000, textureKey: 'weapon-skin-cannon-cthulhu-eye', assetPath: '/assets/art/weapon-select/skin-cannon-cthulhu-eye-clean.webp', category: 'store' },
+    { id: 'cannon-abyss-maw', name: '深渊巨口炮', weaponClass: 'cannon', color: 0xe78a57, cost: 40000, textureKey: 'weapon-skin-cannon-abyss-maw', assetPath: '/assets/art/weapon-select/skin-cannon-abyss-maw-clean.webp', category: 'store' },
   ];
   private waveBreakTimer = 0;
   private dailyBossRewardGranted = false;
@@ -684,23 +684,23 @@ export class HospitalBattleScene extends Phaser.Scene {
       kind: 'spritesheet', key, url: assetUrl(path), frameWidth, frameHeight,
     });
     const core: PhaserAssetDefinition[] = [
-      image('patient-boy', '/assets/art/patient-boy.png'),
-      image('patient-idle-front', '/assets/art/animations/patient-idle-front.png'),
-      ...(['left', 'right', 'up', 'down'] as PlayerDirection[]).map((direction) => sheet(`patient-walk-${direction}`, `/assets/art/animations/patient-walk-${direction}.png`, 192, 192)),
-      sheet('patient-hit', '/assets/art/animations/patient-hit.png', 192, 192),
-      sheet('patient-death', '/assets/art/animations/patient-death.png', 192, 192),
-      image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.png'),
-      image('menu-background-v1', '/assets/art/menu/menu-background-v1.png'),
-      image('menu-title-v2', '/assets/art/menu/menu-title-v2.png'),
-      image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.png'),
-      image('menu-button-mainline-v1', '/assets/art/menu/menu-button-mainline-v1.png'),
-      image('menu-button-daily-v1', '/assets/art/menu/menu-button-daily-v1.png'),
-      image('ward-day-v1', '/assets/art/ward-day-v1.png'),
-      image('ward-night-v1', '/assets/art/ward-night-v1.png'),
-      image('weapon-sword', '/assets/art/weapons/weapon-sword.png'),
-      image('effect-sword-neon-v1', '/assets/art/weapons/effect-sword-neon-v1.png'),
-      image('xp-drop-cthulhu-v1', '/assets/art/pickups/xp-drop-cthulhu-v1.png'),
-      image('hud-status-frame-v2', '/assets/art/ui/hud-status-frame-v2.png'),
+      image('patient-boy', '/assets/art/patient-boy.webp'),
+      image('patient-idle-front', '/assets/art/animations/patient-idle-front.webp'),
+      ...(['left', 'right', 'up', 'down'] as PlayerDirection[]).map((direction) => sheet(`patient-walk-${direction}`, `/assets/art/animations/patient-walk-${direction}.webp`, 192, 192)),
+      sheet('patient-hit', '/assets/art/animations/patient-hit.webp', 192, 192),
+      sheet('patient-death', '/assets/art/animations/patient-death.webp', 192, 192),
+      image('menu-ward-night-v1', '/assets/art/menu-ward-night-v1.webp'),
+      image('menu-background-v1', '/assets/art/menu/menu-background-v1.webp'),
+      image('menu-title-v2', '/assets/art/menu/menu-title-v2.webp'),
+      image('menu-button-archive-v1', '/assets/art/menu/menu-button-archive-v1.webp'),
+      image('menu-button-mainline-v1', '/assets/art/menu/menu-button-mainline-v1.webp'),
+      image('menu-button-daily-v1', '/assets/art/menu/menu-button-daily-v1.webp'),
+      image('ward-day-v1', '/assets/art/ward-day-v1.webp'),
+      image('ward-night-v1', '/assets/art/ward-night-v1.webp'),
+      image('weapon-sword', '/assets/art/weapons/weapon-sword.webp'),
+      image('effect-sword-neon-v1', '/assets/art/weapons/effect-sword-neon-v1.webp'),
+      image('xp-drop-cthulhu-v1', '/assets/art/pickups/xp-drop-cthulhu-v1.webp'),
+      image('hud-status-frame-v2', '/assets/art/ui/hud-status-frame-v2.webp'),
     ];
     core.forEach((definition) => {
       if (definition.kind === 'image') this.load.image(definition.key, definition.url);
@@ -720,31 +720,31 @@ export class HospitalBattleScene extends Phaser.Scene {
     const definitions: PhaserAssetDefinition[] = [];
     const image = (key: string, path: string) => definitions.push(this.delayedImage(key, path));
     const sheet = (key: string, path: string, frameWidth: number, frameHeight: number) => definitions.push(this.delayedSheet(key, path, frameWidth, frameHeight));
-    const uiText = (names: readonly string[]) => names.forEach((name) => image(`ui-text-${name}-v1`, `/assets/art/ui/text/ui-text-${name}-v1.png`));
+    const uiText = (names: readonly string[]) => names.forEach((name) => image(`ui-text-${name}-v1`, `/assets/art/ui/text/ui-text-${name}-v1.webp`));
 
     if (group === 'profile') {
       [
-        ['profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.png'],
-        ['profile-case-sheet-v1', '/assets/art/profile-case-sheet-v1.png'],
-        ['profile-case-sheet-v2', '/assets/art/profile-case-sheet-v2.png'],
-        ['profile-barcode-v1', '/assets/art/profile-barcode-v1.png'],
-        ['profile-skin-background-v1', '/assets/art/profile-skin-background-v1.png'],
-        ['profile-skin-panel-frame-v1', '/assets/art/profile-skin-panel-frame-v1.png'],
-        ['profile-evidence-corridor-v1', '/assets/art/profile-evidence-corridor-v1.png'],
-        ['ad-reward-v1', '/assets/art/ui/ad-reward-v1.png'],
-        ['back-icon-v1', '/assets/art/ui/back-icon-v1.png'],
-        ['profile-arrow-left-v1', '/assets/art/ui/profile-arrow-left-v1.png'],
-        ['profile-arrow-right-v1', '/assets/art/ui/profile-arrow-right-v1.png'],
-        ['ui-text-profile-tabs-v1', '/assets/art/ui/text/ui-text-profile-tabs-v1.png'],
+        ['profile-hospital-photo-v1', '/assets/art/profile-hospital-photo-v1.webp'],
+        ['profile-case-sheet-v1', '/assets/art/profile-case-sheet-v1.webp'],
+        ['profile-case-sheet-v2', '/assets/art/profile-case-sheet-v2.webp'],
+        ['profile-barcode-v1', '/assets/art/profile-barcode-v1.webp'],
+        ['profile-skin-background-v1', '/assets/art/profile-skin-background-v1.webp'],
+        ['profile-skin-panel-frame-v1', '/assets/art/profile-skin-panel-frame-v1.webp'],
+        ['profile-evidence-corridor-v1', '/assets/art/profile-evidence-corridor-v1.webp'],
+        ['ad-reward-v1', '/assets/art/ui/ad-reward-v1.webp'],
+        ['back-icon-v1', '/assets/art/ui/back-icon-v1.webp'],
+        ['profile-arrow-left-v1', '/assets/art/ui/profile-arrow-left-v1.webp'],
+        ['profile-arrow-right-v1', '/assets/art/ui/profile-arrow-right-v1.webp'],
+        ['ui-text-profile-tabs-v1', '/assets/art/ui/text/ui-text-profile-tabs-v1.webp'],
       ].forEach(([key, path]) => image(key, path));
-      sheet('profile-skin-frame-v1', '/assets/art/profile-skin-frame-v1.png', 512, 1024);
+      sheet('profile-skin-frame-v1', '/assets/art/profile-skin-frame-v1.webp', 512, 1024);
       PLAYER_SKIN_ART_IMAGES.forEach(({ key, path }) => image(key, path));
       PLAYER_SKIN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       this.skins.filter((skin) => skin.assetPrefix).forEach((skin) => {
         const root = `/assets/art/skins/${skin.assetPrefix}`;
-        image(this.skinFrontTextureKey(skin), `${root}/front.png`);
+        image(this.skinFrontTextureKey(skin), `${root}/front.webp`);
         (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
-          sheet(this.skinWalkTextureKey(skin, direction), `${root}/walk-${direction}.png`, 192, 192);
+          sheet(this.skinWalkTextureKey(skin, direction), `${root}/walk-${direction}.webp`, 192, 192);
         });
         if (skin.coverPath) image(this.skinCoverTextureKey(skin), skin.coverPath);
       });
@@ -752,17 +752,17 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     if (group === 'mainline') {
       [
-        ['mainline-background-v1', '/assets/art/mainline-background-v1.png'],
-        ['mainline-building-v1', '/assets/art/mainline-building-v1.png'],
-        ['mainline-building-v2', '/assets/art/mainline-building-v2.png'],
-        ['mainline-building-v3', '/assets/art/mainline-building-v3.png'],
-        ['mainline-floor-select-background-v1', '/assets/art/mainline-floor-select-background-v1.png'],
-        ['mainline-floor-locked-v1', '/assets/art/mainline-floor-locked-v1.png'],
-        ['mainline-floor-locked-selected-v1', '/assets/art/mainline-floor-locked-selected-v1.png'],
-        ['mainline-floor-unlocked-v1', '/assets/art/mainline-floor-unlocked-v1.png'],
-        ['mainline-floor-selected-v1', '/assets/art/mainline-floor-selected-v1.png'],
-        ['mainline-building-floor-shell-v1', '/assets/art/mainline-building-floor-shell-v1.png'],
-        ['mainline-floor-enemy-frame-v1', '/assets/art/mainline-floor-enemy-frame-v1.png'],
+        ['mainline-background-v1', '/assets/art/mainline-background-v1.webp'],
+        ['mainline-building-v1', '/assets/art/mainline-building-v1.webp'],
+        ['mainline-building-v2', '/assets/art/mainline-building-v2.webp'],
+        ['mainline-building-v3', '/assets/art/mainline-building-v3.webp'],
+        ['mainline-floor-select-background-v1', '/assets/art/mainline-floor-select-background-v1.webp'],
+        ['mainline-floor-locked-v1', '/assets/art/mainline-floor-locked-v1.webp'],
+        ['mainline-floor-locked-selected-v1', '/assets/art/mainline-floor-locked-selected-v1.webp'],
+        ['mainline-floor-unlocked-v1', '/assets/art/mainline-floor-unlocked-v1.webp'],
+        ['mainline-floor-selected-v1', '/assets/art/mainline-floor-selected-v1.webp'],
+        ['mainline-building-floor-shell-v1', '/assets/art/mainline-building-floor-shell-v1.webp'],
+        ['mainline-floor-enemy-frame-v1', '/assets/art/mainline-floor-enemy-frame-v1.webp'],
       ].forEach(([key, path]) => image(key, path));
       uiText(['mainline', 'status-waiting', 'boss-name', 'start-challenge']);
       SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
@@ -771,43 +771,43 @@ export class HospitalBattleScene extends Phaser.Scene {
 
     if (group === 'daily') {
       [
-        ['daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.png'],
-        ['daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.png'],
-        ['daily-ranking-frame-v1', '/assets/art/daily/daily-ranking-frame-v1.png'],
-        ['daily-panel-frame-v1', '/assets/art/daily/daily-panel-frame-v1.png'],
-        ['daily-start-button-v1', '/assets/art/daily/daily-start-button-v1.png'],
-        ['daily-ad-icon-v1', '/assets/art/ui/daily-ad-icon-v1.png'],
-        ['daily-ad-icon-monthly-v1', '/assets/art/ui/daily-ad-icon-monthly-v1.png'],
+        ['daily-challenge-background-v1', '/assets/art/daily-challenge-background-v1.webp'],
+        ['daily-challenge-background-v2', '/assets/art/daily/daily-background-v2.webp'],
+        ['daily-ranking-frame-v1', '/assets/art/daily/daily-ranking-frame-v1.webp'],
+        ['daily-panel-frame-v1', '/assets/art/daily/daily-panel-frame-v1.webp'],
+        ['daily-start-button-v1', '/assets/art/daily/daily-start-button-v1.webp'],
+        ['daily-ad-icon-v1', '/assets/art/ui/daily-ad-icon-v1.webp'],
+        ['daily-ad-icon-monthly-v1', '/assets/art/ui/daily-ad-icon-monthly-v1.webp'],
       ].forEach(([key, path]) => image(key, path));
-      (['first', 'second', 'third'] as const).forEach((rank) => image(`daily-rank-${rank}-v1`, `/assets/art/daily/daily-rank-${rank}-v1.png`));
+      (['first', 'second', 'third'] as const).forEach((rank) => image(`daily-rank-${rank}-v1`, `/assets/art/daily/daily-rank-${rank}-v1.webp`));
       uiText(['daily', 'boss-month', 'ranking', 'boss-drop', 'start-challenge']);
       MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => image(key, path));
       MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       // Relic assets are staged as WebP in the web bundle. Keep the runtime
       // paths aligned with the staged files so Daily Challenge does not
       // report missing relic-crown/relic-hood textures.
-      (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => image(relic, `/assets/art/${relic}.png`));
+      (['relic-crown', 'relic-fang', 'relic-hood'] as const).forEach((relic) => image(relic, `/assets/art/${relic}.webp`));
     }
 
     if (group === 'weapon') {
       [
-        ['weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.png'],
-        ['weapon-select-frame-skin-panel-v1', '/assets/art/weapon-select/weapon-select-frame-skin-panel-v1.png'],
-        ['ad-reward-v1', '/assets/art/ui/ad-reward-v1.png'],
+        ['weapon-select-background-v1', '/assets/art/weapon-select/weapon-select-background-v1.webp'],
+        ['weapon-select-frame-skin-panel-v1', '/assets/art/weapon-select/weapon-select-frame-skin-panel-v1.webp'],
+        ['ad-reward-v1', '/assets/art/ui/ad-reward-v1.webp'],
         // Weapon skin pagination uses the same mirrored arrow pair as the
         // profile archive. Load them with this group so page two never falls
         // back to Phaser's green missing-texture marker.
-        ['profile-arrow-left-v1', '/assets/art/ui/profile-arrow-left-v1.png'],
-        ['profile-arrow-right-v1', '/assets/art/ui/profile-arrow-right-v1.png'],
+        ['profile-arrow-left-v1', '/assets/art/ui/profile-arrow-left-v1.webp'],
+        ['profile-arrow-right-v1', '/assets/art/ui/profile-arrow-right-v1.webp'],
       ].forEach(([key, path]) => image(key, path));
-      (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.png`));
-      (['melee', 'ranged', 'magic', 'heavy'] as const).forEach((category) => image(`weapon-category-${category}`, `/assets/art/weapon-select/icons/weapon-category-${category}.png`));
-      (['sword', 'gun', 'whip', 'cannon'] as const).forEach((weaponClass) => image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.png`));
+      (['category', 'main', 'detail', 'skin-card', 'action-buy', 'action-equip', 'back'] as const).forEach((frame) => image(`weapon-select-frame-${frame}-v1`, `/assets/art/weapon-select/weapon-select-frame-${frame}-v1.webp`));
+      (['melee', 'ranged', 'magic', 'heavy'] as const).forEach((category) => image(`weapon-category-${category}`, `/assets/art/weapon-select/icons/weapon-category-${category}.webp`));
+      (['sword', 'gun', 'whip', 'cannon'] as const).forEach((weaponClass) => image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.webp`));
       this.weaponSkins.filter((skin) => skin.assetPath).forEach((skin) => image(skin.textureKey, skin.assetPath!));
     }
 
     if (group === 'battle') {
-      image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.png');
+      image('ward-night-deep-v1', '/assets/art/ward-night-deep-v1.webp');
       MAINLINE_BOSS_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       SMALL_ENEMY_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => sheet(key, path, frameWidth, frameHeight));
       SMALL_ENEMY_ATTACK_ARTS.forEach(({ key, path }) => image(key, path));
@@ -815,26 +815,26 @@ export class HospitalBattleScene extends Phaser.Scene {
       const showcaseSkin = this.skins.find((skin) => skin.id === TUTORIAL_SHOWCASE_SKIN_ID);
       if (showcaseSkin?.assetPrefix) {
         const root = `/assets/art/skins/${showcaseSkin.assetPrefix}`;
-        image(this.skinFrontTextureKey(showcaseSkin), `${root}/front.png`);
+        image(this.skinFrontTextureKey(showcaseSkin), `${root}/front.webp`);
         (['left', 'right', 'up', 'down'] as PlayerDirection[]).forEach((direction) => {
-          sheet(this.skinWalkTextureKey(showcaseSkin, direction), `${root}/walk-${direction}.png`, 192, 192);
+          sheet(this.skinWalkTextureKey(showcaseSkin, direction), `${root}/walk-${direction}.webp`, 192, 192);
         });
       }
-      (['gun', 'whip', 'cannon'] as const).forEach((weaponClass) => image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.png`));
-      image('effect-sword-neon-v1', '/assets/art/weapons/effect-sword-neon-v1.png');
-      image('effect-gun-neon-v1', '/assets/art/weapons/effect-gun-neon-v1.png');
-      image('effect-cannon-neon-v1', '/assets/art/weapons/effect-cannon-neon-v1.png');
-      image('effect-whip-neon-v1', '/assets/art/weapons/effect-whip-neon-v1.png');
-      image('ui-text-result-fail-v1', '/assets/art/ui/text/ui-text-result-fail-v1.png');
-      UPGRADE_ICON_KINDS.forEach((kind) => image(`upgrade-icon-${kind}`, `/assets/art/cards/icons/upgrade-icon-${kind}.png`));
-      image('upgrade-card-blue-v1', '/assets/art/cards/upgrade-card-blue-v1.png');
-      image('upgrade-card-purple-v1', '/assets/art/cards/upgrade-card-purple-v1.png');
-      image('upgrade-card-gold-v1', '/assets/art/cards/upgrade-card-gold-v1.png');
-      image('xp-drop-cthulhu-v1', '/assets/art/pickups/xp-drop-cthulhu-v1.png');
-      image('hud-status-frame-v2', '/assets/art/ui/hud-status-frame-v2.png');
+      (['gun', 'whip', 'cannon'] as const).forEach((weaponClass) => image(`weapon-${weaponClass}`, `/assets/art/weapons/weapon-${weaponClass}.webp`));
+      image('effect-sword-neon-v1', '/assets/art/weapons/effect-sword-neon-v1.webp');
+      image('effect-gun-neon-v1', '/assets/art/weapons/effect-gun-neon-v1.webp');
+      image('effect-cannon-neon-v1', '/assets/art/weapons/effect-cannon-neon-v1.webp');
+      image('effect-whip-neon-v1', '/assets/art/weapons/effect-whip-neon-v1.webp');
+      image('ui-text-result-fail-v1', '/assets/art/ui/text/ui-text-result-fail-v1.webp');
+      UPGRADE_ICON_KINDS.forEach((kind) => image(`upgrade-icon-${kind}`, `/assets/art/cards/icons/upgrade-icon-${kind}.webp`));
+      image('upgrade-card-blue-v1', '/assets/art/cards/upgrade-card-blue-v1.webp');
+      image('upgrade-card-purple-v1', '/assets/art/cards/upgrade-card-purple-v1.webp');
+      image('upgrade-card-gold-v1', '/assets/art/cards/upgrade-card-gold-v1.webp');
+      image('xp-drop-cthulhu-v1', '/assets/art/pickups/xp-drop-cthulhu-v1.webp');
+      image('hud-status-frame-v2', '/assets/art/ui/hud-status-frame-v2.webp');
       // The upgrade overlay is shown from the battle group. Keep its raster
       // frame in the same lazy-load group so the vector fallback is rarely used.
-      image('profile-skin-panel-frame-v1', '/assets/art/profile-skin-panel-frame-v1.png');
+      image('profile-skin-panel-frame-v1', '/assets/art/profile-skin-panel-frame-v1.webp');
     }
     return definitions;
   }

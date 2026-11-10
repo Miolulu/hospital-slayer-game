@@ -28,18 +28,18 @@ export const MOON_MOTH_QUEEN_ART = {
 } as const;
 
 export const MOON_MOTH_QUEEN_ART_IMAGES: BossArtImageSpec[] = [
-  { key: MOON_MOTH_QUEEN_ART.portraitKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/portrait.png') },
-  { key: MOON_MOTH_QUEEN_ART.deathKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/death-transparent.png') },
+  { key: MOON_MOTH_QUEEN_ART.portraitKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/portrait.webp') },
+  { key: MOON_MOTH_QUEEN_ART.deathKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/death-transparent.webp') },
   ...MOON_MOTH_QUEEN_ART.transformKeys.map((key, index) => ({
     key,
-    path: assetUrl(`/assets/art/enemies/bosses/moon-moth-queen/transform-${index + 1}.png`),
+    path: assetUrl(`/assets/art/enemies/bosses/moon-moth-queen/transform-${index + 1}.webp`),
   })),
 ];
 
 export const MOON_MOTH_QUEEN_ART_SHEETS: BossArtSheetSpec[] = [
   // 素材是横向排列的四帧动画，每帧尺寸为 543x724。
-  { key: MOON_MOTH_QUEEN_ART.walkKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/walk-mobile.png'), frameWidth: 543, frameHeight: 724 },
-  { key: MOON_MOTH_QUEEN_ART.attackKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/attack-mobile.png'), frameWidth: 543, frameHeight: 724 },
+  { key: MOON_MOTH_QUEEN_ART.walkKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/walk-mobile.webp'), frameWidth: 543, frameHeight: 724 },
+  { key: MOON_MOTH_QUEEN_ART.attackKey, path: assetUrl('/assets/art/enemies/bosses/moon-moth-queen/attack-mobile.webp'), frameWidth: 543, frameHeight: 724 },
 ];
 
 export const MOON_MOTH_QUEEN_WALK_FRAME_RATE = 7;

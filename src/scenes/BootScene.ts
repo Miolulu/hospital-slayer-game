@@ -9,24 +9,24 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
   preload() {
-    this.load.image('workshop-background', '/assets/art/workshop-background.png');
-    this.load.image('storybook-background', '/assets/art/storybook-background.png');
-    this.load.image('forest-red-background', '/assets/art/forest-red-background.png');
-    this.load.image('cat-alchemist', '/assets/art/cat-alchemist.png');
-    this.load.image('armor-scarlet-string', '/assets/art/armor-scarlet-string.png');
-    this.load.image('armor-thorn-wolf', '/assets/art/armor-thorn-wolf.png');
+    this.load.image('workshop-background', '/assets/art/workshop-background.webp');
+    this.load.image('storybook-background', '/assets/art/storybook-background.webp');
+    this.load.image('forest-red-background', '/assets/art/forest-red-background.webp');
+    this.load.image('cat-alchemist', '/assets/art/cat-alchemist.webp');
+    this.load.image('armor-scarlet-string', '/assets/art/armor-scarlet-string.webp');
+    this.load.image('armor-thorn-wolf', '/assets/art/armor-thorn-wolf.webp');
     MOON_MOTH_QUEEN_ART_IMAGES.forEach(({ key, path }) => this.load.image(key, path));
     MOON_MOTH_QUEEN_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => this.load.spritesheet(key, path, { frameWidth, frameHeight }));
-    this.load.image('ui-command-frame', '/assets/art/ui-command-frame.png');
-    this.load.image('ui-alchemy-panel', '/assets/art/ui-alchemy-panel.png');
-    this.load.image('ui-title-plaque', '/assets/art/ui-title-plaque.png');
-    this.load.image('ui-round-frame', '/assets/art/ui-round-frame.png');
-    this.load.image('ui-cauldron', '/assets/art/ui-cauldron.png');
-    this.load.image('ui-potion-bottle', '/assets/art/ui-potion-bottle.png');
+    this.load.image('ui-command-frame', '/assets/art/ui-command-frame.webp');
+    this.load.image('ui-alchemy-panel', '/assets/art/ui-alchemy-panel.webp');
+    this.load.image('ui-title-plaque', '/assets/art/ui-title-plaque.webp');
+    this.load.image('ui-round-frame', '/assets/art/ui-round-frame.webp');
+    this.load.image('ui-cauldron', '/assets/art/ui-cauldron.webp');
+    this.load.image('ui-potion-bottle', '/assets/art/ui-potion-bottle.webp');
     MAINLINE_BOSS_ART_IMAGES.forEach(({ key, path }) => this.load.image(key, path));
     MAINLINE_BOSS_ART_SHEETS.forEach(({ key, path, frameWidth, frameHeight }) => this.load.spritesheet(key, path, { frameWidth, frameHeight }));
     for (const id of ['hood', 'heart', 'bean', 'fang', 'thread', 'crown', 'shoe']) {
-      this.load.image(`relic-${id}`, `/assets/art/relic-${id}.png`);
+      this.load.image(`relic-${id}`, `/assets/art/relic-${id}.webp`);
     }
   }
 

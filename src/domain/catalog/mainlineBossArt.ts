@@ -66,11 +66,11 @@ export const MAINLINE_BOSS_ART_VARIANT_LIST = Object.values(MAINLINE_BOSS_ART_VA
 export const MAINLINE_BOSS_ART_VARIANT_BY_ID = MAINLINE_BOSS_ART_VARIANTS;
 
 export const MAINLINE_BOSS_ART_IMAGES = MAINLINE_BOSS_ART_VARIANT_LIST.flatMap((variant) => ([
-  { key: variant.portraitKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/portrait.png`) },
-  { key: variant.deathKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/death.png`) },
+  { key: variant.portraitKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/portrait.webp`) },
+  { key: variant.deathKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/death.webp`) },
 ]));
 
 export const MAINLINE_BOSS_ART_SHEETS = MAINLINE_BOSS_ART_VARIANT_LIST.flatMap((variant) => ([
-  { key: variant.walkKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/walk.png`), frameWidth: variant.walkFrameWidth, frameHeight: variant.walkFrameHeight },
-  { key: variant.attackKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/attack.png`), frameWidth: variant.attackFrameWidth, frameHeight: variant.attackFrameHeight },
+  { key: variant.walkKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/walk.webp`), frameWidth: variant.walkFrameWidth, frameHeight: variant.walkFrameHeight },
+  { key: variant.attackKey, path: assetUrl(`/assets/art/enemies/bosses/${variant.id}/attack.webp`), frameWidth: variant.attackFrameWidth, frameHeight: variant.attackFrameHeight },
 ]));
